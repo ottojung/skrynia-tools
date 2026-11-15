@@ -1,10 +1,14 @@
-use super::types::SkryniaClient;
+use super::{errors::ClientError, types::SkryniaClient};
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 impl SkryniaClient {
     pub fn read(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        let response = self.http.get(self.path(&["store", key])?).send()?;
+        let response = self
+            .http
+            .get(self.path(&["store", key])?)
+            .send()
+            .map_err(|source| ClientError::Transport { source })?;
         if Self::not_found(response.status()) {
             return Ok(None);
         }
@@ -22,6 +26,10 @@ impl SkryniaClient {
             url.query_pairs_mut().append_pair("after", after);
         }
         let req = self.auth(self.http.get(url))?;
-        Ok(Self::success(req.send()?)?.json()?)
+        Ok(Self::success(
+            req.send()
+                .map_err(|source| ClientError::Transport { source })?,
+        )?
+        .json()?)
     }
 }

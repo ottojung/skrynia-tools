@@ -1,4 +1,4 @@
-use super::types::SkryniaClient;
+use super::{errors::ClientError, types::SkryniaClient};
 use anyhow::{Result, bail};
 use reqwest::{
     StatusCode,
@@ -18,13 +18,10 @@ impl SkryniaClient {
         }
         let status = response.status();
         let body = response.text().unwrap_or_default();
-        bail!(
-            "Skrynia HTTP {status}: {}",
-            body.chars().take(300).collect::<String>()
-        )
+        Err(ClientError::rejected(status, &body).into())
     }
     pub(super) fn mutating(response: reqwest::Result<Response>) -> Result<Response> {
-        response.map_err(|e| anyhow::anyhow!("mutation outcome unknown: {e}"))
+        response.map_err(|source| ClientError::OutcomeUnknown { source }.into())
     }
     pub(super) fn not_found(status: StatusCode) -> bool {
         status == StatusCode::NOT_FOUND

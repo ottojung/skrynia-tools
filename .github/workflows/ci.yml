@@ -27,7 +27,7 @@ jobs:
           rustc --test source_lints/mod.rs -o "${RUNNER_TEMP}/skrynia-lint-tests"
           "${RUNNER_TEMP}/skrynia-lint-tests"
       - name: GitHub deployment action smoke
-        run: bash tests/action_smoke.sh
+        run: bash tests/ssh/action_smoke.sh
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity
 
@@ -67,4 +67,4 @@ jobs:
           fi
           sudo mkdir -p /run/sshd
       - name: Real SSH deployment and refusal tests
-        run: bash tests/ssh_integration.sh
+        run: bash tests/ssh/integration.sh

@@ -1,23 +1,22 @@
 # Skrynia Tools
 
-**Design-stage** Rust client protocols and a CLI for [Skrynia](https://github.com/ottojung/Skrynia). The repository currently contains an enforced Rust project scaffold and proposed designs; the protocols and CLI are **not yet implemented**.
+Rust tooling for [Skrynia](https://github.com/ottojung/Skrynia): **GitHub-source static-app deployment**, a reusable HTTP client, optional data protocols, and an administration/developer CLI.
 
-Skrynia stays a small public object store. This project supplies reusable client-side abstractions, grant provisioning workflows, native Rust support, and later browser/WebAssembly integration.
+**Static application deployment does not require any Skrynia data protocol.** Apps can choose arbitrary client data structures—or use no persistent storage at all. The primary deployment workflow preserves historical Skrynia behavior: GitHub repository + commit + monorepo subdirectory, run `make build` to produce `build/`, publish an immutable release, switch it atomically and allow rollback. Hosting happens outside the Skrynia server.
 
-## Design and engineering documents
+## Documentation
 
+- [GitHub-source deployment](docs/deployment.md)
 - [Architecture](docs/architecture.md)
-- [Application provisioning](docs/app-provisioning.md)
-- [CLI design](docs/cli.md)
+- [Optional data grants](docs/app-provisioning.md)
+- [CLI interface](docs/cli.md)
 - [Protocol catalog](docs/protocols.md)
-- [Security and recovery](docs/security.md)
+- [Threats and recovery](docs/security.md)
 - [Implementation roadmap](docs/roadmap.md)
 - [Contributor rules](AGENTS.md)
 
-## Structural Rust rules
+## Build quality
 
-Every Rust file is limited to 50 nonblank/noncomment code lines; each Rust source/lint directory to ten direct entries; imports to sibling modules. Default rustfmt, structural lint tests, native tests, and Clippy run in CI. The enforcement is based on [Ivanka's source lints](https://github.com/ottojung/ivanka/tree/main/source_lints).
+Every Rust source file has at most 50 nonblank/noncomment lines; each Rust source/lint directory at most 10 entries; imports are sibling-only. The build-time enforcement and tests are imported from [Ivanka](https://github.com/ottojung/ivanka). CI checks default rustfmt, cargo tests, structural lint self-tests, and Clippy.
 
-Run `cargo fmt --all -- --check`, `cargo test --locked --all-targets`, and `cargo clippy --locked --all-targets -- -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity`.
-
-Skrynia Tools is Free Software licensed under the **GNU Affero General Public License v3 or later (AGPL-3.0-or-later)**. See [LICENSE](LICENSE).
+Free Software under **AGPL-3.0-or-later**; see [LICENSE](LICENSE).

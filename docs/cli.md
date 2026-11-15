@@ -1,53 +1,35 @@
-# Proposed `skrynia` CLI
+# CLI contract
 
-**Status: design, not implemented.** A single native Rust executable should serve both app developers and administrators, using the same Rust protocol crate. Do not ship a command stub that misleadingly looks functional.
+CLI executable: `skrynia`. Two independent groups: `app` operates on local static hosting and GitHub sources, while `object`, `log`, `admin` operate on Skrynia durable data. App deployment must not require a log or a grant.
 
-## Ordinary clients and developers
+## Primary workflow
 
-```text
-skrynia config profile add <name> --url HTTPS_URL
-skrynia config profile use <name>
-skrynia object get KEY [--output FILE]
-skrynia object create KEY --file FILE
-skrynia object replace KEY --file FILE --if-sha256 DIGEST
-skrynia object delete KEY --if-sha256 DIGEST
-skrynia object list --locations 'a.id.events.*' [--all-pages]
-skrynia log init PREFIX
-skrynia log append PREFIX --file FILE --operation-id ID
-skrynia log read PREFIX [--from POSITION]
-skrynia log follow PREFIX [--from POSITION]
-skrynia app new DIRECTORY --template rust|web
-skrynia doctor
+```sh
+skrynia app deploy --name NAME --repo https://github.com/OWNER/REPO --subdir PATH --apps-dir DIR [--commit FULL_SHA] [--builder-image IMAGE]
+skrynia app inspect --name NAME --apps-dir DIR
+skrynia app releases --name NAME --apps-dir DIR
+skrynia app rollback --name NAME --release ID --apps-dir DIR
 ```
 
-Public GET needs no credential. Listing requires a scoped `list` user token. Following a log must reconcile by polling regardless of Web Push hints. Scans, waits and retries need work limits, cancellation and progress. Binary data to stdout must never be interleaved with human diagnostic text on stderr.
+Build runs `make build` inside the selected repo subdirectory in a disposable Podman builder; output is `build/`. Full checkout is accessible for shared monorepo modules. Static server maps `DIR/apps/NAME/` to `/apps/NAME/`. Every release has immutable metadata including exact resolved commit. Rollback requires a retained release and never affects Skrynia stored data.
 
-## Admin workflows
+## Optional data commands
 
-```text
-skrynia admin app plan --profile events --name demo --max-bytes N --max-objects N
-skrynia admin app create --profile events --name demo --max-bytes N --max-objects N
-skrynia admin app inspect APP_ID
-skrynia admin app issue-user APP_ID --role publisher --output-private FILE
-skrynia admin app revoke-user APP_ID --role publisher --user-id USER_ID
-skrynia admin app diagnose APP_ID
-skrynia admin app revoke APP_ID --confirm-app APP_ID
-skrynia admin grant inspect GRANT_ID
-skrynia admin grant revoke GRANT_ID --confirm-grant GRANT_ID
+```sh
+skrynia object get KEY --url URL [--output FILE]
+skrynia object create KEY --url URL --token-file PRIVATE_FILE --file FILE
+skrynia object replace KEY --url URL --token-file PRIVATE_FILE --file FILE [--if-sha256 HASH]
+skrynia object delete KEY --url URL --token-file PRIVATE_FILE [--if-sha256 HASH]
+skrynia object list MATCHER --url URL --token-file PRIVATE_FILE
+skrynia admin app plan --name NAME --max-bytes N --max-objects N
+skrynia admin app create --name NAME --url URL --parent-token-file PRIVATE_FILE --credentials-out PRIVATE_FILE --max-bytes N --max-objects N
+skrynia log init PREFIX --url URL --token-file PRIVATE_FILE
+skrynia log append PREFIX --url URL --token-file PRIVATE_FILE --file FILE
+skrynia log read PREFIX --url URL
 ```
 
-`admin app create` requires a **parent delegate user token**, not root issuer token. `app new` creates local source files; `admin app create` creates remote grants/objects. Dry-run is side-effect-free and prints the planned prefix, each grant's exact matcher/operations, quota costs and risks. Secrets are redacted by default, stored atomically in private owner-only files, and exported only with an explicit private output destination.
+API operations preserve Skrynia's create, modify and delete distinction. Credentials are not printed in normal terminal output. Admin provisioner's owner grant is optional and contains **no** assumed protocol keys. Specific protocol management, task queues and Wasm transport are future additions, not automatic effects of deployment.
 
-## Configuration and observability
+## Failure contracts
 
-Use XDG conventions for profiles and private provisioning journals. Profiles contain URLs and nonsecret choices plus references to secrets; no credentials in generated app code. Support automation via `--json` with stable versioned output, `--dry-run`, explicit token sources and distinct exit codes for configuration failure, forbidden, conflict, CAS 412, quota, transport, outcome unknown and invalid remote data. Never claim automatic rollback after a lost grant-create response.
-
-## Distinctive proposed capabilities
-
-- `skrynia protocol plan <recipe>` (pure): derive the **minimum grant bundles** and object layout for a protocol, including quotas and authority assumptions, without creating anything.
-- `skrynia protocol verify <descriptor>` (read-only): check observed log contiguity, head digests, protocol versions, manifest reachability and epoch seals. Report a provable violation separately from insufficient evidence; never claim server certification.
-- `skrynia admin app diagnose`: reconcile local provisioning journal with known remote state and identify orphaned or ambiguous steps without blindly issuing new grants.
-- `skrynia object snapshot`: safe, explicitly bounded export of matching known objects; not a promise of cross-key atomic backup while writers are active.
-- `skrynia doctor`: validate endpoint, API version, local permissions, credentials and minimal requested operations without destructive probes.
-
-These are useful directions, not an initial-release promise. Decommissioning must explicitly separate credential revocation from stored byte deletion, and issuer-token rotation remains unsupported by Skrynia's current API.
+Do not print secrets or silently repeat remote writes with uncertain outcomes. Symlink activation occurs only after verifying the staged build. A failed build must leave the previous active app untouched. Do not treat a paginated listing as an atomic snapshot.

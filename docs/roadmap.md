@@ -22,6 +22,6 @@ Add WebAssembly/browser `fetch` transport and narrow TypeScript interface over t
 
 Add immutable snapshot transactions, event sets, sealed-epoch garbage collection, then evaluate task queues and cryptographic helpers as separately specified modules. Do not claim garbage collection correct before seal/revocation and registered-consumer safety are model-tested.
 
-## Release gates and open decision
+## Release gates
 
-Every public protocol must have normative versioned format, proof obligations, deterministic fault injection (including ambiguous commits), adversarial tests, integration tests against real Skrynia, native/Wasm parity where relevant, and CLI output/security tests. No unexecuted tests may be reported green. Choose the SDK/CLI Free Software license explicitly before public distribution; server AGPL does not automatically dictate client library license.
+Every public protocol must have normative versioned format, proof obligations, deterministic fault injection (including ambiguous commits), adversarial tests, integration tests against real Skrynia, native/Wasm parity where relevant, and CLI output/security tests. No unexecuted tests may be reported green. Skrynia Tools is licensed under AGPL-3.0-or-later.

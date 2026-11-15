@@ -12,6 +12,8 @@ pub fn print() {
     println!("  app show --name NAME --release ID --apps-dir DIR");
     println!("  app rollback --name NAME --release ID --apps-dir DIR");
     println!("  app new --name NAME --directory DIR");
+    println!("  Remote app commands: --ssh-host HOST --ssh-user USER");
+    println!("      --ssh-key PRIVATE_KEY --ssh-known-hosts HOSTKEY_FILE [--ssh-port PORT]");
     println!("  app releases|inspect|history|activate (compatibility aliases)");
     println!("  Rollback changes only the code symlink; constant work, no migrations.");
     println!();

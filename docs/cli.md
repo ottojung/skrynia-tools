@@ -26,6 +26,32 @@ skrynia-tools app activate --name hello --release RELEASE_ID --apps-dir /srv/skr
 
 The default format for `list`, `current`, `versions`, `history`, `rollback` and `activate` is a readable table or confirmation. `inspect`, `show` and legacy `releases` retain JSON output by default. All views accept `--format json|table`. The `versions` display lists the newest published snapshots first, marking the currently active one with `*` in tables and `"active": true` in JSON; legacy `releases` JSON remains unchanged. Legacy releases without a publication timestamp remain available and show `unknown`. `show` and `rollback` address a version **directly by its opaque release ID**, without enumerating the history. `list` includes registered apps without an active release. The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. Code rollback never invokes application migrations or changes Skrynia object data.
 
+## Remote CLI release management
+
+Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `rollback` and `activate`, can run on an authorized host by adding:
+
+```text
+--ssh-host HOST --ssh-user DEPLOY_USER --ssh-key PRIVATE_KEY_FILE
+--ssh-known-hosts PINNED_KNOWN_HOSTS_FILE [--ssh-port PORT]
+```
+
+For example:
+
+```sh
+skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps \
+  --ssh-host deploy.example.org --ssh-user deployer \
+  --ssh-key ~/.ssh/skrynia-deploy --ssh-known-hosts ~/.ssh/skrynia-hosts
+
+skrynia-tools app rollback --name hello --release RELEASE_ID \
+  --apps-dir /srv/skrynia-apps --ssh-host deploy.example.org \
+  --ssh-user deployer --ssh-key ~/.ssh/skrynia-deploy \
+  --ssh-known-hosts ~/.ssh/skrynia-hosts
+```
+
+The CLI opens an SSH connection with strict host-key checking, no agent forwarding, no proxy commands and no inherited SSH configuration. It sends a small JSON request to `skrynia-tools app rpc --spec-stdin true` on the remote machine. The restricted RPC handler checks `SKRYNIA_DEPLOY_ROOT`, accepts only listed release operations, and uses the **same local code** for formatting and atomic rollback. The `--apps-dir` value must identify the authorized directory **on the remote host**; `SKRYNIA_APPS_DIR` can supply that default. The private key must be a non-symlinked, owner-only regular file; the trusted host-key file must be supplied explicitly.
+
+SSH failures and timeouts do not prove that a remote activation failed: inspect `app current` before retrying. Remote deploys have a 30-minute command timeout; management commands have a two-minute limit. The remote command does not expose object storage credentials.
+
 ## Optional object data
 
 ```sh

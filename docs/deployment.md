@@ -108,3 +108,20 @@ Release metadata is limited to **16 KiB at both write and read time**, and each 
 Run `bash tests/ssh/integration.sh` to start an isolated localhost OpenSSH server and test the complete GitHub-action script with a restricted deployment key. The test uses a simulated builder to keep CI portable while executing the real GitHub clone, native Rust deployment and SSH transport. Set `SKRYNIA_SSH_TEST_REAL_PODMAN=1` on a host with rootless Podman and the selected builder image to repeat the same test with a real container build. This still does not simulate a physical machine failure or an unrelated remote production host.
 
 The action defaults to SSH port 22; the optional `port` input supports other SSH ports and is validated before connection. SSH ignores local user configuration (`-F /dev/null`) and refuses host-key changes, credential forwarding and proxy commands. The deployment host must already have the Rust CLI and build prerequisites installed.
+
+
+## Remote CLI release management
+
+The **same** `skrynia-tools app` release commands can run from a developer machine without a shell session on the hosting machine. Add `--ssh-host`, `--ssh-user`, `--ssh-key` and `--ssh-known-hosts` (and optional `--ssh-port`) to `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `rollback` or `activate`. The local CLI serializes a bounded operation request as JSON over SSH; the remote handler uses the same release-management functions. All app code and metadata remain on the hosting machine.
+
+To grant that SSH key both deployment and management rights, restrict its `authorized_keys` entry to the **root-scoped RPC handler**, instead of a general interactive shell:
+
+```text
+restrict,command="env SKRYNIA_DEPLOY_ROOT=/srv/skrynia-apps /usr/local/bin/skrynia-tools app rpc --spec-stdin true" ssh-ed25519 <management-public-key>
+```
+
+The handler requires `SKRYNIA_DEPLOY_ROOT`, verifies that the supplied `apps_dir` resolves to that exact directory, accepts a fixed whitelist of actions and refuses unknown JSON fields. A raw `DeploySpec` object is accepted for compatibility with the GitHub composite action, while the typed management envelope supports version inventory and constant-work rollback. The existing deploy-only forced command remains valid for deployments; management commands need a key restricted to the RPC handler. Restrict management keys and SSH accounts to operators with authority over application **code**. Do not give them Skrynia issuer or root tokens.
+
+`app rollback` remains constant-work relative to artifact size and release count; SSH establishment adds a fixed network handshake overhead and no artifact transfer. Arbitrarily slow network or filesystem operations are not subject to a real-time limit. As with local management, **no migration hooks or application-data modifications occur**.
+
+The isolated OpenSSH integration test now exercises both application deployment and remote version inventory, provenance comparison and rollback through the same restricted RPC interface. A separate run has used real rootless Podman for two Git builds over SSH. These tests validate the transport and release lifecycle, but not a separately managed production host or power-loss recovery.

@@ -47,6 +47,22 @@ The default builder is the tested `docker.io/library/rust:1.93-bookworm`; the bu
 
 For static websites, configure your static server to serve `/srv/skrynia-apps/apps/` as `/apps/` using [the nginx example](examples/nginx-apps.conf). Releases, metadata and build workspaces remain outside that public path. Data grants are provisioned separately with `skrynia-tools admin create` and are never automatically exposed to a frontend.
 
+## Remote CLI deployment and rollback
+
+All application release operations also work over **pinned-host OpenSSH**, with no privileged Skrynia server endpoint:
+
+```sh
+export SKRYNIA_APPS_DIR=/srv/skrynia-apps  # path on the hosting machine
+skrynia-tools app versions --name hello \
+  --ssh-host deploy.example.org --ssh-user deployer \
+  --ssh-key ~/.ssh/skrynia-deploy --ssh-known-hosts ~/.ssh/skrynia-hosts
+skrynia-tools app rollback --name hello --release RELEASE_ID \
+  --ssh-host deploy.example.org --ssh-user deployer \
+  --ssh-key ~/.ssh/skrynia-deploy --ssh-known-hosts ~/.ssh/skrynia-hosts
+```
+
+Use the same SSH options on `app deploy` to build a GitHub repository subdirectory on the hosting machine. A dedicated SSH key may be restricted to the root-scoped `app rpc --spec-stdin true` command; JSON requests never require application data or migration protocols. See [remote setup](docs/deployment.md#remote-cli-release-management).
+
 ## GitHub Actions deployment
 
 Use [the SSH deployment action](action/deploy/action.yml) with a dedicated deploy account, a pinned host key and an SSH private key stored as a GitHub Actions secret. It invokes the same CLI on the static host, transmitting deployment parameters as JSON over SSH without putting secrets into URLs or client builds. See [the full workflow example](docs/deployment.md#github-actions-deployment).

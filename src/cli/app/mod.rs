@@ -2,14 +2,21 @@ use super::{args::Arguments, deploy};
 use anyhow::{Result, bail};
 mod compare;
 mod format;
-mod guard;
 mod history;
 mod inventory;
 mod publish;
+mod remote;
+mod rpc;
 mod status;
 mod stdin;
 
 pub fn run(args: &Arguments) -> Result<()> {
+    if args.action == "rpc" {
+        return rpc::serve(args);
+    }
+    if remote::requested(args)? {
+        return remote::run(args);
+    }
     match args.action.as_str() {
         "help" | "--help" => {
             super::help::print();

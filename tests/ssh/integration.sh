@@ -51,7 +51,7 @@ port="$(python3 -c 'import socket; s=socket.socket();s.bind(("127.0.0.1",0));pri
 } > "$tmp/sshd_config"
 server_bin="$(command -v sshd)"
 "$server_bin" -t -f "$tmp/sshd_config"
-forced="SKRYNIA_DEPLOY_ROOT=$tmp/hosted GIT_CONFIG_GLOBAL=$tmp/gitconfig PATH=$tmp/bin:$PATH $repo/target/debug/skrynia-tools app deploy --spec-stdin true"
+forced="SKRYNIA_DEPLOY_ROOT=$tmp/hosted GIT_CONFIG_GLOBAL=$tmp/gitconfig PATH=$tmp/bin:$PATH $repo/target/debug/skrynia-tools app rpc --spec-stdin true"
 printf 'restrict,command="%s" %s\n' "$forced" "$(cat "$tmp/id_ed25519.pub")" \
     > "$tmp/authorized_keys"
 "$server_bin" -D -f "$tmp/sshd_config" -E "$tmp/sshd.log" &
@@ -102,3 +102,73 @@ if bash "$repo/action/deploy/deploy.sh" > "$tmp/rejected.out" 2> "$tmp/rejected.
 fi
 test ! -e "$tmp/unauthorized/apps"
 echo 'REAL SSH REJECTION PASS: incorrect host key and out-of-scope deployment directory'
+printf '%s\n' "$SKRYNIA_KNOWN_HOSTS" > "$tmp/known_hosts"
+remote() {
+    "$repo/target/debug/skrynia-tools" app "$@" \
+      --ssh-host 127.0.0.1 --ssh-user "$(id -un)" --ssh-port "$port" \
+      --ssh-key "$tmp/id_ed25519" --ssh-known-hosts "$tmp/known_hosts" \
+      --apps-dir "$tmp/hosted"
+}
+first_id="$(python3 - "$tmp" <<'PYID'
+import json,pathlib,sys
+p=next((pathlib.Path(sys.argv[1])/'hosted/metadata/demo').glob('*.json'))
+print(json.loads(p.read_text())['id'])
+PYID
+)"
+remote list > "$tmp/apps.txt"
+remote versions --name demo > "$tmp/versions.txt"
+remote current --name demo --format json > "$tmp/first.json"
+grep -q "$first_id" "$tmp/versions.txt"
+printf 'second artifact over remote CLI\n' > "$tmp/source/payload.txt"
+git -C "$tmp/source" add payload.txt
+git -C "$tmp/source" -c user.name=Fixture -c user.email=fixture@example.invalid \
+  commit -qm 'second artifact'
+second_sha="$(git -C "$tmp/source" rev-parse HEAD)"
+remote deploy --name demo --repo https://github.com/owner/repo \
+  --subdir apps/demo --commit "$second_sha" \
+  --builder-image docker.io/library/rust:1.93-bookworm > "$tmp/second.json"
+second_id="$(python3 - "$tmp/second.json" <<'PYID'
+import json,sys
+print(json.load(open(sys.argv[1]))['id'])
+PYID
+)"
+remote compare --name demo --from "$first_id" --to "$second_id" --format json \
+  > "$tmp/compare.json"
+remote versions --name demo --format json > "$tmp/versions.json"
+python3 - "$tmp" "$first_id" "$second_id" <<'PYID'
+import json,pathlib,sys
+root=pathlib.Path(sys.argv[1])
+assert json.loads((root/'compare.json').read_text())['to']['id']==sys.argv[3]
+entries=json.loads((root/'versions.json').read_text())
+assert len(entries)==2 and entries[0]['id']==sys.argv[3] and entries[0]['active']
+assert entries[1]['id']==sys.argv[2] and not entries[1]['active']
+assert (root/'hosted/apps/demo/deep/artifact.bin').read_text()=='second artifact over remote CLI\n'
+PYID
+remote rollback --name demo --release "$first_id" > "$tmp/rollback.txt"
+test "$(cat "$tmp/hosted/apps/demo/deep/artifact.bin")" = 'payload from real SSH'
+grep -q "$first_id" "$tmp/rollback.txt"
+echo 'REAL SSH MANAGEMENT PASS: remote list/versions/compare, remote deployment and constant-work rollback'
+cp "$tmp/id_ed25519" "$tmp/insecure_key"
+chmod 0644 "$tmp/insecure_key"
+if "$repo/target/debug/skrynia-tools" app current --name demo \
+    --apps-dir "$tmp/hosted" --ssh-host 127.0.0.1 --ssh-user "$(id -un)" \
+    --ssh-port "$port" --ssh-key "$tmp/insecure_key" \
+    --ssh-known-hosts "$tmp/known_hosts" > "$tmp/rejected.out" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: insecure SSH private key accepted' >&2
+    exit 1
+fi
+if "$repo/target/debug/skrynia-tools" app current --name demo \
+    --apps-dir "$tmp/hosted" --ssh-user "$(id -un)" \
+    > "$tmp/rejected.out" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: partial remote options silently ran a local command' >&2
+    exit 1
+fi
+if printf '{"action":"destroy","apps_dir":"%s"}' "$tmp/hosted" | \
+  ssh -F /dev/null -T -i "$tmp/id_ed25519" -p "$port" \
+    -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile="$tmp/known_hosts" \
+    "$(id -un)@127.0.0.1" "ignored" > "$tmp/rejected.out" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: unauthorized RPC action accepted' >&2
+    exit 1
+fi
+echo 'REAL SSH SECURITY PASS: private key mode, partial SSH arguments, RPC whitelist'

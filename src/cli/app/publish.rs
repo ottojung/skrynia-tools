@@ -1,8 +1,8 @@
 use super::{Arguments, deploy, format};
 use anyhow::Result;
 
-pub fn run(args: &Arguments) -> Result<()> {
-    let spec = deploy::DeploySpec {
+pub fn spec(args: &Arguments) -> Result<deploy::DeploySpec> {
+    Ok(deploy::DeploySpec {
         name: args.required("name")?.into(),
         repo: args.required("repo")?.into(),
         commit: args.optional("commit").map(str::to_owned),
@@ -12,7 +12,12 @@ pub fn run(args: &Arguments) -> Result<()> {
             .optional("builder-image")
             .unwrap_or("docker.io/library/rust:1.93-bookworm")
             .into(),
-    };
-    println!("{}", serde_json::to_string_pretty(&deploy::deploy(&spec)?)?);
+    })
+}
+pub fn run(args: &Arguments) -> Result<()> {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&deploy::deploy(&spec(args)?)?)?
+    );
     Ok(())
 }

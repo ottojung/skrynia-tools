@@ -1,0 +1,31 @@
+use std::process::Command;
+pub fn apply(cmd: &mut Command) {
+    cmd.args([
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "IdentityAgent=none",
+        "-o",
+        "ForwardAgent=no",
+        "-o",
+        "ProxyCommand=none",
+        "-o",
+        "ControlMaster=no",
+    ]);
+    cmd.args([
+        "-o",
+        "PermitLocalCommand=no",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        "-o",
+        "GlobalKnownHostsFile=/dev/null",
+        "-o",
+        "ConnectTimeout=15",
+        "-o",
+        "ServerAliveInterval=30",
+        "-o",
+        "ServerAliveCountMax=4",
+    ]);
+}

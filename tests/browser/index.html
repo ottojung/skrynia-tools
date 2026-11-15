@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Skrynia Tools Wasm browser integration</title>
+<body data-result="pending">
+<script type="module">
+import init, { BrowserClient, sha256Hex } from "../../dist/skrynia-wasm/skrynia_tools.js";
+function check(ok, message) { if (!ok) throw new Error(message); }
+try {
+  await init();
+  const client = new BrowserClient(location.origin, "narrow-test-token");
+  const input = new TextEncoder().encode("hello wasm");
+  check(await client.get("test.object") === undefined, "missing read");
+  check(await client.create("test.object", input), "create");
+  check(!(await client.create("test.object", input)), "create conflict");
+  const old = await client.get("test.object");
+  check(new TextDecoder().decode(old) === "hello wasm", "public bytes");
+  check(!(await client.replace("test.object", input, "0".repeat(64))), "CAS mismatch");
+  check(await client.replace("test.object", input, sha256Hex(old)), "CAS success");
+  check((await client.listPage("test.*")).includes("test.object"), "authenticated listing");
+  await client.initializeLog("test.log");
+  const operationId = "0123456789abcdef0123456789abcdef";
+  const first = await client.appendLog("test.log", operationId, input);
+  check(first === 1n, "initial append position");
+  check(await client.appendLog("test.log", operationId, input) === 1n, "append idempotency");
+  const entries = JSON.parse(await client.readLog("test.log", 1n, 5));
+  check(entries.length === 1 && entries[0].position === 1, "log reading");
+  check(await client.delete("test.object", sha256Hex(input)), "conditional delete");
+  document.body.dataset.result = "pass";
+} catch (error) {
+  document.body.dataset.result = "fail";
+  document.body.textContent = String(error);
+}
+</script>
+</body>
+</html>

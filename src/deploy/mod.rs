@@ -17,6 +17,7 @@ pub fn deploy(spec: &DeploySpec) -> Result<Release> {
     files::ensure_dirs(&spec.apps_dir)?;
     let _build_lock = process::build_lock(&spec.apps_dir, &spec.name)?;
     process::stale(&spec.apps_dir, &spec.name)?;
+    let expected = inspect::inspect(&spec.apps_dir, &spec.name)?.map(|r| r.id);
     let work =
         spec.apps_dir
             .join(".work")
@@ -27,7 +28,7 @@ pub fn deploy(spec: &DeploySpec) -> Result<Release> {
         build::build(spec, &work)?;
         let entry = publish::prepare(spec, &work, commit)?;
         let _activation_lock = process::lock(&spec.apps_dir, &spec.name)?;
-        files::switch(&spec.apps_dir, &spec.name, &entry.id)?;
+        publish::activate(&spec.apps_dir, &spec.name, expected.as_deref(), &entry.id)?;
         Ok(entry)
     })();
     if let Err(error) = std::fs::remove_dir_all(&work) {

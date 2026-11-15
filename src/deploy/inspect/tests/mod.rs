@@ -1,7 +1,8 @@
-use super::{Release, apps, files, inspect, process, release, releases, rollback};
+use super::{Release, apps, files, inspect, process, publish, release, releases, rollback};
 use std::{fs, path::PathBuf};
 mod constant;
 mod history;
+mod race;
 mod safety;
 
 pub struct Fixture {

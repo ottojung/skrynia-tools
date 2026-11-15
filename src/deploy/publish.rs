@@ -2,7 +2,7 @@ use super::{
     files,
     types::{DeploySpec, Release},
 };
-use anyhow::Result;
+use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
 pub fn prepare(spec: &DeploySpec, work: &Path, commit: String) -> Result<Release> {
@@ -35,4 +35,12 @@ pub fn prepare(spec: &DeploySpec, work: &Path, commit: String) -> Result<Release
     fs::rename(stage, releases.join(&id))?;
     files::sync_dir(&releases)?;
     Ok(entry)
+}
+
+pub fn activate(root: &Path, name: &str, expected: Option<&str>, release: &str) -> Result<()> {
+    let current = super::inspect::inspect(root, name)?.map(|r| r.id);
+    if current.as_deref() != expected {
+        bail!("active release changed during build; prepared release {release} remains available");
+    }
+    files::switch(root, name, release)
 }

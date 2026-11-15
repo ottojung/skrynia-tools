@@ -17,3 +17,5 @@ pub use versions::releases;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+use super::publish;

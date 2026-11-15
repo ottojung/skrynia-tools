@@ -1,6 +1,7 @@
 use super::{Arguments, deploy::Release};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
+use std::path::PathBuf;
 
 pub fn json(args: &Arguments, default: bool) -> Result<bool> {
     match args.optional("format") {
@@ -34,4 +35,14 @@ pub fn version(entry: &Release, active: bool) {
         entry.repo,
         entry.subdir
     );
+}
+
+pub fn apps_dir(args: &Arguments) -> Result<PathBuf> {
+    if let Some(path) = args.optional("apps-dir") {
+        return Ok(PathBuf::from(path));
+    }
+    std::env::var_os("SKRYNIA_APPS_DIR")
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!("set --apps-dir or SKRYNIA_APPS_DIR"))
 }

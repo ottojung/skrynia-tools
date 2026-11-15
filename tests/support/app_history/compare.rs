@@ -31,4 +31,12 @@ pub fn verify(fixture: &Fixture, first: &serde_json::Value, one: &str, three: &s
     assert_eq!(compared["metadata_only"], true);
     assert_eq!(compared["from"]["commit"], one);
     assert_eq!(compared["to"]["commit"], three);
+    let configured = std::process::Command::new(env!("CARGO_BIN_EXE_skrynia-tools"))
+        .args(["app", "list", "--format", "json"])
+        .env("SKRYNIA_APPS_DIR", &fixture.apps)
+        .output()
+        .unwrap();
+    assert!(configured.status.success());
+    let inventory: serde_json::Value = serde_json::from_slice(&configured.stdout).unwrap();
+    assert_eq!(inventory[0]["name"], "hello");
 }

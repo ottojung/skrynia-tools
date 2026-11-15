@@ -1,7 +1,6 @@
 use super::{Arguments, deploy, format};
 use anyhow::Result;
 use serde::Serialize;
-use std::path::Path;
 
 #[derive(Serialize)]
 struct Version<'a> {
@@ -10,10 +9,10 @@ struct Version<'a> {
     active: bool,
 }
 pub fn run(args: &Arguments) -> Result<()> {
-    let root = Path::new(args.required("apps-dir")?);
+    let root = format::apps_dir(args)?;
     let name = args.required("name")?;
-    let versions = deploy::releases(root, name)?;
-    let active = deploy::inspect(root, name)?.map(|r| r.id);
+    let versions = deploy::releases(&root, name)?;
+    let active = deploy::inspect(&root, name)?.map(|r| r.id);
     if format::json(args, args.action == "releases")? {
         if args.action == "releases" {
             println!("{}", serde_json::to_string_pretty(&versions)?);

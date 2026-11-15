@@ -1,10 +1,9 @@
 use super::{Arguments, deploy, format};
 use anyhow::Result;
-use std::path::Path;
 
 pub fn run(args: &Arguments) -> Result<()> {
-    let root = Path::new(args.required("apps-dir")?);
-    let apps = deploy::apps(root)?;
+    let root = format::apps_dir(args)?;
+    let apps = deploy::apps(&root)?;
     if format::json(args, false)? {
         println!("{}", serde_json::to_string_pretty(&apps)?);
         return Ok(());

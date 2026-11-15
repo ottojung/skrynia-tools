@@ -2,7 +2,9 @@
 
 **Implemented commands**, executed by the `skrynia-tools` native Rust binary (or an installed `skrynia` alias). See `skrynia-tools help` for a summary. Static application commands do not require a Skrynia token, an append-only log, or access to the Skrynia object store.
 
-## Static web applications
+## Application releases
+
+Set `SKRYNIA_APPS_DIR=/srv/skrynia-apps` to use a default hosting root for interactive `app` commands. An explicit `--apps-dir` overrides the environment. No application data or migration protocol is required.
 
 ```sh
 skrynia-tools app new --name hello --directory ./apps/hello

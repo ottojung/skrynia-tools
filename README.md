@@ -32,6 +32,8 @@ target/release/skrynia-tools app deploy \
   --builder-image docker.io/library/rust:1.93-bookworm
 ```
 
+Set `SKRYNIA_APPS_DIR=/srv/skrynia-apps` in your shell to omit repeated `--apps-dir` flags when managing releases.
+
 Manage historical versions without rebuilding or touching data:
 
 ```sh

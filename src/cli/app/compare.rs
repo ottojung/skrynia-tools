@@ -1,13 +1,12 @@
 use super::{Arguments, deploy, format};
 use anyhow::Result;
-use std::path::Path;
 
 pub fn run(args: &Arguments) -> Result<()> {
-    let root = Path::new(args.required("apps-dir")?);
+    let root = format::apps_dir(args)?;
     let name = args.required("name")?;
-    let before = deploy::release(root, name, args.required("from")?)?
+    let before = deploy::release(&root, name, args.required("from")?)?
         .ok_or_else(|| anyhow::anyhow!("source release is not available"))?;
-    let after = deploy::release(root, name, args.required("to")?)?
+    let after = deploy::release(&root, name, args.required("to")?)?
         .ok_or_else(|| anyhow::anyhow!("target release is not available"))?;
     if format::json(args, false)? {
         println!(

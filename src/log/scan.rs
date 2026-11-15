@@ -10,15 +10,9 @@ impl<'a, S: Store> AppendLog<'a, S> {
         for n in 1..=1_000_000_u64 {
             let key = self.key(n);
             if let Some(previous) = self.store.get(&key)? {
-                if let Ok((id, _)) = entry::decode(&previous) {
-                    if id == operation_id {
-                        if previous == bytes {
-                            return Ok(n);
-                        }
-                        bail!("operation ID reused with different payload");
-                    }
+                if entry::observed(&previous, &bytes, operation_id)? {
+                    return Ok(n);
                 }
-
                 continue;
             }
             match self.store.create(&key, &bytes) {

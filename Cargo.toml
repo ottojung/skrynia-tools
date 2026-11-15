@@ -7,13 +7,34 @@ build = "build.rs"
 license = "AGPL-3.0-or-later"
 description = "Skrynia client protocols and GitHub application deployment"
 
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "skrynia-tools"
+path = "src/main.rs"
+required-features = ["native"]
+
+[features]
+default = ["native"]
+native = []
+
 [dependencies]
 anyhow = "1"
-libc = "0.2"
 hex = "0.4"
-rand = "0.9"
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libc = "0.2"
+rand = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 thiserror = "2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+url = "2"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "Headers", "Response"] }

@@ -6,7 +6,7 @@ impl SkryniaClient {
     pub fn read(&self, key: &str) -> Result<Option<Vec<u8>>> {
         let response = self
             .http
-            .get(self.path(&["store", key])?)
+            .get(self.object_path(key)?)
             .send()
             .map_err(|source| ClientError::Transport { source })?;
         if Self::not_found(response.status()) {
@@ -18,6 +18,9 @@ impl SkryniaClient {
         hex::encode(Sha256::digest(data))
     }
     pub fn list_page(&self, matcher: &str, after: Option<&str>) -> Result<serde_json::Value> {
+        if !super::wire::valid_matcher(matcher) {
+            anyhow::bail!("invalid Skrynia locations matcher");
+        }
         let mut url = self.path(&["store"])?;
         url.query_pairs_mut()
             .append_pair("locations", matcher)

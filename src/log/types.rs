@@ -1,4 +1,4 @@
-use super::Store;
+use super::{Store, wire};
 use anyhow::{Result, bail};
 
 pub struct AppendLog<'a, S: Store> {
@@ -7,12 +7,7 @@ pub struct AppendLog<'a, S: Store> {
 }
 impl<'a, S: Store> AppendLog<'a, S> {
     pub fn open(store: &'a S, prefix: &str) -> Result<Self> {
-        if prefix.is_empty()
-            || prefix.starts_with('.')
-            || !prefix
-                .bytes()
-                .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'.')
-        {
+        if !wire::valid_prefix(prefix) {
             bail!("invalid log prefix");
         }
         Ok(Self {
@@ -21,7 +16,7 @@ impl<'a, S: Store> AppendLog<'a, S> {
         })
     }
     pub(super) fn key(&self, n: u64) -> String {
-        format!("{}.e000001.{n:012}", self.prefix)
+        wire::key(&self.prefix, n)
     }
     pub fn initialize(&self) -> Result<()> {
         use super::CreateResult;

@@ -47,4 +47,4 @@ The plan is side-effect-free. Reuse its `--id` with `admin create` to preserve t
 
 ## Current boundaries
 
-The CLI has no built-in GitHub Actions runner, managed remote build service, hosted app discovery registry, push-subscription management, sealed-epoch log collection or transactional multi-object snapshots. Future commands for these must be implemented and qualified separately.
+GitHub Actions can deploy remotely through the SSH composite action under `action/deploy`; the CLI itself has no managed remote build service, hosted app registry, push-subscription management, sealed-epoch collection or transactional multi-object snapshots. Future commands for these must be implemented and qualified separately.

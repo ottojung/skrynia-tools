@@ -11,7 +11,7 @@ Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Sk
 - `admin plan` and `admin create`: optional app data-grant provisioning, with private credential files.
 - Optional `CasCell` and create-only `AppendLog` client protocols; `object` and `log` CLI operations.
 
-**Not yet implemented:** WebAssembly bindings, generic snapshot transactions, sealed-epoch garbage collection, task queues, and an automated hosted GitHub Action. These are separate proposals, not prerequisites for deploying applications.
+**Not yet implemented:** WebAssembly bindings, generic snapshot transactions, sealed-epoch garbage collection, task queues, and a standalone hosted deployment service. A GitHub Actions composite action now deploys over SSH using the native CLI on the static host. These are separate proposals, not prerequisites for deploying applications.
 
 ## Build and create an application
 
@@ -35,6 +35,10 @@ target/release/skrynia-tools app deploy \
 The default builder is the tested `docker.io/library/rust:1.93-bookworm`; the builder image must contain `make` and the build dependencies of the app (use a custom Node/npm image for Node applications). The historical Skrynia builder image can be supplied explicitly if available. The CLI requires Git and **rootless Podman**. A default-branch commit is used and recorded if `--commit` is omitted; pin the exact SHA and builder image digest in production.
 
 Configure your static server to serve `/srv/skrynia-apps/apps/` as `/apps/` using [the nginx example](examples/nginx-apps.conf). Releases, metadata and build workspaces remain outside that public path. Data grants are provisioned separately with `skrynia-tools admin create` and are never automatically exposed to a frontend.
+
+## GitHub Actions deployment
+
+Use [the SSH deployment action](action/deploy/action.yml) with a dedicated deploy account, a pinned host key and an SSH private key stored as a GitHub Actions secret. It invokes the same CLI on the static host, transmitting deployment parameters as JSON over SSH without putting secrets into URLs or client builds. See [the full workflow example](docs/deployment.md#github-actions-deployment).
 
 ## Documentation
 

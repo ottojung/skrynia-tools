@@ -42,3 +42,32 @@ Commit, resolved source URL, subdir, builder identity and release metadata are r
 Deploy and rollback serialize per application with a local advisory lock. After taking the lock, the deployer checks for abandoned build containers named for prior attempts, stops them if present and removes their stale workspaces; other application workspaces are left alone. Deployment directories may not be symlinks. Release contents and metadata are synchronized before activating a release, and symlink activation synchronizes the public directory. A warning during temporary workspace removal after a successful release does not turn a committed deployment into a false failure. Untrusted build output is rejected if it contains symlinks or non-regular objects.
 
 This is not a substitute for power-failure qualification on every filesystem or a hostile-tenant local deployment service. The deployment host's operator controls the private release and metadata directories. A failure during the final directory sync can mean activation occurred but durability could not be confirmed; inspect the active release before retrying.
+
+## GitHub Actions deployment
+
+The reusable [composite action](../action/deploy/action.yml) restores push-triggered remote deployment without restoring a privileged deployment endpoint inside Skrynia. The static host runs the native `skrynia-tools` executable with access to its apps directory and rootless Podman. The action securely SSHes to that host and provides a bounded JSON specification over standard input. No app grant, append-only log, or server-side deployment API is required.
+
+```yaml
+name: Deploy web app
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: ottojung/skrynia-tools/action/deploy@PINNED_COMMIT_SHA
+        with:
+          host: example.org
+          user: deployer
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          name: myapp
+          apps-dir: /srv/skrynia-apps
+          subdir: apps/myapp
+```
+
+When `repo` is omitted the action uses the current GitHub repository and commit. When `repo` is explicitly provided without `commit`, the remote checkout resolves that repository's default branch. For reproducibility pass a full commit SHA and a pinned builder image digest. Releases, commits and public app paths are returned as action outputs.
+
+**Threat boundary:** the SSH account is an administrative deployment capability and can replace static site contents. Restrict it to deployment paths and use branch protection and production-environment approvals. Pass trusted known-hosts records rather than disabling host-key verification; never run deployment on untrusted pull requests. The SSH transport does not grant remote filesystem access beyond what the deployment account already possesses. This action has been smoke-tested with a mock SSH transport, but a live remote SSH host has not been independently qualified.

@@ -2,10 +2,14 @@ use super::args::Arguments;
 use super::deploy::{self, DeploySpec};
 use anyhow::{Result, bail};
 use std::path::PathBuf;
+mod stdin;
 
 pub fn run(args: &Arguments) -> Result<()> {
     if args.action == "new" {
         return super::scaffold::create(args);
+    }
+    if args.action == "deploy" && args.optional("spec-stdin") == Some("true") {
+        return stdin::deploy();
     }
     let root = PathBuf::from(args.required("apps-dir")?);
     let name = args.required("name")?;

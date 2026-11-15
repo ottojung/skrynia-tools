@@ -11,6 +11,9 @@ import json, os, re, sys
 env = os.environ
 host = env["SKRYNIA_HOST"]
 user = env["SKRYNIA_USER"]
+port = env.get("SKRYNIA_SSH_PORT") or "22"
+if not port.isascii() or not port.isdecimal() or not (1 <= int(port) <= 65535):
+    raise SystemExit("invalid SSH port")
 if not re.fullmatch(r"[A-Za-z0-9.-]+", host) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", user):
     raise SystemExit("invalid SSH destination")
 if not env["SKRYNIA_APP_NAME"] or not env["SKRYNIA_APPS_DIR"]:
@@ -23,7 +26,9 @@ request = {"name": env["SKRYNIA_APP_NAME"], "apps_dir": env["SKRYNIA_APPS_DIR"],
 with open(sys.argv[1], "w", encoding="utf8") as stream:
     json.dump(request, stream)
 PY
-ssh -T -o BatchMode=yes -o IdentitiesOnly=yes -o ForwardAgent=no \
+ssh -F /dev/null -T -p "${SKRYNIA_SSH_PORT:-22}" \
+  -o BatchMode=yes -o IdentitiesOnly=yes -o ForwardAgent=no \
+  -o ProxyCommand=none -o ControlMaster=no -o PermitLocalCommand=no \
   -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
   -o ServerAliveInterval=30 -o ServerAliveCountMax=4 \
   -o UserKnownHostsFile="$tmp/known_hosts" -i "$tmp/key" -- \

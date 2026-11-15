@@ -4,6 +4,10 @@ inputs:
   host:
     description: SSH hostname or IPv4 address of the authorized static host
     required: true
+  port:
+    description: SSH port on the authorized hosting machine
+    required: false
+    default: '22'
   user:
     description: SSH deployment account
     required: true
@@ -51,6 +55,7 @@ runs:
       env:
         SKRYNIA_HOST: ${{ inputs.host }}
         SKRYNIA_USER: ${{ inputs.user }}
+        SKRYNIA_SSH_PORT: ${{ inputs.port }}
         SKRYNIA_SSH_KEY: ${{ inputs.ssh-private-key }}
         SKRYNIA_KNOWN_HOSTS: ${{ inputs.known-hosts }}
         SKRYNIA_APP_NAME: ${{ inputs.name }}

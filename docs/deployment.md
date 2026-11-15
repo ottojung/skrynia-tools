@@ -61,6 +61,7 @@ jobs:
         with:
           host: example.org
           user: deployer
+          port: '22' # optional
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           name: myapp
@@ -70,7 +71,7 @@ jobs:
 
 When `repo` is omitted the action uses the current GitHub repository and commit. When `repo` is explicitly provided without `commit`, the remote checkout resolves that repository's default branch. For reproducibility pass a full commit SHA and a pinned builder image digest. Releases, commits and public app paths are returned as action outputs.
 
-**Threat boundary:** the SSH account is an administrative deployment capability and can replace static site contents. Restrict it to deployment paths and use branch protection and production-environment approvals. Pass trusted known-hosts records rather than disabling host-key verification; never run deployment on untrusted pull requests. The SSH transport does not grant remote filesystem access beyond what the deployment account already possesses. This action has been smoke-tested with a mock SSH transport, but a live remote SSH host has not been independently qualified.
+**Threat boundary:** the SSH account is an administrative deployment capability and can replace static site contents. Restrict it to deployment paths and use branch protection and production-environment approvals. Pass trusted known-hosts records rather than disabling host-key verification; never run deployment on untrusted pull requests. The SSH transport does not grant remote filesystem access beyond what the deployment account already possesses. The complete action has been exercised against an isolated **real OpenSSH server** with a restricted deployment key, verifying host-key refusal, root-scope refusal, Git checkout and published artifacts. An additional test used real rootless Podman over that SSH connection. A separately operated production SSH hosting system has not been qualified.
 
 ### Restricting the SSH deployment account
 
@@ -101,3 +102,9 @@ Application-data migration and storage lifecycle management are intentionally ou
 When a new build starts, the deployer records the currently active release ID. After preparing the new version and acquiring the brief activation lock, it checks that the active release ID has not changed. If an administrator has activated a different version in the meantime, the in-progress build **must not undo that decision**: automatic activation fails with a conflict, leaving the newly prepared snapshot available for deliberate `app activate --release ID`. This check does not implement a durable activation-event counter, so reactivation of the exact same release during a build is not distinguishable from no intervening change.
 
 Release metadata is limited to **16 KiB at both write and read time**, and each record is created once with private permissions and synchronized before use. The CLI refuses to overwrite an existing release record. If the atomic symlink change succeeds but syncing its parent directory fails, the command reports **uncertain durability** and directs the operator to inspect the active release; it must not pretend that activation certainly failed.
+
+### SSH integration qualification
+
+Run `bash tests/ssh_integration.sh` to start an isolated localhost OpenSSH server and test the complete GitHub-action script with a restricted deployment key. The test uses a simulated builder to keep CI portable while executing the real GitHub clone, native Rust deployment and SSH transport. Set `SKRYNIA_SSH_TEST_REAL_PODMAN=1` on a host with rootless Podman and the selected builder image to repeat the same test with a real container build. This still does not simulate a physical machine failure or an unrelated remote production host.
+
+The action defaults to SSH port 22; the optional `port` input supports other SSH ports and is validated before connection. SSH ignores local user configuration (`-F /dev/null`) and refuses host-key changes, credential forwarding and proxy commands. The deployment host must already have the Rust CLI and build prerequisites installed.

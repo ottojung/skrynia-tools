@@ -65,6 +65,6 @@ Use [the SSH deployment action](action/deploy/action.yml) with a dedicated deplo
 
 ## Quality and licensing
 
-CI enforces default rustfmt, native tests, Clippy, and Ivanka's Rust structural lint: at most **50 nonblank/noncomment lines per Rust file, 10 direct entries per source directory, and sibling-only imports**. The deployment suite exercises a real Git checkout with an isolated simulated builder; a separate manual qualification has exercised a real rootless Podman container and the current Skrynia HTTP server.
+CI enforces default rustfmt, native tests, Clippy, and Ivanka's Rust structural lint: at most **50 nonblank/noncomment lines per Rust file, 10 direct entries per source directory, and sibling-only imports**. The deployment suite exercises real Git checkout and OpenSSH transport with isolated build fixtures; manual qualification has exercised a real rootless Podman container over SSH and the current Skrynia HTTP server. Production-host qualification is still independent.
 
 Skrynia Tools is Free Software under **GNU AGPLv3 or later**; see [LICENSE](LICENSE).

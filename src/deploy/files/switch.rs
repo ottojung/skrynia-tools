@@ -17,5 +17,7 @@ pub fn switch(root: &Path, name: &str, release: &str) -> Result<()> {
         let _ = fs::remove_file(candidate);
         return Err(error.into());
     }
-    sync_dir(&public)
+    sync_dir(&public).map_err(|error| anyhow::anyhow!(
+        "active symlink changed but durability is uncertain; inspect current before retrying: {error}"
+    ))
 }

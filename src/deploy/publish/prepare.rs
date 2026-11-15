@@ -1,7 +1,4 @@
-use super::{
-    files,
-    types::{DeploySpec, Release},
-};
+use super::{DeploySpec, Release, files, record};
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
@@ -28,19 +25,11 @@ pub fn prepare(spec: &DeploySpec, work: &Path, commit: String) -> Result<Release
                 .try_into()?,
         ),
     };
-    let record = metadata.join(format!("{id}.json"));
-    fs::write(&record, serde_json::to_vec_pretty(&entry)?)?;
-    files::sync_file(&record)?;
-    files::sync_dir(&metadata)?;
+    if fs::symlink_metadata(releases.join(&id)).is_ok() {
+        bail!("release identifier already exists");
+    }
+    record::save(&metadata, &entry)?;
     fs::rename(stage, releases.join(&id))?;
     files::sync_dir(&releases)?;
     Ok(entry)
-}
-
-pub fn activate(root: &Path, name: &str, expected: Option<&str>, release: &str) -> Result<()> {
-    let current = super::inspect::inspect(root, name)?.map(|r| r.id);
-    if current.as_deref() != expected {
-        bail!("active release changed during build; prepared release {release} remains available");
-    }
-    files::switch(root, name, release)
 }

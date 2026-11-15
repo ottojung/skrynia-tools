@@ -10,6 +10,7 @@ Set `SKRYNIA_APPS_DIR=/srv/skrynia-apps` to use a default hosting root for inter
 skrynia-tools app new --name hello --directory ./apps/hello
 skrynia-tools app deploy --name hello --repo https://github.com/OWNER/REPO --subdir apps/hello --apps-dir /srv/skrynia-apps [--commit FULL_SHA] [--builder-image IMAGE]
 skrynia-tools app list --apps-dir /srv/skrynia-apps [--format table|json]
+skrynia-tools app doctor --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app current --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
@@ -27,11 +28,13 @@ skrynia-tools app activate --name hello --release RELEASE_ID --apps-dir /srv/skr
 
 The default format for `list`, `current`, `versions`, `history`, `rollback` and `activate` is a readable table or confirmation. `inspect`, `show` and legacy `releases` retain JSON output by default. All views accept `--format json|table`. The `versions` display lists the newest published snapshots first, marking the currently active one with `*` in tables and `"active": true` in JSON; legacy `releases` JSON remains unchanged. Legacy releases without a publication timestamp remain available and show `unknown`. `show` and `rollback` address a version **directly by its opaque release ID**, without enumerating the history. `list` includes registered apps without an active release. The `verify` command explicitly scans the requested release (default: currently active), recomputes its directory-tree SHA-256 and reports verified, mismatch or unverifiable legacy metadata. A mismatch or missing expected digest returns a nonzero exit status; verification reads all artifact bytes, unlike rollback.
 
+The `doctor` command checks for a real deployment root, available Git, rootless Podman and initialized release directories. It is **diagnostic only**: it does not build applications, pull images, create the root or verify sufficient disk capacity or production web routing. Missing internal subdirectories are reported but can be created by an actual deployment.
+
 The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. Code rollback never invokes application migrations or changes Skrynia object data.
 
 ## Remote CLI release management
 
-Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `verify`, `rollback` and `activate`, can run on an authorized host by adding:
+Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `verify`, `doctor`, `rollback` and `activate`, can run on an authorized host by adding:
 
 ```text
 --ssh-host HOST --ssh-user DEPLOY_USER --ssh-key PRIVATE_KEY_FILE

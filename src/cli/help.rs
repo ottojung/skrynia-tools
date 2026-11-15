@@ -6,6 +6,7 @@ pub fn print() {
         "  app deploy --name NAME --repo GITHUB_URL --subdir PATH --apps-dir DIR [--commit SHA]"
     );
     println!("  app list --apps-dir DIR [--format table|json]");
+    println!("  app doctor --apps-dir DIR [--format table|json]");
     println!("  app versions --name NAME --apps-dir DIR [--format table|json]");
     println!("  app current --name NAME --apps-dir DIR");
     println!("  app compare --name NAME --from ID --to ID --apps-dir DIR");

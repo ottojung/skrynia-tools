@@ -1,6 +1,7 @@
 use super::Fixture;
 mod checks;
 mod compare;
+mod doctor;
 mod recovery;
 
 pub fn verify() {
@@ -15,5 +16,6 @@ pub fn verify() {
     assert!(fixture.deploy(&three).status.success());
     checks::verify(&fixture, &first, &one, &three);
     compare::verify(&fixture, &first, &one, &three);
+    doctor::verify(&fixture);
     recovery::verify(&fixture, &first);
 }

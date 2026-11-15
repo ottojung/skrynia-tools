@@ -135,3 +135,7 @@ Publication normalizes artifact file modes to **0644** for non-executables and *
 `skrynia-tools app verify --name NAME [--release RELEASE_ID]` explicitly recomputes the hash and fails on mismatch or an unverified legacy snapshot. `--format json` emits `expected_sha256`, `actual_sha256` and `verified` fields (`null` for missing legacy commitments). This check reads **every artifact byte** and sorts entries within each directory (rather than promising constant work); it is deliberately separate from O(1) rollback, which only validates a bounded release record and switches the code pointer without reading old artifact contents.
 
 An administrator who can modify both release artifacts and metadata can forge a matching digest, so verification detects accidental corruption or uncontrolled changes—not a malicious owner of the deployment root. Retained release storage and operating-system permissions must still be trusted.
+
+## Host diagnostics
+
+Use `skrynia-tools app doctor --apps-dir DIR [--format json]`, locally or with the remote SSH options, to check that the hosting root exists as a real directory, Git is callable, rootless Podman is available and the expected private publication subdirectories have been initialized. This is a prerequisite diagnostic, **not** a synthetic deployment or guarantee of production hosting readiness. The check does not touch application data or depend on any client-side Skrynia protocol.

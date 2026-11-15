@@ -5,6 +5,7 @@ use super::{
 };
 mod active;
 mod apps;
+mod doctor;
 mod read;
 mod release;
 mod rollback;
@@ -12,6 +13,7 @@ mod verify;
 mod versions;
 pub use active::inspect;
 pub use apps::{App, apps};
+pub use doctor::{Doctor, doctor};
 pub use release::release;
 pub use rollback::rollback;
 pub use verify::{Verification, verify};

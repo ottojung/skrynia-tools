@@ -31,6 +31,7 @@ impl Request {
                 | "activate"
                 | "compare"
                 | "verify"
+                | "doctor"
         ) {
             bail!("unsupported remote app action");
         }

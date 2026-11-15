@@ -8,7 +8,9 @@ mod source;
 mod types;
 mod validate;
 use anyhow::Result;
-pub use inspect::{App, Verification, apps, inspect, release, releases, rollback, verify};
+pub use inspect::{
+    App, Doctor, Verification, apps, doctor, inspect, release, releases, rollback, verify,
+};
 pub use types::{DeploySpec, Release};
 pub use validate::valid_name;
 

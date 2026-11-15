@@ -27,6 +27,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         "deploy" => publish::run(args),
         "list" | "ls" => inventory::run(args),
         "compare" => compare::run(args),
+        "doctor" => status::doctor::run(args),
         "versions" | "history" | "releases" => history::run(args),
         "current" | "inspect" | "show" | "verify" | "rollback" | "activate" => status::run(args),
         _ => bail!("unknown app action"),

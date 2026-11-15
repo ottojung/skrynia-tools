@@ -1,5 +1,6 @@
 use super::{Arguments, deploy, format};
 use anyhow::{Result, bail};
+pub(super) mod doctor;
 mod verify;
 
 pub fn run(args: &Arguments) -> Result<()> {

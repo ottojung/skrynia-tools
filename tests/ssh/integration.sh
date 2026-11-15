@@ -117,6 +117,8 @@ print(json.loads(p.read_text())['id'])
 PYID
 )"
 remote list > "$tmp/apps.txt"
+remote doctor --format json > "$tmp/doctor.json"
+python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["prerequisites_ok"]' "$tmp/doctor.json"
 remote versions --name demo > "$tmp/versions.txt"
 remote current --name demo --format json > "$tmp/first.json"
 grep -q "$first_id" "$tmp/versions.txt"

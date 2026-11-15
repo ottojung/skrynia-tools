@@ -22,6 +22,8 @@ pub struct Release {
     pub builder_image: String,
     #[serde(default)]
     pub published_unix_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_sha256: Option<String>,
 }
 impl DeploySpec {
     pub fn validate(&self) -> Result<()> {

@@ -10,6 +10,7 @@ pub fn print() {
     println!("  app current --name NAME --apps-dir DIR");
     println!("  app compare --name NAME --from ID --to ID --apps-dir DIR");
     println!("  app show --name NAME --release ID --apps-dir DIR");
+    println!("  app verify --name NAME [--release ID] --apps-dir DIR");
     println!("  app rollback --name NAME --release ID --apps-dir DIR");
     println!("  app new --name NAME --directory DIR");
     println!("  Remote app commands: --ssh-host HOST --ssh-user USER");

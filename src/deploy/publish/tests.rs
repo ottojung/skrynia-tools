@@ -15,6 +15,7 @@ fn immutable_metadata_cannot_be_overwritten() {
         subdir: ".".into(),
         builder_image: "builder".into(),
         published_unix_ms: Some(123),
+        content_sha256: None,
     };
     record::save(&root, &entry).unwrap();
     let path = root.join(format!("{}.json", entry.id));

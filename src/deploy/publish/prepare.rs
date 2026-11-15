@@ -11,6 +11,7 @@ pub fn prepare(spec: &DeploySpec, work: &Path, commit: String) -> Result<Release
     let id = format!("{}-{:016x}", &commit[..12], rand::random::<u64>());
     let stage = releases.join(format!(".{id}.staging"));
     files::copy_tree(&input, &stage)?;
+    let content_sha256 = Some(files::digest_tree(&stage)?);
     let entry = Release {
         id: id.clone(),
         name: spec.name.clone(),
@@ -18,6 +19,7 @@ pub fn prepare(spec: &DeploySpec, work: &Path, commit: String) -> Result<Release
         commit,
         subdir: spec.subdir.clone(),
         builder_image: spec.builder_image.clone(),
+        content_sha256,
         published_unix_ms: Some(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)?

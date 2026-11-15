@@ -30,6 +30,7 @@ impl Request {
                 | "rollback"
                 | "activate"
                 | "compare"
+                | "verify"
         ) {
             bail!("unsupported remote app action");
         }

@@ -20,7 +20,15 @@ pub fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
         } else if kind.is_file() {
             fs::copy(child.path(), &target)?;
             #[cfg(unix)]
-            fs::set_permissions(&target, fs::Permissions::from_mode(0o644))?;
+            {
+                let source_mode = fs::metadata(child.path())?.permissions().mode();
+                let normalized = if source_mode & 0o111 != 0 {
+                    0o755
+                } else {
+                    0o644
+                };
+                fs::set_permissions(&target, fs::Permissions::from_mode(normalized))?;
+            }
             sync_file(&target)?;
         } else {
             bail!(

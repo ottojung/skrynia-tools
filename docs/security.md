@@ -32,3 +32,7 @@ Independent publishers from mutually untrusted groups need separate HTTPS browse
 ## Local publishing controls
 
 Private issuer-token files use owner-only permissions, refuse symlinks and are fsynced along with their parent directory before provisioning continues. Credential writes atomically replace a private file before issuing the next credential. Rootless Podman runs builds without adding the operator's Skrynia credentials or SSH key material to the container. Static releases are copied and synchronized separately from source code. The CLI is **not** intended to accept arbitrary untrusted callers on a shared host: users with deployment-host filesystem access can alter release metadata or files.
+
+## Release integrity commitments
+
+New code releases store an SHA-256 commitment to all copied artifact bytes, relative paths, directory entries and executable flags. `app verify` checks this explicitly, including over restricted SSH. It is not part of rollback and does not imply any consistency of application data, storage migrations, running processes or external hosting caches. A host operator with write access to both the metadata and release trees remains trusted.

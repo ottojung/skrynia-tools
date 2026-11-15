@@ -28,7 +28,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         "list" | "ls" => inventory::run(args),
         "compare" => compare::run(args),
         "versions" | "history" | "releases" => history::run(args),
-        "current" | "inspect" | "show" | "rollback" | "activate" => status::run(args),
+        "current" | "inspect" | "show" | "verify" | "rollback" | "activate" => status::run(args),
         _ => bail!("unknown app action"),
     }
 }

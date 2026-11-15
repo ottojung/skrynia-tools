@@ -125,3 +125,13 @@ The handler requires `SKRYNIA_DEPLOY_ROOT`, verifies that the supplied `apps_dir
 `app rollback` remains constant-work relative to artifact size and release count; SSH establishment adds a fixed network handshake overhead and no artifact transfer. Arbitrarily slow network or filesystem operations are not subject to a real-time limit. As with local management, **no migration hooks or application-data modifications occur**.
 
 The isolated OpenSSH integration test now exercises both application deployment and remote version inventory, provenance comparison and rollback through the same restricted RPC interface. A separate run has used real rootless Podman for two Git builds over SSH. These tests validate the transport and release lifecycle, but not a separately managed production host or power-loss recovery.
+
+## Explicit release integrity verification
+
+New releases record a **SHA-256 directory-tree digest** alongside their immutable code. The portable tagged serialization begins with `skrynia-release-tree-v1` followed by a NUL byte; it processes each directory's entries in sorted name order, depth-first and encodes their type (`D` directory, `F` regular file, `X` executable file), relative path length, raw relative path bytes, and file size (unsigned 64-bit big-endian). For file entries it then hashes the raw contents. Empty directories are distinguished from absent directories, and arbitrary non-UTF-8 filenames are supported on the native host.
+
+Publication normalizes artifact file modes to **0644** for non-executables and **0755** for executables, stripping privileged setuid/setgid modes. Directory modes are 0755. The hash detects executable-bit changes as well as file byte/path modifications. Symlinks, sockets and other special files remain rejected to prevent path escapes. The input and output artifact trees need not contain any HTML files.
+
+`skrynia-tools app verify --name NAME [--release RELEASE_ID]` explicitly recomputes the hash and fails on mismatch or an unverified legacy snapshot. `--format json` emits `expected_sha256`, `actual_sha256` and `verified` fields (`null` for missing legacy commitments). This check reads **every artifact byte** and sorts entries within each directory (rather than promising constant work); it is deliberately separate from O(1) rollback, which only validates a bounded release record and switches the code pointer without reading old artifact contents.
+
+An administrator who can modify both release artifacts and metadata can forge a matching digest, so verification detects accidental corruption or uncontrolled changes—not a malicious owner of the deployment root. Retained release storage and operating-system permissions must still be trusted.

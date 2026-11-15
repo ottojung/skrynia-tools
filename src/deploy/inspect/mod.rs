@@ -8,11 +8,13 @@ mod apps;
 mod read;
 mod release;
 mod rollback;
+mod verify;
 mod versions;
 pub use active::inspect;
 pub use apps::{App, apps};
 pub use release::release;
 pub use rollback::rollback;
+pub use verify::{Verification, verify};
 pub use versions::releases;
 
 #[cfg(test)]

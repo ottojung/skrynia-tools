@@ -1,9 +1,13 @@
 use super::{Arguments, deploy, format};
 use anyhow::{Result, bail};
+mod verify;
 
 pub fn run(args: &Arguments) -> Result<()> {
     let root = format::apps_dir(args)?;
     let name = args.required("name")?;
+    if args.action == "verify" {
+        return verify::run(args, &root, name);
+    }
     if matches!(args.action.as_str(), "rollback" | "activate") {
         let id = args.required("release")?;
         deploy::rollback(&root, name, id)?;

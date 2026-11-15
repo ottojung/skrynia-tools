@@ -2,11 +2,11 @@
 
 Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Skrynia). **The primary application workflow deploys a GitHub repository and a subdirectory**: check out an exact commit, run `make build` in a rootless Podman container, publish the `build/` tree as an immutable release, and atomically activate it. Existing releases can be rolled back in **O(1) work and O(1) extra memory** relative to release history and artifact size.
 
-**An application does not have to use an append-only log or any Skrynia storage.** Code deployment and optional data provisioning are separate. The release manager stores arbitrary regular build artifacts without requiring any HTML entry point or making assumptions about application data. The Skrynia server remains an object store, not an application builder.
+**An application does not have to use an append-only log or any Skrynia storage.** Code deployment and optional data provisioning are separate. The release manager stores arbitrary regular build artifacts without requiring any HTML entry point or making assumptions about application data. It preserves normalized executable permissions and records a versioned SHA-256 digest for on-demand verification. The Skrynia server remains an object store, not an application builder.
 
 ## Implemented
 
-- Application CLI: `app new`, `deploy`, `list`, `current`, `versions`, `show`, `compare`, `rollback` and `activate`, with JSON and human-readable views.
+- Application CLI: `app new`, `deploy`, `list`, `current`, `versions`, `show`, `compare`, `verify`, `rollback` and `activate`, with JSON and human-readable views.
 - Native Rust HTTP client for public GET, create-if-absent, replace, delete, byte-SHA256 CAS, paginated listing, child-grant creation and user-token issuance.
 - `admin plan` and `admin create`: optional app data-grant provisioning, with private credential files.
 - Optional `CasCell` and create-only `AppendLog` client protocols; `object` and `log` CLI operations.
@@ -40,6 +40,7 @@ Manage historical versions without rebuilding or touching data:
 skrynia-tools app list --apps-dir /srv/skrynia-apps
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
+skrynia-tools app verify --name hello --apps-dir /srv/skrynia-apps
 skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
 ```
 

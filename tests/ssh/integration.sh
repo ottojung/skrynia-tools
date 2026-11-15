@@ -11,7 +11,7 @@ trap cleanup EXIT
 chmod 700 "$tmp"
 mkdir -p "$tmp/source/apps/demo" "$tmp/hosted" "$tmp/bin"
 printf 'payload from real SSH\n' > "$tmp/source/payload.txt"
-printf 'build:\n\tmkdir -p build/deep\n\tcp ../../payload.txt build/deep/artifact.bin\n' \
+printf 'build:\n\tmkdir -p build/deep\n\tcp ../../payload.txt build/deep/artifact.bin\n\tchmod +x build/deep/artifact.bin\n' \
   > "$tmp/source/apps/demo/Makefile"
 git -C "$tmp/source" init -q -b main
 git -C "$tmp/source" add .
@@ -81,6 +81,7 @@ assert len(metadata)==1, metadata
 entry=json.loads(metadata[0].read_text())
 assert entry['commit']==sys.argv[2]
 assert (root/'hosted/apps/demo/deep/artifact.bin').read_text()=='payload from real SSH\n'
+assert (root/'hosted/apps/demo/deep/artifact.bin').stat().st_mode & 0o111
 output=(root/'github-output').read_text()
 assert 'release='+entry['id'] in output
 assert 'commit='+sys.argv[2] in output
@@ -135,6 +136,7 @@ PYID
 remote compare --name demo --from "$first_id" --to "$second_id" --format json \
   > "$tmp/compare.json"
 remote versions --name demo --format json > "$tmp/versions.json"
+remote verify --name demo --format json > "$tmp/verification.json"
 python3 - "$tmp" "$first_id" "$second_id" <<'PYID'
 import json,pathlib,sys
 root=pathlib.Path(sys.argv[1])
@@ -143,8 +145,13 @@ entries=json.loads((root/'versions.json').read_text())
 assert len(entries)==2 and entries[0]['id']==sys.argv[3] and entries[0]['active']
 assert entries[1]['id']==sys.argv[2] and not entries[1]['active']
 assert (root/'hosted/apps/demo/deep/artifact.bin').read_text()=='second artifact over remote CLI\n'
+verification=json.loads((root/'verification.json').read_text())
+assert verification['verified'] is True
+assert verification['expected_sha256']==verification['actual_sha256']
 PYID
 remote rollback --name demo --release "$first_id" > "$tmp/rollback.txt"
+remote verify --name demo --release "$first_id" --format json > "$tmp/restored-verify.json"
+python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["verified"] is True' "$tmp/restored-verify.json"
 test "$(cat "$tmp/hosted/apps/demo/deep/artifact.bin")" = 'payload from real SSH'
 grep -q "$first_id" "$tmp/rollback.txt"
 echo 'REAL SSH MANAGEMENT PASS: remote list/versions/compare, remote deployment and constant-work rollback'
@@ -172,3 +179,12 @@ if printf '{"action":"destroy","apps_dir":"%s"}' "$tmp/hosted" | \
     exit 1
 fi
 echo 'REAL SSH SECURITY PASS: private key mode, partial SSH arguments, RPC whitelist'
+
+printf 'corrupted artifact\n' > "$tmp/hosted/releases/demo/$first_id/deep/artifact.bin"
+if remote verify --name demo --release "$first_id" --format json \
+  > "$tmp/tampered.json" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: corrupted release was reported as intact' >&2
+    exit 1
+fi
+python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["verified"] is False' "$tmp/tampered.json"
+echo 'REAL SSH INTEGRITY PASS: clean versions verified; modified historical artifact rejected'

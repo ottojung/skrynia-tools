@@ -46,6 +46,8 @@ jobs:
         run: cargo install --locked wasm-bindgen-cli --version 0.2.130
       - name: Generate browser JS bindings
         run: wasm-bindgen --target web --out-dir dist/skrynia-wasm target/wasm32-unknown-unknown/release/skrynia_tools.wasm
+      - name: Headless browser Wasm protocol integration
+        run: bash tests/browser/run.sh
       - uses: actions/upload-artifact@v4
         with:
           name: skrynia-tools-browser-wasm

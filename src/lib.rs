@@ -1,3 +1,5 @@
-//! Shared Rust foundation for Skrynia client-side protocols.
-//!
-//! This crate is a design scaffold. No production protocol API is published.
+//! Rust client protocols and GitHub-source static-app deployment for Skrynia.
+pub mod cli;
+pub mod client;
+pub mod deploy;
+pub mod log;

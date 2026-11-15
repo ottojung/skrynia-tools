@@ -1,3 +1,4 @@
+pub mod app_history;
 mod git;
 mod run;
 mod shell;

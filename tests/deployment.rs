@@ -43,3 +43,8 @@ fn immutable_versions_activate_and_rollback() {
         "first version"
     );
 }
+
+#[test]
+fn developer_version_history_cli() {
+    support::app_history::verify();
+}

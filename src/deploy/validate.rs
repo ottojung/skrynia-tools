@@ -32,3 +32,12 @@ pub fn validate_repo(repo: &str) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn valid_release_id(id: &str) -> bool {
+    id.len() == 29
+        && id.as_bytes()[12] == b'-'
+        && id
+            .bytes()
+            .enumerate()
+            .all(|(i, b)| i == 12 || b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}

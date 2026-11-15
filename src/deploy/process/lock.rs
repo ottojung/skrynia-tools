@@ -1,6 +1,12 @@
 use anyhow::Result;
 #[cfg(unix)]
 pub fn lock(root: &std::path::Path, name: &str) -> Result<std::fs::File> {
+    acquire(root, name)
+}
+pub fn build_lock(root: &std::path::Path, name: &str) -> Result<std::fs::File> {
+    acquire(root, &format!("{name}.build"))
+}
+fn acquire(root: &std::path::Path, name: &str) -> Result<std::fs::File> {
     use std::os::fd::AsRawFd;
     use std::os::unix::fs::OpenOptionsExt;
     let file = std::fs::OpenOptions::new()

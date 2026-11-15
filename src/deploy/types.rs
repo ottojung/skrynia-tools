@@ -20,6 +20,8 @@ pub struct Release {
     pub commit: String,
     pub subdir: String,
     pub builder_image: String,
+    #[serde(default)]
+    pub published_unix_ms: Option<u64>,
 }
 impl DeploySpec {
     pub fn validate(&self) -> Result<()> {

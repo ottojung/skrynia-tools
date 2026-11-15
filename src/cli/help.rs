@@ -1,16 +1,21 @@
 pub fn print() {
-    println!("skrynia app new --name NAME --directory DIR");
+    println!("skrynia-tools — GitHub app releases and optional Skrynia data");
+    println!();
+    println!("App code (independent of application data protocols):");
     println!(
-        "skrynia app deploy --name NAME --repo GITHUB_URL --subdir PATH --apps-dir DIR [--commit SHA]"
+        "  app deploy --name NAME --repo GITHUB_URL --subdir PATH --apps-dir DIR [--commit SHA]"
     );
-    println!("skrynia app releases|inspect --name NAME --apps-dir DIR");
-    println!("skrynia app rollback --name NAME --release ID --apps-dir DIR");
-    println!(
-        "skrynia object get|create|replace|delete|list --key KEY --url URL [--token-file FILE]"
-    );
-    println!("skrynia log init|append|read --prefix PREFIX --url URL [--token-file FILE]");
-    println!("skrynia admin plan|create --name NAME --max-bytes BYTES --max-objects N [--id ID]");
-    println!(
-        "       admin create also needs --url URL --parent-token-file FILE --credentials-out FILE"
-    );
+    println!("  app list --apps-dir DIR [--format table|json]");
+    println!("  app versions --name NAME --apps-dir DIR [--format table|json]");
+    println!("  app current --name NAME --apps-dir DIR");
+    println!("  app show --name NAME --release ID --apps-dir DIR");
+    println!("  app rollback --name NAME --release ID --apps-dir DIR");
+    println!("  app new --name NAME --directory DIR");
+    println!("  app releases|inspect|history|activate (compatibility aliases)");
+    println!("  Rollback changes only the code symlink; constant work, no migrations.");
+    println!();
+    println!("Optional Skrynia storage:");
+    println!("  object get|create|replace|delete|list --url URL --key KEY");
+    println!("  log init|append|read --prefix PREFIX --url URL");
+    println!("  admin plan|create --name NAME --max-bytes BYTES --max-objects N");
 }

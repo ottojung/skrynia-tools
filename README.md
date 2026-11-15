@@ -1,12 +1,12 @@
 # Skrynia Tools
 
-Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Skrynia). **The primary application workflow deploys a GitHub repository and a subdirectory**: check out an exact commit, run `make build` in a rootless Podman container, publish the `build/` tree as an immutable release, and atomically activate it. Existing releases can be rolled back.
+Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Skrynia). **The primary application workflow deploys a GitHub repository and a subdirectory**: check out an exact commit, run `make build` in a rootless Podman container, publish the `build/` tree as an immutable release, and atomically activate it. Existing releases can be rolled back in **O(1) work and O(1) extra memory** relative to release history and artifact size.
 
-**An application does not have to use an append-only log or any Skrynia storage.** Static deployment and optional data provisioning are separate. The Skrynia server remains an object store, not an application builder.
+**An application does not have to use an append-only log or any Skrynia storage.** Code deployment and optional data provisioning are separate. The release manager stores arbitrary regular build artifacts without requiring any HTML entry point or making assumptions about application data. The Skrynia server remains an object store, not an application builder.
 
 ## Implemented
 
-- `app new`, `app deploy`, `app inspect`, `app releases`, `app rollback` for static applications.
+- Application CLI: `app new`, `deploy`, `list`, `current`, `versions`, `show`, `rollback` and `activate`, with JSON and human-readable views.
 - Native Rust HTTP client for public GET, create-if-absent, replace, delete, byte-SHA256 CAS, paginated listing, child-grant creation and user-token issuance.
 - `admin plan` and `admin create`: optional app data-grant provisioning, with private credential files.
 - Optional `CasCell` and create-only `AppendLog` client protocols; `object` and `log` CLI operations.
@@ -32,9 +32,18 @@ target/release/skrynia-tools app deploy \
   --builder-image docker.io/library/rust:1.93-bookworm
 ```
 
+Manage historical versions without rebuilding or touching data:
+
+```sh
+skrynia-tools app list --apps-dir /srv/skrynia-apps
+skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps
+skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
+skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
+```
+
 The default builder is the tested `docker.io/library/rust:1.93-bookworm`; the builder image must contain `make` and the build dependencies of the app (use a custom Node/npm image for Node applications). The historical Skrynia builder image can be supplied explicitly if available. The CLI requires Git and **rootless Podman**. A default-branch commit is used and recorded if `--commit` is omitted; pin the exact SHA and builder image digest in production.
 
-Configure your static server to serve `/srv/skrynia-apps/apps/` as `/apps/` using [the nginx example](examples/nginx-apps.conf). Releases, metadata and build workspaces remain outside that public path. Data grants are provisioned separately with `skrynia-tools admin create` and are never automatically exposed to a frontend.
+For static websites, configure your static server to serve `/srv/skrynia-apps/apps/` as `/apps/` using [the nginx example](examples/nginx-apps.conf). Releases, metadata and build workspaces remain outside that public path. Data grants are provisioned separately with `skrynia-tools admin create` and are never automatically exposed to a frontend.
 
 ## GitHub Actions deployment
 

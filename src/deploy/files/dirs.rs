@@ -21,3 +21,15 @@ pub fn ensure_dirs(root: &Path) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn existing_dir(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+        Ok(metadata) if metadata.file_type().is_dir() => Ok(true),
+        Ok(_) => bail!(
+            "deployment directory is not a real directory: {}",
+            path.display()
+        ),
+    }
+}

@@ -1,4 +1,4 @@
-use super::{Release, releases, valid_name};
+use super::{Release, release, valid_name};
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
@@ -24,9 +24,7 @@ pub fn inspect(root: &Path, name: &str) -> Result<Option<Release>> {
     if target != expected {
         bail!("release link escapes this application");
     }
-    releases(root, name)?
-        .into_iter()
-        .find(|r| r.id == id)
+    release(root, name, id)?
         .ok_or_else(|| anyhow::anyhow!("active release has no verified metadata"))
         .map(Some)
 }

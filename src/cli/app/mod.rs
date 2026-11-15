@@ -1,47 +1,25 @@
-use super::args::Arguments;
-use super::deploy::{self, DeploySpec};
+use super::{args::Arguments, deploy};
 use anyhow::{Result, bail};
-use std::path::PathBuf;
+mod format;
 mod guard;
+mod history;
+mod inventory;
+mod publish;
+mod status;
 mod stdin;
 
 pub fn run(args: &Arguments) -> Result<()> {
-    if args.action == "new" {
-        return super::scaffold::create(args);
-    }
-    if args.action == "deploy" && args.optional("spec-stdin") == Some("true") {
-        return stdin::deploy();
-    }
-    let root = PathBuf::from(args.required("apps-dir")?);
-    let name = args.required("name")?;
     match args.action.as_str() {
-        "deploy" => {
-            let spec = DeploySpec {
-                name: name.into(),
-                repo: args.required("repo")?.into(),
-                commit: args.optional("commit").map(str::to_owned),
-                subdir: args.optional("subdir").unwrap_or(".").into(),
-                apps_dir: root,
-                builder_image: args
-                    .optional("builder-image")
-                    .unwrap_or("docker.io/library/rust:1.93-bookworm")
-                    .into(),
-            };
-            println!("{}", serde_json::to_string_pretty(&deploy::deploy(&spec)?)?);
+        "help" | "--help" => {
+            super::help::print();
+            Ok(())
         }
-        "releases" => println!(
-            "{}",
-            serde_json::to_string_pretty(&deploy::releases(&root, name)?)?
-        ),
-        "inspect" => println!(
-            "{}",
-            serde_json::to_string_pretty(&deploy::inspect(&root, name)?)?
-        ),
-        "rollback" => {
-            deploy::rollback(&root, name, args.required("release")?)?;
-            println!("rollback activated");
-        }
+        "new" => super::scaffold::create(args),
+        "deploy" if args.optional("spec-stdin") == Some("true") => stdin::deploy(),
+        "deploy" => publish::run(args),
+        "list" | "ls" => inventory::run(args),
+        "versions" | "history" | "releases" => history::run(args),
+        "current" | "inspect" | "show" | "rollback" | "activate" => status::run(args),
         _ => bail!("unknown app action"),
     }
-    Ok(())
 }

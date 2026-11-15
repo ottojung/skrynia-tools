@@ -1,5 +1,6 @@
 use super::{args::Arguments, deploy};
 use anyhow::{Result, bail};
+mod compare;
 mod format;
 mod guard;
 mod history;
@@ -18,6 +19,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         "deploy" if args.optional("spec-stdin") == Some("true") => stdin::deploy(),
         "deploy" => publish::run(args),
         "list" | "ls" => inventory::run(args),
+        "compare" => compare::run(args),
         "versions" | "history" | "releases" => history::run(args),
         "current" | "inspect" | "show" | "rollback" | "activate" => status::run(args),
         _ => bail!("unknown app action"),

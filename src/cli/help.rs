@@ -8,6 +8,7 @@ pub fn print() {
     println!("  app list --apps-dir DIR [--format table|json]");
     println!("  app versions --name NAME --apps-dir DIR [--format table|json]");
     println!("  app current --name NAME --apps-dir DIR");
+    println!("  app compare --name NAME --from ID --to ID --apps-dir DIR");
     println!("  app show --name NAME --release ID --apps-dir DIR");
     println!("  app rollback --name NAME --release ID --apps-dir DIR");
     println!("  app new --name NAME --directory DIR");

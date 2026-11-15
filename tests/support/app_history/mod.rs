@@ -1,5 +1,6 @@
 use super::Fixture;
 mod checks;
+mod compare;
 mod recovery;
 
 pub fn verify() {
@@ -13,5 +14,6 @@ pub fn verify() {
     let three = fixture.commit("version three");
     assert!(fixture.deploy(&three).status.success());
     checks::verify(&fixture, &first, &one, &three);
+    compare::verify(&fixture, &first, &one, &three);
     recovery::verify(&fixture, &first);
 }

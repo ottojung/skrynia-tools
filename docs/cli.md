@@ -11,6 +11,7 @@ skrynia-tools app list --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app current --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
+skrynia-tools app compare --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
 # Compatibility aliases:
 skrynia-tools app inspect --name hello --apps-dir /srv/skrynia-apps
@@ -21,7 +22,7 @@ skrynia-tools app activate --name hello --release RELEASE_ID --apps-dir /srv/skr
 
 `app new` fails if the destination already exists. `app deploy` clones the whole Git repository (HTTPS or `git@github.com:owner/repo.git`), checks out the specified or resolved commit, runs the Makefile's `build` target in the given subdirectory inside rootless Podman, validates the hierarchical `build/` output and switches one symlink atomically. It makes **no assumption about the files in `build/`**, preserves arbitrary regular files and nested directories, and records source/commit/subdirectory/builder metadata. Errors leave any previous active release intact. A build lock serializes source builds; a separate brief activation lock protects only the active-code pointer. The CLI host must have writable access to the static server's app directory; no server-side deployment endpoint is called.
 
-The default format for `list`, `current`, `versions`, `history`, `rollback` and `activate` is a readable table or confirmation. `inspect`, `show` and legacy `releases` retain JSON output by default. All views accept `--format json|table`. The `versions` display lists the newest published snapshots first, marking the currently active one with `*`. Legacy releases without a publication timestamp remain available and show `unknown`. `show` and `rollback` address a version **directly by its opaque release ID**, without enumerating the history. `list` includes registered apps without an active release. Code rollback never invokes application migrations or changes Skrynia object data.
+The default format for `list`, `current`, `versions`, `history`, `rollback` and `activate` is a readable table or confirmation. `inspect`, `show` and legacy `releases` retain JSON output by default. All views accept `--format json|table`. The `versions` display lists the newest published snapshots first, marking the currently active one with `*`. Legacy releases without a publication timestamp remain available and show `unknown`. `show` and `rollback` address a version **directly by its opaque release ID**, without enumerating the history. `list` includes registered apps without an active release. The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. Code rollback never invokes application migrations or changes Skrynia object data.
 
 ## Optional object data
 

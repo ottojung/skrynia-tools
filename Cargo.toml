@@ -1,0 +1,9 @@
+[package]
+name = "skrynia-tools"
+version = "0.0.0"
+edition = "2024"
+publish = false
+build = "build.rs"
+description = "Client-side protocols and tooling for Skrynia (design scaffold)"
+
+[dependencies]

@@ -30,6 +30,3 @@ pub fn commit(f: &Fixture, text: &str) -> String {
         .unwrap();
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
-pub fn break_build(f: &Fixture) {
-    fs::write(f.source.join("apps/site/Makefile"), "build:\n\tfalse\n").unwrap();
-}

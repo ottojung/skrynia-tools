@@ -1,27 +1,27 @@
 # Client protocol catalog and proof obligations
 
-**Status: proposals, not implemented.** These protocols build on Skrynia's actual single-key primitives. None can increase server-enforced authority.
+**Implementation status:** the native raw HTTP client, byte-SHA256 CAS cell, and basic create-only append log exist. Other protocols below are design proposals. No client-side protocol can increase Skrynia-enforced authority.
 
 | Module | Function | Primitives | Priority |
 | --- | --- | --- | --- |
-| Raw client | bytes, grants, listing, CAS and push | HTTP operations | P0 |
-| `CasCell<T>` | versioned one-key state | byte-SHA256 CAS | P0 |
-| `AppendLog<T>` | ordered immutable stream | create-only slots | P0 |
+| Raw client (implemented) | bytes, grants, listing and CAS; Push not yet wrapped | HTTP operations | available |
+| `CasCell` (implemented) | reads byte snapshots; conditional replace, re-evaluated update callback | byte-SHA256 CAS | available |
+| `AppendLog` (implemented) | bounded contiguous reads and create-only appends with operation IDs | create-only slots | available |
 | `EventSet<T>` | concurrent unordered contributions | create + list | P1 |
 | `SnapshotStore<T>` | multi-object logical snapshot and transaction | immutable records + CAS head | P1 |
 | `SealedEpochLog<T>` | retained log with registered consumer cursors | grants + CAS + delete | P2 |
 | `TaskQueue<T>` | collaborative tasks and recovery | CAS + log | research |
 | Signed/encrypted records | independently validated trust/confidentiality | client cryptography | separate design |
 
-Each protocol requires: versioned wire schema, exact authority bundle, creation/bootstrap steps, correctness and liveness assumptions, bounded-work behavior, unknown-outcome recovery, golden interoperability fixtures, crash injection and adversarial tests.
+Before qualifying any protocol for production-grade guarantees, require: versioned wire schema, exact authority bundle, creation/bootstrap steps, correctness and liveness assumptions, bounded-work behavior, unknown-outcome recovery, golden interoperability fixtures, crash injection and adversarial tests. The initial implementations have unit tests and live-server smoke verification, but not all these stronger qualification gates.
 
 ## CAS cell
 
-Read authoritative bytes, compute their SHA-256, then use conditional replace. Embed a strictly increasing revision and unique transaction ID when an application needs to avoid ABA even if payload values repeat. After 412, re-read and **re-evaluate** the update rather than blindly retrying the previous bytes. After an uncertain response, inspect transaction ID/history or return `OutcomeUnknown`. A user callback may have external side effects; do not automatically rerun it without an explicit contract.
+The implemented `CasCell` API reads authoritative bytes, computes their SHA-256 and uses conditional replace. The `update` callback is documented to be pure because 412 may rerun it. The current type is byte-oriented, not `CasCell<T>` with automatic typed serialization.  Embed a strictly increasing revision and unique transaction ID when an application needs to avoid ABA even if payload values repeat. After 412, re-read and **re-evaluate** the update rather than blindly retrying the previous bytes. After an uncertain response, inspect transaction ID/history or return `OutcomeUnknown`. A user callback may have external side effects; do not automatically rerun it without an explicit contract.
 
 ## Append-only log (create-only)
 
-Initialize a genesis key in a unique epoch; cooperating writers discover the first missing **consecutive** successor with fresh reads and race `POST` at that exact key. 201 is the append's commit, 409 advances to the successor, and a lost response requires checking the attempted key's **operation ID** before deciding to retry. Readers replay the contiguous prefix and stop at the first currently missing key; that is not a permanently sealed end.
+The implemented `AppendLog` uses fixed epoch `e000001` and twelve-digit slot keys. There is no current epoch rotation or garbage collection. Initialize a genesis key in that epoch; cooperating writers discover the first missing **consecutive** successor with fresh reads and race `POST` at that exact key. 201 is the append's commit, 409 advances to the successor, and a lost response requires checking the attempted key's **operation ID** before deciding to retry. Readers replay the contiguous prefix and stop at the first currently missing key; that is not a permanently sealed end.
 
 Writers must be limited to **create only**, not modify/delete, and the live epoch must not be collected. This ordering proof requires cooperating writers, no deletion and fresh observations. A malicious writer can occupy future slots, insert invalid bytes or exhaust quota; the Rust API cannot enforce its algorithm on others. Tail hints and listing can accelerate scans but do not certify missing predecessor slots. Expose explicit positions (epoch, sequence), bounds and cancellation. A linear scan from genesis must not be disguised as constant-time.
 

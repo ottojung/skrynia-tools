@@ -5,8 +5,11 @@ use std::process::Command;
 
 pub fn build(spec: &DeploySpec, work: &Path) -> Result<()> {
     let source = work.join("source").canonicalize()?;
-    let user = unsafe { libc::geteuid() };
-    let group = unsafe { libc::getegid() };
+    let mut info = Command::new("podman");
+    info.args(["info", "--format", "{{.Host.Security.Rootless}}"]);
+    if process::capture(info, 15)? != b"true\n" {
+        anyhow::bail!("app builds require rootless Podman");
+    }
     let name = format!("skrynia-build-{:016x}", rand::random::<u64>());
     let mut cmd = Command::new("podman");
     cmd.args([
@@ -21,7 +24,7 @@ pub fn build(spec: &DeploySpec, work: &Path) -> Result<()> {
         "--security-opt",
         "no-new-privileges",
         "--user",
-        &format!("{user}:{group}"),
+        "0:0",
         "--env",
         "HOME=/tmp",
         "-v",
@@ -34,7 +37,9 @@ pub fn build(spec: &DeploySpec, work: &Path) -> Result<()> {
     ]);
     let result = process::run(cmd, 1800);
     if result.is_err() {
-        let _ = Command::new("podman").args(["rm", "-f", &name]).output();
+        let mut cleanup = Command::new("podman");
+        cleanup.args(["rm", "-f", &name]);
+        let _ = process::run(cleanup, 20);
     }
     result
 }

@@ -6,7 +6,11 @@ fn failed_build_never_changes_active_release() {
     let fixture = Fixture::new();
     let good = fixture.commit("valid");
     assert!(fixture.deploy(&good).status.success());
-    fixture.break_build();
+    std::fs::write(
+        fixture.source.join("apps/site/Makefile"),
+        "build:\n\tfalse\n",
+    )
+    .unwrap();
     let broken = fixture.commit("invalid");
     let result = fixture.deploy(&broken);
     assert!(!result.status.success());

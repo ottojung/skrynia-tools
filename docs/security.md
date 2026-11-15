@@ -1,6 +1,6 @@
 # Security and failure boundaries
 
-**Status: proposed requirements; no production implementations yet.**
+**Status:** the native HTTP client, CLI, CAS cell, append log and static release deployment are implemented and smoke-tested. The additional fault-injection, adversarial verification and WebAssembly guarantees described here are requirements for future production qualification, not claims about tests already completed.
 
 Skrynia enforces one-key atomic operations and scoped bearer grants. It does not enforce client protocols, guarantee execution by other clients, or provide private reads. Library users must distinguish storage-enforced authority, cooperative assumptions, and independently checked payload validity.
 
@@ -13,7 +13,7 @@ Skrynia enforces one-key atomic operations and scoped bearer grants. It does not
 
 ## Unknown outcomes and recovery
 
-A request can commit even when the response never arrives. Use operation/transaction IDs and authoritative reads to resolve ambiguous append or CAS outcomes when possible. Otherwise return a typed `OutcomeUnknown`, not an invented failure or success. Avoid invisible unbounded retries.
+A request can commit even when the response never arrives. Use operation/transaction IDs and authoritative reads to resolve ambiguous append or CAS outcomes when possible. Otherwise report an unresolved/unknown outcome, not an invented failure or success. The current HTTP client uses structured error messages rather than a dedicated `OutcomeUnknown` enum; introducing that type is future work. Avoid invisible unbounded retries.
 
 Grant creation is especially sensitive: losing its one-time issuer response may create an orphan authority that a parent cannot automatically recover or revoke individually. Provisioning is a staged, journaled **non-transactional** operation. Durable receipt of each secret must precede the next remote operation; stop on unreconciled ambiguity.
 

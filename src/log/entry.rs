@@ -18,5 +18,9 @@ pub fn decode(bytes: &[u8]) -> Result<(&str, &[u8])> {
         bail!("truncated log entry");
     }
     let (id, payload) = rest.split_at(32);
-    Ok((std::str::from_utf8(id)?, payload))
+    let id = std::str::from_utf8(id)?;
+    if !id.bytes().all(|c| c.is_ascii_hexdigit()) {
+        bail!("invalid operation ID");
+    }
+    Ok((id, payload))
 }

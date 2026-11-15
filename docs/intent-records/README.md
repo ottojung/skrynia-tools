@@ -1,6 +1,6 @@
 # Intent Records
 
-Record current directly confirmed user intent, distinct from derived implementation decisions. Follow Volodyslav's format:
+Record current directly confirmed user intent, distinct from derived implementation decisions. See [applications](applications.md) for current deployment intent. Follow Volodyslav's format:
 
 ```text
 $id-<16 random decimal digits>

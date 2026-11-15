@@ -11,7 +11,14 @@ pub fn run(args: &Arguments) -> Result<()> {
     }
     let bytes = args.number("max-bytes")?;
     let objects = args.number("max-objects")?;
-    let prefix = format!("a.{name}.{:032x}.", rand::random::<u128>());
+    let id = args
+        .optional("id")
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("{:032x}", rand::random::<u128>()));
+    if id.len() != 32 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        bail!("--id must be a 32-character hex identifier");
+    }
+    let prefix = format!("a.{name}.{id}.");
     let matcher = format!("{prefix}*");
     let ops = [
         "create",

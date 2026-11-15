@@ -1,22 +1,54 @@
 # Skrynia Tools
 
-Rust tooling for [Skrynia](https://github.com/ottojung/Skrynia): **GitHub-source static-app deployment**, a reusable HTTP client, optional data protocols, and an administration/developer CLI.
+Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Skrynia). **The primary application workflow deploys a GitHub repository and a subdirectory**: check out an exact commit, run `make build` in a rootless Podman container, publish the `build/` tree as an immutable release, and atomically activate it. Existing releases can be rolled back.
 
-**Static application deployment does not require any Skrynia data protocol.** Apps can choose arbitrary client data structures—or use no persistent storage at all. The primary deployment workflow preserves historical Skrynia behavior: GitHub repository + commit + monorepo subdirectory, run `make build` to produce `build/`, publish an immutable release, switch it atomically and allow rollback. Hosting happens outside the Skrynia server.
+**An application does not have to use an append-only log or any Skrynia storage.** Static deployment and optional data provisioning are separate. The Skrynia server remains an object store, not an application builder.
+
+## Implemented
+
+- `app new`, `app deploy`, `app inspect`, `app releases`, `app rollback` for static applications.
+- Native Rust HTTP client for public GET, create-if-absent, replace, delete, byte-SHA256 CAS, paginated listing, child-grant creation and user-token issuance.
+- `admin plan` and `admin create`: optional app data-grant provisioning, with private credential files.
+- Optional `CasCell` and create-only `AppendLog` client protocols; `object` and `log` CLI operations.
+
+**Not yet implemented:** WebAssembly bindings, generic snapshot transactions, sealed-epoch garbage collection, task queues, and an automated hosted GitHub Action. These are separate proposals, not prerequisites for deploying applications.
+
+## Build and create an application
+
+```sh
+cargo build --locked --release
+target/release/skrynia-tools app new --name hello --directory ./hello
+```
+
+`app new` creates a simple Makefile-based static website without tokens or storage assumptions. To deploy an app from a GitHub monorepo on your static hosting machine:
+
+```sh
+target/release/skrynia-tools app deploy \
+  --name hello \
+  --repo https://github.com/OWNER/REPOSITORY \
+  --subdir apps/hello \
+  --commit FULL_40_CHARACTER_GIT_SHA \
+  --apps-dir /srv/skrynia-apps \
+  --builder-image docker.io/library/rust:1.93-bookworm
+```
+
+The default builder is the tested `docker.io/library/rust:1.93-bookworm`; the builder image must contain `make` and the build dependencies of the app (use a custom Node/npm image for Node applications). The historical Skrynia builder image can be supplied explicitly if available. The CLI requires Git and **rootless Podman**. A default-branch commit is used and recorded if `--commit` is omitted; pin the exact SHA and builder image digest in production.
+
+Configure your static server to serve `/srv/skrynia-apps/apps/` as `/apps/` using [the nginx example](examples/nginx-apps.conf). Releases, metadata and build workspaces remain outside that public path. Data grants are provisioned separately with `skrynia-tools admin create` and are never automatically exposed to a frontend.
 
 ## Documentation
 
-- [GitHub-source deployment](docs/deployment.md)
+- [Deployment workflow and historical compatibility](docs/deployment.md)
+- [CLI reference](docs/cli.md)
 - [Architecture](docs/architecture.md)
-- [Optional data grants](docs/app-provisioning.md)
-- [CLI interface](docs/cli.md)
-- [Protocol catalog](docs/protocols.md)
-- [Threats and recovery](docs/security.md)
+- [Optional application data grants](docs/app-provisioning.md)
+- [Protocol catalog and guarantees](docs/protocols.md)
+- [Security boundaries and recovery](docs/security.md)
 - [Implementation roadmap](docs/roadmap.md)
-- [Contributor rules](AGENTS.md)
+- [Contributor and Rust source rules](AGENTS.md)
 
-## Build quality
+## Quality and licensing
 
-Every Rust source file has at most 50 nonblank/noncomment lines; each Rust source/lint directory at most 10 entries; imports are sibling-only. The build-time enforcement and tests are imported from [Ivanka](https://github.com/ottojung/ivanka). CI checks default rustfmt, cargo tests, structural lint self-tests, and Clippy.
+CI enforces default rustfmt, native tests, Clippy, and Ivanka's Rust structural lint: at most **50 nonblank/noncomment lines per Rust file, 10 direct entries per source directory, and sibling-only imports**. The deployment suite exercises a real Git checkout with an isolated simulated builder; a separate manual qualification has exercised a real rootless Podman container and the current Skrynia HTTP server.
 
-Free Software under **AGPL-3.0-or-later**; see [LICENSE](LICENSE).
+Skrynia Tools is Free Software under **GNU AGPLv3 or later**; see [LICENSE](LICENSE).

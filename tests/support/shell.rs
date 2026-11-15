@@ -28,7 +28,7 @@ pub fn create() -> Fixture {
     )
     .unwrap();
     let fake = root.join("bin/podman");
-    fs::write(&fake, "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n case \"$1\" in\n -v) src=\"${2%%:*}\"; shift 2;;\n -w) dir=\"$2\"; shift 2;;\n *) shift;;\n esac\ndone\ncd \"$src/${dir#/workspace/}\" || exit 1\nmake build\n").unwrap();
+    fs::write(&fake, "#!/bin/sh\nif [ \"$1\" = \"info\" ]; then echo true; exit 0; fi\nwhile [ $# -gt 0 ]; do\n case \"$1\" in\n -v) src=\"${2%%:*}\"; shift 2;;\n -w) dir=\"$2\"; shift 2;;\n *) shift;;\n esac\ndone\ncd \"$src/${dir#/workspace/}\" || exit 1\nmake build\n").unwrap();
     #[cfg(unix)]
     fs::set_permissions(&fake, fs::Permissions::from_mode(0o755)).unwrap();
     Fixture { root, source, apps }

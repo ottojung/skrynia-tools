@@ -8,3 +8,6 @@ pub use types::AppendLog;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod concurrent;

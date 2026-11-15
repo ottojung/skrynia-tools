@@ -12,6 +12,6 @@ Given a parent **user** token authorized for `delegate`, an administrator can cr
 
 An ordinary browser should receive only its explicitly delegated, publicly exposable user token; it must not receive root or issuer credentials. A grant has exactly **one** location matcher; disjoint role scopes require separate grants and credentials. Overlapping broader grants can still edit data. Creation is not transactional: if the successful grant-create response is lost, its issuer secret may be irrecoverable.
 
-Example `skrynia admin app create --name hello --max-bytes N --max-objects N` derives a random data prefix and provisions a minimal owner grant. It does not create any protocol data. `skrynia admin app plan` previews the authority footprint without side effects.
+`skrynia-tools admin plan --name hello --max-bytes N --max-objects N` previews a data prefix and owner grant without side effects. Supply its 32-hex `--id` to `skrynia-tools admin create --name hello --url URL --parent-token-file FILE --credentials-out FILE --max-bytes N --max-objects N --id ID` to provision that exact scope. This owner grant has broad operations and its credentials must never be shipped in a public app. Neither command creates protocol data.
 
 Revoking a grant never deletes stored bytes, and redeploying or rolling back an app never revokes any data grants.

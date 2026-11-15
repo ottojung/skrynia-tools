@@ -1,4 +1,8 @@
-use super::{files, types::Release, validate::valid_name};
+use super::{
+    files, process,
+    types::Release,
+    validate::{self, valid_name},
+};
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
@@ -37,14 +41,5 @@ pub fn inspect(root: &Path, name: &str) -> Result<Option<Release>> {
     };
     Ok(releases(root, name)?.into_iter().find(|r| r.id == id))
 }
-pub fn rollback(root: &Path, name: &str, id: &str) -> Result<()> {
-    if !valid_name(name)
-        || !releases(root, name)?.iter().any(|r| r.id == id)
-        || !root.join("releases").join(name).join(id).is_dir()
-    {
-        bail!("requested release is not available");
-    }
-    super::validate::ensure_dirs(root)?;
-    let _lock = super::process::lock(root, name)?;
-    files::switch(root, name, id)
-}
+mod rollback;
+pub use rollback::rollback;

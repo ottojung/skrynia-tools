@@ -4,6 +4,9 @@ use anyhow::{Result, bail};
 use std::path::PathBuf;
 
 pub fn run(args: &Arguments) -> Result<()> {
+    if args.action == "new" {
+        return super::scaffold::create(args);
+    }
     let root = PathBuf::from(args.required("apps-dir")?);
     let name = args.required("name")?;
     match args.action.as_str() {
@@ -16,7 +19,7 @@ pub fn run(args: &Arguments) -> Result<()> {
                 apps_dir: root,
                 builder_image: args
                     .optional("builder-image")
-                    .unwrap_or("ghcr.io/ottojung/skrynia-builder:latest")
+                    .unwrap_or("docker.io/library/rust:1.93-bookworm")
                     .into(),
             };
             println!("{}", serde_json::to_string_pretty(&deploy::deploy(&spec)?)?);

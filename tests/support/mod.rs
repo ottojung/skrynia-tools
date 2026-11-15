@@ -14,9 +14,6 @@ impl Fixture {
     pub fn commit(&self, text: &str) -> String {
         git::commit(self, text)
     }
-    pub fn break_build(&self) {
-        git::break_build(self);
-    }
 }
 impl Drop for Fixture {
     fn drop(&mut self) {

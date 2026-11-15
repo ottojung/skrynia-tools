@@ -10,7 +10,7 @@ pub fn build(spec: &DeploySpec, work: &Path) -> Result<()> {
     if process::capture(info, 15)? != b"true\n" {
         anyhow::bail!("app builds require rootless Podman");
     }
-    let name = format!("skrynia-build-{:016x}", rand::random::<u64>());
+    let name = format!("skrynia-{}", work.file_name().unwrap().to_string_lossy());
     let mut cmd = Command::new("podman");
     cmd.args([
         "run",

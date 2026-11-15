@@ -28,3 +28,7 @@ Revoking a grant never deletes stored object bytes. Data deletion and credential
 - Confidentiality requires a separate client-side cryptographic and key-distribution protocol; Skrynia GET remains public.
 
 Independent publishers from mutually untrusted groups need separate HTTPS browser origins. Do not claim that an SDK eliminates same-origin or bearer-token security boundaries.
+
+## Local publishing controls
+
+Private issuer-token files use owner-only permissions, refuse symlinks and are fsynced along with their parent directory before provisioning continues. Credential writes atomically replace a private file before issuing the next credential. Rootless Podman runs builds without adding the operator's Skrynia credentials or SSH key material to the container. Static releases are copied and synchronized separately from source code. The CLI is **not** intended to accept arbitrary untrusted callers on a shared host: users with deployment-host filesystem access can alter release metadata or files.

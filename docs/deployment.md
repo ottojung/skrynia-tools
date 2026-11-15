@@ -36,3 +36,9 @@ App source deployment and app runtime grants are separate operations. `skrynia-t
 ## Recovery and limits
 
 Commit, resolved source URL, subdir, builder identity and release metadata are recorded outside the public document root. Build, clone and publication errors are reported without secrets. Releases are immutable; do not delete retained releases by default, because browsers may still reference them. Source builds do not have a Skrynia server-side deployment API or privilege. A caller must explicitly arrange the static host's routing and build-container prerequisites.
+
+## Crash recovery and durability
+
+Deploy and rollback serialize per application with a local advisory lock. After taking the lock, the deployer checks for abandoned build containers named for prior attempts, stops them if present and removes their stale workspaces; other application workspaces are left alone. Deployment directories may not be symlinks. Release contents and metadata are synchronized before activating a release, and symlink activation synchronizes the public directory. A warning during temporary workspace removal after a successful release does not turn a committed deployment into a false failure. Untrusted build output is rejected if it contains symlinks or non-regular objects.
+
+This is not a substitute for power-failure qualification on every filesystem or a hostile-tenant local deployment service. The deployment host's operator controls the private release and metadata directories. A failure during the final directory sync can mean activation occurred but durability could not be confirmed; inspect the active release before retrying.

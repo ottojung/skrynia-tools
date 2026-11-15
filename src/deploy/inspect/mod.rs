@@ -1,8 +1,4 @@
-use super::{
-    files, process,
-    types::Release,
-    validate::{self, valid_name},
-};
+use super::{files, process, types::Release, validate::valid_name};
 use anyhow::{Result, bail};
 use std::{fs, path::Path};
 
@@ -27,19 +23,7 @@ pub fn releases(root: &Path, name: &str) -> Result<Vec<Release>> {
     out.sort_by(|a: &Release, b: &Release| a.id.cmp(&b.id));
     Ok(out)
 }
-pub fn inspect(root: &Path, name: &str) -> Result<Option<Release>> {
-    if !valid_name(name) {
-        bail!("invalid app name");
-    }
-    let path = root.join("apps").join(name);
-    if fs::symlink_metadata(&path).is_err() {
-        return Ok(None);
-    }
-    let target = fs::read_link(&path)?;
-    let Some(id) = target.file_name().and_then(|x| x.to_str()) else {
-        bail!("invalid active release link");
-    };
-    Ok(releases(root, name)?.into_iter().find(|r| r.id == id))
-}
+mod active;
 mod rollback;
+pub use active::inspect;
 pub use rollback::rollback;

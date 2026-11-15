@@ -12,8 +12,8 @@ pub fn activate(spec: &DeploySpec, work: &Path, commit: String) -> Result<Releas
     }
     let releases = spec.apps_dir.join("releases").join(&spec.name);
     let metadata = spec.apps_dir.join("metadata").join(&spec.name);
-    fs::create_dir_all(&releases)?;
-    fs::create_dir_all(&metadata)?;
+    files::checked_dir(&releases)?;
+    files::checked_dir(&metadata)?;
     let id = format!("{}-{:016x}", &commit[..12], rand::random::<u64>());
     let stage = releases.join(format!(".{id}.staging"));
     files::copy_tree(&input, &stage)?;
@@ -25,11 +25,12 @@ pub fn activate(spec: &DeploySpec, work: &Path, commit: String) -> Result<Releas
         subdir: spec.subdir.clone(),
         builder_image: spec.builder_image.clone(),
     };
-    fs::write(
-        metadata.join(format!("{id}.json")),
-        serde_json::to_vec_pretty(&entry)?,
-    )?;
+    let record = metadata.join(format!("{id}.json"));
+    fs::write(&record, serde_json::to_vec_pretty(&entry)?)?;
+    files::sync_file(&record)?;
+    files::sync_dir(&metadata)?;
     fs::rename(stage, releases.join(&id))?;
+    files::sync_dir(&releases)?;
     files::switch(&spec.apps_dir, &spec.name, &id)?;
     Ok(entry)
 }

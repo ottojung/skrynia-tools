@@ -32,14 +32,3 @@ pub fn validate_repo(repo: &str) -> Result<()> {
     }
     Ok(())
 }
-
-pub fn ensure_dirs(root: &Path) -> Result<()> {
-    for sub in ["apps", "releases", "metadata", ".work", ".locks"] {
-        let path = root.join(sub);
-        std::fs::create_dir_all(&path)?;
-        if std::fs::symlink_metadata(&path)?.file_type().is_symlink() {
-            bail!("deployment directory is a symlink: {}", path.display());
-        }
-    }
-    Ok(())
-}

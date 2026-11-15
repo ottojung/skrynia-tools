@@ -14,8 +14,9 @@ pub use validate::valid_name;
 
 pub fn deploy(spec: &DeploySpec) -> Result<Release> {
     spec.validate()?;
-    validate::ensure_dirs(&spec.apps_dir)?;
+    files::ensure_dirs(&spec.apps_dir)?;
     let _lock = process::lock(&spec.apps_dir, &spec.name)?;
+    process::stale(&spec.apps_dir, &spec.name)?;
     let work =
         spec.apps_dir
             .join(".work")
@@ -26,9 +27,8 @@ pub fn deploy(spec: &DeploySpec) -> Result<Release> {
         build::build(spec, &work)?;
         publish::activate(spec, &work, commit)
     })();
-    let cleanup = std::fs::remove_dir_all(&work);
-    if result.is_ok() {
-        cleanup?;
+    if let Err(error) = std::fs::remove_dir_all(&work) {
+        eprintln!("warning: retained temporary build workspace: {error}");
     }
     result
 }

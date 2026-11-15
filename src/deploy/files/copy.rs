@@ -1,8 +1,7 @@
+use super::{sync_dir, sync_file};
 use anyhow::{Result, bail};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(unix)]
-use std::os::unix::fs::symlink;
 use std::{fs, path::Path};
 
 pub fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
@@ -22,6 +21,7 @@ pub fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
             fs::copy(child.path(), &target)?;
             #[cfg(unix)]
             fs::set_permissions(&target, fs::Permissions::from_mode(0o644))?;
+            sync_file(&target)?;
         } else {
             bail!(
                 "build contains a symlink or special file: {}",
@@ -29,21 +29,5 @@ pub fn copy_tree(src: &Path, dst: &Path) -> Result<()> {
             );
         }
     }
-    Ok(())
-}
-pub fn switch(root: &Path, name: &str, release: &str) -> Result<()> {
-    let link = root.join("apps").join(name);
-    if fs::symlink_metadata(&link).is_ok() && !fs::symlink_metadata(&link)?.file_type().is_symlink()
-    {
-        bail!("application path is not an owned release symlink");
-    }
-    let candidate = root
-        .join("apps")
-        .join(format!(".{name}.{:016x}", rand::random::<u64>()));
-    symlink(format!("../releases/{name}/{release}"), &candidate)?;
-    if let Err(error) = fs::rename(&candidate, &link) {
-        let _ = fs::remove_file(candidate);
-        return Err(error.into());
-    }
-    Ok(())
+    sync_dir(dst)
 }

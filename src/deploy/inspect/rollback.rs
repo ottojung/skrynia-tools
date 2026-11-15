@@ -5,7 +5,7 @@ pub fn rollback(root: &Path, name: &str, id: &str) -> Result<()> {
     if !valid_name(name) {
         bail!("invalid app name");
     }
-    super::validate::ensure_dirs(root)?;
+    files::ensure_dirs(root)?;
     let _lock = super::process::lock(root, name)?;
     if !releases(root, name)?.iter().any(|r| r.id == id)
         || !root.join("releases").join(name).join(id).is_dir()

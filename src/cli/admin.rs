@@ -2,6 +2,12 @@ use super::args::Arguments;
 use anyhow::{Result, bail};
 
 pub fn run(args: &Arguments) -> Result<()> {
+    if args.action == "inspect" {
+        return super::provision::inspect(args);
+    }
+    if args.action == "resume" {
+        return super::provision::resume(args);
+    }
     if !matches!(args.action.as_str(), "plan" | "create") {
         bail!("unknown admin action");
     }

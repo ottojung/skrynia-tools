@@ -2,6 +2,8 @@
 #[allow(dead_code)]
 pub mod app_history;
 mod git;
+#[allow(dead_code)]
+pub mod provision;
 mod run;
 mod shell;
 use std::path::PathBuf;

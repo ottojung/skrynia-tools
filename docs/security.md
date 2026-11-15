@@ -36,3 +36,7 @@ Private issuer-token files use owner-only permissions, refuse symlinks and are f
 ## Release integrity commitments
 
 New code releases store an SHA-256 commitment to all copied artifact bytes, relative paths, directory entries and executable flags. `app verify` checks this explicitly, including over restricted SSH. It is not part of rollback and does not imply any consistency of application data, storage migrations, running processes or external hosting caches. A host operator with write access to both the metadata and release trees remains trusted.
+
+## Administrative grant recovery
+
+Optional grant provisioning writes a private journal before remote creation, saves the one-time issuer response before user issuance, and marks `issuing_user` on disk before sending that request. `admin inspect` reports recovery state without printing capabilities. A failed/uncertain user-token request may have minted an unrecorded token. For that state, `admin resume` refuses to reissue unless the operator explicitly passes `--accept-duplicate-token-risk true`. Reissuance cannot revoke an orphaned token or guarantee exactly-once semantics. A lost grant-creation issuer response is unrecoverable through this client; repeating `POST /grants` would create an additional grant, so the CLI refuses automatic recovery. Private journal changes serialize under a persistent owner-only filesystem lock.

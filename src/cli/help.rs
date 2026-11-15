@@ -23,4 +23,6 @@ pub fn print() {
     println!("  object get|create|replace|delete|list --url URL --key KEY");
     println!("  log init|append|read --prefix PREFIX --url URL");
     println!("  admin plan|create --name NAME --max-bytes BYTES --max-objects N");
+    println!("  admin inspect|resume --credentials-file PRIVATE_FILE [--url URL]");
+    println!("      resume requires explicit acknowledgment if issuance outcome is unknown");
 }

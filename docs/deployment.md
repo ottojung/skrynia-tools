@@ -105,6 +105,6 @@ Release metadata is limited to **16 KiB at both write and read time**, and each 
 
 ### SSH integration qualification
 
-Run `bash tests/ssh_integration.sh` to start an isolated localhost OpenSSH server and test the complete GitHub-action script with a restricted deployment key. The test uses a simulated builder to keep CI portable while executing the real GitHub clone, native Rust deployment and SSH transport. Set `SKRYNIA_SSH_TEST_REAL_PODMAN=1` on a host with rootless Podman and the selected builder image to repeat the same test with a real container build. This still does not simulate a physical machine failure or an unrelated remote production host.
+Run `bash tests/ssh/integration.sh` to start an isolated localhost OpenSSH server and test the complete GitHub-action script with a restricted deployment key. The test uses a simulated builder to keep CI portable while executing the real GitHub clone, native Rust deployment and SSH transport. Set `SKRYNIA_SSH_TEST_REAL_PODMAN=1` on a host with rootless Podman and the selected builder image to repeat the same test with a real container build. This still does not simulate a physical machine failure or an unrelated remote production host.
 
 The action defaults to SSH port 22; the optional `port` input supports other SSH ports and is validated before connection. SSH ignores local user configuration (`-F /dev/null`) and refuses host-key changes, credential forwarding and proxy commands. The deployment host must already have the Rust CLI and build prerequisites installed.

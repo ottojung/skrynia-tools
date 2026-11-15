@@ -1,3 +1,5 @@
+// Integration fixtures are compiled independently into several test binaries.
+#[allow(dead_code)]
 pub mod app_history;
 mod git;
 mod run;

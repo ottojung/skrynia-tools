@@ -16,6 +16,7 @@ pub fn verify(fixture: &Fixture, first: &serde_json::Value, one: &str, three: &s
     let all: serde_json::Value = serde_json::from_slice(&versions.stdout).unwrap();
     assert_eq!(all.as_array().unwrap().len(), 3);
     assert_eq!(all[0]["commit"], three);
+    assert_eq!(all[0]["active"], true);
     let history = fixture.cli(&["app", "history", "--name", "hello", "--apps-dir", root]);
     let printed = String::from_utf8(history.stdout).unwrap();
     assert!(printed.contains(first["id"].as_str().unwrap()));

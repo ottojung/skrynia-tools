@@ -1,5 +1,7 @@
 use super::Fixture;
 use std::process::{Command, Output};
+// These command helpers are intentionally shared by different integration binaries.
+#[allow(dead_code)]
 impl Fixture {
     pub fn deploy(&self, commit: &str) -> Output {
         self.cli(&[

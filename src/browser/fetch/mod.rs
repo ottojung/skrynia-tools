@@ -3,6 +3,7 @@ use wasm_bindgen::{JsCast, prelude::*};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, Response};
 mod bytes;
+mod policy;
 
 impl BrowserClient {
     pub(super) async fn fetch(
@@ -15,6 +16,7 @@ impl BrowserClient {
     ) -> Result<Response, JsValue> {
         let init = RequestInit::new();
         init.set_method(method);
+        policy::apply(&init, method);
         if let Some(bytes) = body {
             let data = js_sys::Uint8Array::from(bytes);
             init.set_body(&data.into());

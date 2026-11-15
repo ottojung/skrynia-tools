@@ -12,4 +12,11 @@ impl SkryniaClient {
         }
         self.path(&["store", key])
     }
+    pub(super) fn path(&self, segments: &[&str]) -> Result<Url> {
+        let mut url = self.base.clone();
+        url.path_segments_mut()
+            .map_err(|_| anyhow::anyhow!("invalid base URL"))?
+            .extend(segments);
+        Ok(url)
+    }
 }

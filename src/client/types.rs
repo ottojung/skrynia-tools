@@ -23,6 +23,8 @@ impl SkryniaClient {
             || base.query().is_some()
             || base.fragment().is_some()
             || base.cannot_be_a_base()
+            || !base.username().is_empty()
+            || base.password().is_some()
         {
             bail!("invalid Skrynia base URL");
         }
@@ -33,6 +35,7 @@ impl SkryniaClient {
             base,
             http: Client::builder()
                 .timeout(std::time::Duration::from_secs(60))
+                .redirect(reqwest::redirect::Policy::none())
                 .build()?,
             token: None,
         })
@@ -40,12 +43,5 @@ impl SkryniaClient {
     pub fn with_token(mut self, token: String) -> Self {
         self.token = Some(token);
         self
-    }
-    pub(super) fn path(&self, segments: &[&str]) -> Result<Url> {
-        let mut url = self.base.clone();
-        url.path_segments_mut()
-            .map_err(|_| anyhow::anyhow!("invalid base URL"))?
-            .extend(segments);
-        Ok(url)
     }
 }

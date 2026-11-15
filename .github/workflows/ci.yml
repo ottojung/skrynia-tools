@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Default rustfmt
+        run: cargo fmt --all -- --check
+      - name: Rust tests and structural build-time lint
+        run: cargo test --locked --all-targets
+      - name: Structural linter self-tests
+        run: |
+          rustc --test source_lints/mod.rs -o "${RUNNER_TEMP}/skrynia-lint-tests"
+          "${RUNNER_TEMP}/skrynia-lint-tests"
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity

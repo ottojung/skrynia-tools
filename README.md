@@ -20,4 +20,4 @@ Every Rust file is limited to 50 nonblank/noncomment code lines; each Rust sourc
 
 Run `cargo fmt --all -- --check`, `cargo test --locked --all-targets`, and `cargo clippy --locked --all-targets -- -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity`.
 
-The license for this client SDK/CLI is an explicit open design decision; no license is implied by the licenses of related projects.
+Skrynia Tools is Free Software licensed under the **GNU Affero General Public License v3 or later (AGPL-3.0-or-later)**. See [LICENSE](LICENSE).

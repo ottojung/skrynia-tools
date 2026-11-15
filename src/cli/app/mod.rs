@@ -2,6 +2,7 @@ use super::args::Arguments;
 use super::deploy::{self, DeploySpec};
 use anyhow::{Result, bail};
 use std::path::PathBuf;
+mod guard;
 mod stdin;
 
 pub fn run(args: &Arguments) -> Result<()> {

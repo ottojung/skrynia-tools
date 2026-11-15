@@ -71,3 +71,13 @@ jobs:
 When `repo` is omitted the action uses the current GitHub repository and commit. When `repo` is explicitly provided without `commit`, the remote checkout resolves that repository's default branch. For reproducibility pass a full commit SHA and a pinned builder image digest. Releases, commits and public app paths are returned as action outputs.
 
 **Threat boundary:** the SSH account is an administrative deployment capability and can replace static site contents. Restrict it to deployment paths and use branch protection and production-environment approvals. Pass trusted known-hosts records rather than disabling host-key verification; never run deployment on untrusted pull requests. The SSH transport does not grant remote filesystem access beyond what the deployment account already possesses. This action has been smoke-tested with a mock SSH transport, but a live remote SSH host has not been independently qualified.
+
+### Restricting the SSH deployment account
+
+Configure an OpenSSH forced command on a dedicated account, setting `SKRYNIA_DEPLOY_ROOT` to its single authorized static-host root. A deployment specification received over SSH that requests any different root is rejected before cloning or building. For example, the host's `authorized_keys` entry can begin with:
+
+```text
+restrict,command="env SKRYNIA_DEPLOY_ROOT=/srv/skrynia-apps /usr/local/bin/skrynia-tools app deploy --spec-stdin true" ssh-ed25519 <deployment-public-key>
+```
+
+The directory must already exist and be owned by the deployment account. Do not give the deploy key broader administrative or storage-grant capabilities. The `restrict` SSH option also blocks forwarding and PTY access. The remote command from the composite action is a fixed command, not a user-controlled shell fragment.

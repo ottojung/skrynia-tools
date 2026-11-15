@@ -9,6 +9,7 @@ pub fn deploy() -> Result<()> {
         bail!("deployment specification exceeds 16 KiB");
     }
     let spec: DeploySpec = serde_json::from_slice(&bytes)?;
+    super::guard::enforce_root(&spec.apps_dir)?;
     println!("{}", serde_json::to_string_pretty(&deploy::deploy(&spec)?)?);
     Ok(())
 }

@@ -12,10 +12,10 @@ wasm-bindgen --target web --out-dir dist/skrynia-wasm \
   target/wasm32-unknown-unknown/release/skrynia_tools.wasm
 ```
 
-Then import the generated module, call its initialization function, and construct `BrowserClient`. Example:
+Then import the generated module, call its initialization function, and construct `BrowserClient`. Example using the npm package (or replace the import with a relative file URL):
 
 ```js
-import init, { BrowserClient, sha256Hex } from "./skrynia-wasm/skrynia_tools.js";
+import init, { BrowserClient, sha256Hex } from "@ottojung/skrynia-tools-browser";
 await init();
 const client = new BrowserClient("https://skrynia.example", publishToken);
 const bytes = new TextEncoder().encode("hello");
@@ -38,7 +38,9 @@ The user token is optional for public object reads; provide a **narrowly scoped 
 - `readLog(prefix, start, limit)`: JSON string with hex payloads, capped at 1000 entries
 - `sha256Hex(bytes)`: lowercase SHA-256 of raw bytes for content-hash CAS
 
-The browser adapter is asynchronous. The current build does not bundle a separate npm package or a full TypeScript facade; the `wasm-bindgen` generated JavaScript interface is the initial JS distribution.
+The browser adapter is asynchronous. CI now assembles an installable `@ottojung/skrynia-tools-browser` npm tarball with the generated `wasm-bindgen` JavaScript, TypeScript declarations, WebAssembly binary, source license and README. The package is **not published to the npm registry**: download the CI artifact and install the `.tgz` file, or build it locally with `bash tests/browser/package.sh` after generating bindings.
+
+The `wasm-bindgen`-generated JS API remains the typed interface; a hand-written TypeScript façade is not yet provided. The package is browser-oriented, not a Node HTTP client.
 
 ## Security and operational constraints
 

@@ -1,0 +1,32 @@
+{
+  "name": "@ottojung/skrynia-tools-browser",
+  "version": "0.1.0",
+  "description": "Browser WebAssembly client for the Skrynia public object store",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ottojung/skrynia-tools.git",
+    "directory": "browser-package"
+  },
+  "exports": {
+    ".": {
+      "types": "./skrynia_tools.d.ts",
+      "import": "./skrynia_tools.js"
+    }
+  },
+  "module": "./skrynia_tools.js",
+  "types": "./skrynia_tools.d.ts",
+  "files": [
+    "skrynia_tools.js",
+    "skrynia_tools.d.ts",
+    "skrynia_tools_bg.wasm",
+    "skrynia_tools_bg.wasm.d.ts",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

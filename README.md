@@ -11,7 +11,7 @@ Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Sk
 - `admin plan` and `admin create`: optional app data-grant provisioning, with private credential files.
 - Optional `CasCell` and create-only `AppendLog` client protocols; `object` and `log` CLI operations.
 
-**Not yet implemented:** a packaged browser npm/TypeScript facade, generic snapshot transactions, sealed-epoch garbage collection, task queues, and a standalone hosted deployment service. A GitHub Actions composite action now deploys over SSH using the native CLI on the static host. Initial browser WebAssembly bindings are provided as a separate build target; browser interoperability and packaging qualification are outstanding. These are separate proposals, not prerequisites for deploying applications.
+**Not yet implemented:** public npm registry publication or a custom TypeScript facade, generic snapshot transactions, sealed-epoch garbage collection, task queues, and a standalone hosted deployment service. A GitHub Actions composite action now deploys over SSH using the native CLI on the static host. Browser WebAssembly bindings, generated TypeScript declarations and an installable npm `.tgz` are built and tested in CI. Public npm publication and independent browser compatibility qualification remain outstanding. These are separate proposals, not prerequisites for deploying applications.
 
 ## Build and create an application
 

@@ -4,7 +4,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::Response;
 
 impl BrowserClient {
-    pub(super) fn accept(response: &Response) -> Result<(), JsValue> {
+    pub(crate) fn accept(response: &Response) -> Result<(), JsValue> {
         if (200..300).contains(&response.status()) {
             return Ok(());
         }
@@ -13,7 +13,7 @@ impl BrowserClient {
             response.status()
         )))
     }
-    pub(super) async fn bytes(response: &Response) -> Result<Vec<u8>, JsValue> {
+    pub(crate) async fn bytes(response: &Response) -> Result<Vec<u8>, JsValue> {
         let buffer = JsFuture::from(response.array_buffer()?).await?;
         Ok(js_sys::Uint8Array::new(&buffer).to_vec())
     }

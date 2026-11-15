@@ -33,12 +33,11 @@ impl BrowserClient {
             match self.create(key.clone(), &encoded).await {
                 Ok(true) => return Ok(n),
                 Ok(false) => continue,
-                Err(error) => {
-                    if self.get(key).await?.is_some_and(|x| x.to_vec() == encoded) {
-                        return Ok(n);
-                    }
-                    return Err(error);
-                }
+                Err(error) => match self.get(key).await? {
+                    Some(found) if found.to_vec() == encoded => return Ok(n),
+                    Some(_) => continue,
+                    None => return Err(error),
+                },
             }
         }
         Err(JsValue::from_str("log exceeds bounded scan"))

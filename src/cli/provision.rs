@@ -19,7 +19,7 @@ pub fn create(
         "prefix":prefix, "locations":matcher, "operations":ops,
         "maxBytes":bytes, "maxObjects":objects});
     secrets::write_new(path, serde_json::to_vec_pretty(&pending)?.as_slice())?;
-    let grant = client.create_grant(&matcher, &ops, bytes, objects)?;
+    let grant = client.create_grant(matcher, ops, bytes, objects)?;
     secrets::replace(path, serde_json::to_vec_pretty(&grant)?.as_slice())?;
     let id = grant["id"]
         .as_str()

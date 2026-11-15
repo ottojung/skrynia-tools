@@ -18,7 +18,7 @@ pub fn valid_key(key: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'.')
 }
 pub fn valid_matcher(matcher: &str) -> bool {
-    if matcher == "" || matcher == "*" {
+    if matcher.is_empty() || matcher == "*" {
         return true;
     }
     let value = matcher.strip_suffix('*').unwrap_or(matcher);

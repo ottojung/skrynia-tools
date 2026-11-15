@@ -17,9 +17,11 @@ pub fn host(s: &str) -> Result<()> {
     Ok(())
 }
 pub fn user(s: &str) -> Result<()> {
-    if s.is_empty()
-        || s.len() > 64
-        || !s.bytes().next().unwrap().is_ascii_alphabetic() && !s.starts_with('_')
+    let Some(first) = s.as_bytes().first() else {
+        bail!("invalid SSH username");
+    };
+    if s.len() > 64
+        || !(first.is_ascii_alphabetic() || *first == b'_')
         || !s
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')

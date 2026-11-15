@@ -22,3 +22,6 @@ pub fn requested(args: &Arguments) -> Result<bool> {
     }
     Ok(has_host)
 }
+
+#[cfg(test)]
+mod tests;

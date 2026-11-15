@@ -44,5 +44,7 @@ pub fn rollback(root: &Path, name: &str, id: &str) -> Result<()> {
     {
         bail!("requested release is not available");
     }
+    super::validate::ensure_dirs(root)?;
+    let _lock = super::process::lock(root, name)?;
     files::switch(root, name, id)
 }

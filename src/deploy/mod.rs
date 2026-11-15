@@ -15,6 +15,7 @@ pub use validate::valid_name;
 pub fn deploy(spec: &DeploySpec) -> Result<Release> {
     spec.validate()?;
     validate::ensure_dirs(&spec.apps_dir)?;
+    let _lock = process::lock(&spec.apps_dir, &spec.name)?;
     let work =
         spec.apps_dir
             .join(".work")

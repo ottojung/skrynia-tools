@@ -34,7 +34,7 @@ pub fn validate_repo(repo: &str) -> Result<()> {
 }
 
 pub fn ensure_dirs(root: &Path) -> Result<()> {
-    for sub in ["apps", "releases", "metadata", ".work"] {
+    for sub in ["apps", "releases", "metadata", ".work", ".locks"] {
         let path = root.join(sub);
         std::fs::create_dir_all(&path)?;
         if std::fs::symlink_metadata(&path)?.file_type().is_symlink() {

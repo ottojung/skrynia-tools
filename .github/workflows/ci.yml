@@ -52,3 +52,19 @@ jobs:
         with:
           name: skrynia-tools-browser-wasm
           path: dist/skrynia-wasm/
+
+  ssh-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install OpenSSH server for isolated integration
+        run: |
+          if ! command -v sshd; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq openssh-server
+          fi
+          sudo mkdir -p /run/sshd
+      - name: Real SSH deployment and refusal tests
+        run: bash tests/ssh_integration.sh

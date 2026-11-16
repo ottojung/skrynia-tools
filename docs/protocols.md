@@ -64,3 +64,8 @@ An unordered event set can use unique create-only keys and scoped listing. Lexic
 ## Validation levels
 
 Distinguish: (1) enforced constraints on all authorized callers, (2) invariants assuming cooperating participants, and (3) accepted data proven by reader verification. For every high-level API publish which level each guarantee inhabits. Signatures can detect corrupted/unauthorized payloads according to a trust policy, but cannot stop an authorized holder from deleting data or refusing progress.
+
+
+## Source-pinned real-server compatibility gate
+
+GitHub CI also builds the real upstream Skrynia Rust server from commit `3139a82fe4a0292d75cc55c49f6a8bb9e6ff7b47` and runs `tests/ssh/protocols_live.sh` against an isolated temporary server/data root. The test issues narrowly scoped create/list and create/modify child capabilities, exercises the optional event set and multi-object CAS snapshots, and deletes all test state afterward. The upstream revision is deliberately pinned to avoid silently changing the tested protocol; update it explicitly with compatibility review. This does **not** test revocation of real grants, power failures, long-lived malicious tenants, or production operation.

@@ -32,11 +32,16 @@ impl BrowserClient {
             }
             match self.create(key.clone(), &encoded).await {
                 Ok(true) => return Ok(n),
-                Ok(false) => continue,
-                Err(error) => match self.get(key).await? {
-                    Some(found) if found.to_vec() == encoded => return Ok(n),
-                    Some(_) => continue,
-                    None => return Err(error),
+                Ok(false) => match self.observe_log_slot(&key, &encoded, &operation_id).await? {
+                    Some(true) => return Ok(n),
+                    Some(false) => continue,
+                    None => return Err(JsValue::from_str("occupied log slot disappeared")),
+                },
+                Err(error) => match self.observe_log_slot(&key, &encoded, &operation_id).await {
+                    Ok(Some(true)) => return Ok(n),
+                    Ok(Some(false)) => continue,
+                    Ok(None) => return Err(error),
+                    Err(check) => return Err(check),
                 },
             }
         }

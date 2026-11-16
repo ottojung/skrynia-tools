@@ -59,3 +59,7 @@ The builder-image selector is strictly one validated OCI-style reference. The ru
 ## Remote CLI input and cancellation
 
 Remote SSH management uses an explicit-size JSON message (at most 16 KiB) and an overall command deadline, including pipe writes. The local SSH process runs in an isolated process group; a blocked stdin pipe cannot indefinitely bypass timeout supervision. Local cancellation may leave a completed or still-running remote deployment, so caller-facing errors identify uncertain effects rather than claiming rollback. Inspect the remote active release before deciding to resend.
+
+## Browser URL and credential boundaries
+
+The browser client rejects non-HTTP(S) base URLs, embedded usernames/passwords, fragments and queries. This matches the native client's URL policy and avoids treating credentials embedded in a URL as a supported authentication workflow. Browser tokens are supplied explicitly as optional capability strings and sent only on authenticated operations; public GETs remain unauthenticated. Browser JavaScript cannot hide tokens bundled in public code, and browser cross-origin requests still require appropriate server CORS headers.

@@ -14,6 +14,8 @@ impl BrowserClient {
         let mut base = Url::parse(url).map_err(|e| JsValue::from_str(&e.to_string()))?;
         if !matches!(base.scheme(), "http" | "https")
             || base.cannot_be_a_base()
+            || !base.username().is_empty()
+            || base.password().is_some()
             || base.query().is_some()
             || base.fragment().is_some()
         {

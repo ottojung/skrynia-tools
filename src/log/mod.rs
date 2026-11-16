@@ -2,6 +2,7 @@
 pub(super) use super::client::{CreateResult, Store};
 pub(super) use super::wire as entry;
 pub(super) use super::wire;
+mod race;
 mod read;
 mod scan;
 mod types;
@@ -12,3 +13,6 @@ mod tests;
 
 #[cfg(test)]
 mod concurrent;
+
+#[cfg(test)]
+mod race_test;

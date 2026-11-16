@@ -17,10 +17,14 @@ impl<'a, S: Store> AppendLog<'a, S> {
             }
             match self.store.create(&key, &bytes) {
                 Ok(CreateResult::Created) => return Ok(n),
-                Ok(CreateResult::Exists) => continue,
-                Err(error) => match self.store.get(&key) {
-                    Ok(Some(current)) if current == bytes => return Ok(n),
-                    Ok(Some(_)) => continue,
+                Ok(CreateResult::Exists) => match self.observed_at(&key, &bytes, operation_id)? {
+                    Some(true) => return Ok(n),
+                    Some(false) => continue,
+                    None => bail!("occupied log slot disappeared"),
+                },
+                Err(error) => match self.observed_at(&key, &bytes, operation_id) {
+                    Ok(Some(true)) => return Ok(n),
+                    Ok(Some(false)) => continue,
                     Ok(None) => {
                         return Err(error.context("append outcome uncertain; slot still absent"));
                     }

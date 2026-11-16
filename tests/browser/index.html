@@ -8,6 +8,18 @@ import init, { BrowserClient, sha256Hex } from "../../dist/skrynia-wasm/skrynia_
 function check(ok, message) { if (!ok) throw new Error(message); }
 try {
   await init();
+  for (const url of [
+    `http://acc:secret@${location.host}/`,
+    `http://acc@${location.host}/`,
+    `${location.origin}/?user=acc`,
+    `${location.origin}/#fragment`,
+    "javascript:alert(1)"
+  ]) {
+    let rejected = false;
+    try { new BrowserClient(url, "narrow-test-token"); }
+    catch (_) { rejected = true; }
+    check(rejected, "reject unsafe base URL: " + url);
+  }
   const client = new BrowserClient(location.origin, "narrow-test-token");
   const input = new TextEncoder().encode("hello wasm");
   check(await client.get("test.object") === undefined, "missing read");
@@ -25,6 +37,13 @@ try {
   check(await client.appendLog("test.log", operationId, input) === 1n, "append idempotency");
   const entries = JSON.parse(await client.readLog("test.log", 1n, 5));
   check(entries.length === 1 && entries[0].position === 1, "log reading");
+  await client.initializeLog("test.concurrency");
+  const concurrentId = "11111111111111111111111111111111";
+  const attempts = await Promise.all(Array.from({length: 8},
+    () => client.appendLog("test.concurrency", concurrentId, input)));
+  check(attempts.every(n => n === 1n), "concurrent idempotent append");
+  const uniqueEntries = JSON.parse(await client.readLog("test.concurrency", 1n, 8));
+  check(uniqueEntries.length === 1, "no duplicate slots from concurrent retries");
   check(await client.delete("test.object", sha256Hex(input)), "conditional delete");
   document.body.dataset.result = "pass";
 } catch (error) {

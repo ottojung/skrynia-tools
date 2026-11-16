@@ -8,6 +8,8 @@ pub fn visit(path: &Path, issues: &mut Vec<String>) {
         .unwrap_or_else(|e| panic!("Cannot lint {}: {e}", path.display()))
         .map(|e| e.unwrap().path())
         .collect::<Vec<_>>();
+    // Third-party npm dependencies are not owned Rust sources.
+    entries.retain(|entry| entry.file_name().is_none_or(|name| name != "node_modules"));
     entries.sort();
     if entries.len() > 10 {
         issues.push(format!(

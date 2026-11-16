@@ -44,4 +44,18 @@ The `wasm-bindgen`-generated JS API remains the typed interface; a hand-written 
 
 ## Security and operational constraints
 
-Network access requires browser-origin CORS permissions to the Skrynia server. The SDK does not bypass same-origin restrictions. Skrynia object reads are public. Mutable object reads and writes need authoritative uncached content where CAS is involved. A Skrynia log assumes cooperating create-only writers; malicious writers can block progress. Lost HTTP replies may leave mutations committed, so clients must reconcile durable state before retrying. This initial Wasm binding has not yet undergone real-browser security and interoperability tests across Chrome/Firefox/WebKit.
+Network access requires browser-origin CORS permissions to the Skrynia server. The SDK does not bypass same-origin restrictions. Skrynia object reads are public. Mutable object reads and writes need authoritative uncached content where CAS is involved. A Skrynia log assumes cooperating create-only writers; malicious writers can block progress. Lost HTTP replies may leave mutations committed, so clients must reconcile durable state before retrying. The build is exercised in headless Chromium and a separate source-pinned Playwright Firefox/WebKit integration job, with fresh local HTTP fixture state per browser. These are deterministic API smoke tests, not a formal browser security proof or a substitute for testing a deployed application's actual origin/CORS configuration.
+
+## Cross-engine browser qualification
+
+The test-only `tests/browser/package-lock.json` pins Playwright to version 1.65.1. The CI WebAssembly job builds one `wasm-bindgen` artifact and publishes it as a workflow artifact; the independent Firefox/WebKit job downloads **those same built bytes** rather than compiling a different copy. Each browser starts with a fresh isolated localhost HTTP fixture, opens `tests/browser/index.html`, waits for its `data-result=pass` assertion status and rejects console/runtime failures. That page exercises HTTP status validation, public reads, tokenized create/CAS/list/delete, operation-ID retry handling and eight simultaneous identical append attempts.
+
+For local runs, first generate `dist/skrynia-wasm/` as above, then:
+
+```sh
+npm ci --prefix tests/browser
+./tests/browser/node_modules/.bin/playwright install --with-deps firefox webkit
+node tests/browser/cross_browser.mjs
+```
+
+The second command installs browser binaries and may require OS package-manager privileges. Real-browser testing covers the SDK's own fixture, not production Skrynia server CORS configuration or real-user browser extensions.

@@ -32,3 +32,6 @@ pub fn check(root: &Path) {
 mod test_extra;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod vendor_test;

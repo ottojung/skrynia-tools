@@ -7,3 +7,6 @@
 /dist/
 __pycache__/
 *.pyc
+
+# Test-only Node dependencies
+**/node_modules/

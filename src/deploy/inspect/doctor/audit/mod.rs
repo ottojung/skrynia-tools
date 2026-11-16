@@ -2,7 +2,9 @@ use super::{files, inspect, release, valid_name, validate};
 use anyhow::{Result, bail};
 use serde::Serialize;
 use std::path::Path;
+mod active;
 mod clean;
+mod generation;
 mod metadata;
 mod trees;
 
@@ -12,6 +14,8 @@ pub struct Audit {
     pub available_releases: usize,
     pub active_release: Option<String>,
     pub active_error: Option<String>,
+    pub activation_generation: Option<u64>,
+    pub generation_error: Option<String>,
     pub metadata_without_artifact: Vec<String>,
     pub artifact_without_metadata: Vec<String>,
     pub abandoned_staging: Vec<String>,
@@ -27,17 +31,16 @@ pub fn audit(root: &Path, name: &str) -> Result<Audit> {
         available_releases: 0,
         active_release: None,
         active_error: None,
+        activation_generation: None,
+        generation_error: None,
         metadata_without_artifact: vec![],
         artifact_without_metadata: vec![],
         abandoned_staging: vec![],
         invalid_entries: vec![],
         clean: false,
     };
-    match inspect(root, name) {
-        Ok(Some(active)) => result.active_release = Some(active.id),
-        Ok(None) => {}
-        Err(error) => result.active_error = Some(error.to_string()),
-    }
+    active::check(root, name, &mut result);
+    generation::check(root, name, &mut result);
     metadata::scan(root, name, &mut result)?;
     trees::scan(root, name, &mut result)?;
     result.finalize();

@@ -10,6 +10,9 @@ pub fn run(args: &Arguments) -> Result<()> {
         if let Some(error) = &report.active_error {
             println!("Active symlink error: {error}");
         }
+        if let Some(error) = &report.generation_error {
+            println!("Activation generation error: {error}");
+        }
         println!(
             "Audit {}: {} retained releases, {}",
             report.name,

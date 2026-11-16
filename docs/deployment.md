@@ -142,7 +142,7 @@ Use `skrynia-tools app doctor --apps-dir DIR [--format json]`, locally or with t
 
 ## Build subprocess timeouts
 
-Git checkout and app builds run as isolated Unix subprocess groups. On a configured deadline, the administrative CLI kills the whole group and reaps the direct child rather than leaving shell-spawned descendants running. It also bounds captured subprocess stdout to 64 KiB and consumes it concurrently so verbose tools cannot deadlock on full pipes. The Podman runner separately removes the named container after build failure. These controls do not replace container resource quotas, external service isolation, or the operator's responsibility to vet executable builder images.
+Git checkout and app builds run as isolated Unix subprocess groups. On a configured deadline, the administrative CLI kills the whole group and reaps the direct child rather than leaving shell-spawned descendants running. Existence probes for abandoned Podman containers also use a bounded subprocess-status check; an unresponsive Podman command cannot hang cleanup indefinitely. It also bounds captured subprocess stdout to 64 KiB and consumes it concurrently so verbose tools cannot deadlock on full pipes. The Podman runner separately removes the named container after build failure. These controls do not replace container resource quotas, external service isolation, or the operator's responsibility to vet executable builder images.
 
 ## Builder image arguments and option boundary
 

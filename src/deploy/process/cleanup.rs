@@ -1,3 +1,4 @@
+use super::{run, status};
 use anyhow::{Result, bail};
 use std::{fs, path::Path, process::Command};
 
@@ -14,17 +15,14 @@ pub fn stale(root: &Path, name: &str) -> Result<()> {
             continue;
         }
         let container = format!("skrynia-{filename}");
-        let status = Command::new("podman")
-            .args(["container", "exists", &container])
-            .status()?;
+        let mut probe = Command::new("podman");
+        probe.args(["container", "exists", &container]);
+        let status = status(probe, 20)?;
         match status.code() {
             Some(0) => {
-                let status = Command::new("podman")
-                    .args(["rm", "-f", &container])
-                    .status()?;
-                if !status.success() {
-                    bail!("could not stop previous build {container}");
-                }
+                let mut command = Command::new("podman");
+                command.args(["rm", "-f", &container]);
+                run(command, 20)?;
             }
             Some(1) => {}
             _ => bail!("could not inspect previous build {container}"),

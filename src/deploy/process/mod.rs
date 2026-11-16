@@ -6,3 +6,6 @@ pub(super) use capture::capture;
 pub(super) use cleanup::stale;
 pub(super) use lock::{build_lock, lock};
 pub(super) use run::run;
+
+#[cfg(test)]
+mod tests;

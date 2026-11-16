@@ -70,3 +70,26 @@ jobs:
           sudo mkdir -p /run/sshd
       - name: Real SSH deployment and refusal tests
         run: bash tests/ssh/integration.sh
+
+  skrynia-protocol-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: ottojung/Skrynia
+          ref: 3139a82fe4a0292d75cc55c49f6a8bb9e6ff7b47
+          path: upstream-skrynia
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            upstream-skrynia -> target
+      - name: Build pinned real Skrynia Rust server
+        run: cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p skrynia-server
+      - name: Real Skrynia event-set and CAS-snapshot integration
+        run: |
+          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
+            bash tests/ssh/protocols_live.sh

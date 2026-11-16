@@ -49,7 +49,7 @@ A lost staging response is reconciled by reading that exact immutable object. A 
 
 The [native example](../examples/snapshot.rs) demonstrates initialization, atomic two-member updates, stale-writer conflicts and repeated immutable transactions. The isolated [real HTTP integration test](../tests/ssh/protocols_live.sh) exercises Skrynia grants, CAS and blob reads with no delete authority. The public `values()` accessor is read-only so a caller cannot mutate an observed snapshot and trick unchanged-blob reuse.
 
-This is an **initial** implementation with deterministic model fixtures, concurrent tests and real-server smoke coverage, not a claim of formal verification, machine-crash qualification or safe garbage collection.
+This is an **initial** implementation with deterministic model fixtures, a 257-update state-machine trace injecting uncertain staging/CAS outcomes and pre-commit failures, concurrent tests and real-server smoke coverage, not a claim of formal verification, machine-crash qualification or safe garbage collection.
 
 ## Garbage-collected append log
 

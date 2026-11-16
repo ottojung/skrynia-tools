@@ -4,4 +4,5 @@ mod conflict;
 mod fake;
 mod faults;
 mod initialization;
+mod model;
 mod safety;

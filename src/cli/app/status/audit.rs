@@ -23,6 +23,11 @@ pub fn run(args: &Arguments) -> Result<()> {
             ("Missing artifact", &report.metadata_without_artifact),
             ("Missing metadata", &report.artifact_without_metadata),
             ("Abandoned staging", &report.abandoned_staging),
+            (
+                "Abandoned activation link",
+                &report.abandoned_activation_links,
+            ),
+            ("Abandoned build workspace", &report.abandoned_workspaces),
             ("Invalid entry", &report.invalid_entries),
         ] {
             for item in items {

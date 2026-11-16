@@ -171,15 +171,19 @@ grep -q "$first_id" "$tmp/rollback.txt"
 remote audit --name demo --format json > "$tmp/audit-clean.json"
 python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["clean"] is True' "$tmp/audit-clean.json"
 stage="$tmp/hosted/releases/demo/.0123456789ab-0000000000000000.staging"
-mkdir "$stage"
+candidate="$tmp/hosted/apps/.demo.0123456789abcdef0123456789abcdef"
+workspace="$tmp/hosted/.work/demo-0123456789abcdef0123456789abcdef"
+mkdir "$stage" "$workspace"
+ln -s "../releases/demo/$first_id" "$candidate"
 if remote audit --name demo --format json > "$tmp/audit-incomplete.json" 2> "$tmp/rejected.err"; then
     echo 'ERROR: abandoned release staging was not reported' >&2
     exit 1
 fi
-python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert not d["clean"] and len(d["abandoned_staging"])==1' "$tmp/audit-incomplete.json"
-test -d "$stage"
-rmdir "$stage"
-echo 'REAL SSH RELEASE AUDIT PASS: complete and abandoned versions, no automatic deletion'
+python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert not d["clean"] and len(d["abandoned_staging"])==1 and len(d["abandoned_activation_links"])==1 and len(d["abandoned_workspaces"])==1' "$tmp/audit-incomplete.json"
+test -d "$stage" && test -L "$candidate" && test -d "$workspace"
+rmdir "$stage" "$workspace"
+rm "$candidate"
+echo 'REAL SSH RELEASE AUDIT PASS: abandoned staging, candidate links, workspaces retained'
 echo 'REAL SSH MANAGEMENT PASS: remote list/versions/compare, remote deployment and constant-work rollback'
 cp "$tmp/id_ed25519" "$tmp/insecure_key"
 chmod 0644 "$tmp/insecure_key"

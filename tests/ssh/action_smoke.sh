@@ -9,7 +9,22 @@ cat > "$tmp/bin/ssh" <<'SH'
 set -euo pipefail
 printf '%s\n' "$@" > "$MOCK_SSH_ARGS"
 cat > "$MOCK_SSH_INPUT"
-printf '%s\n' '{"name":"example","id":"0123456789ab-0123456789abcdef","commit":"0123456789abcdef0123456789abcdef01234567"}'
+if [[ "${MOCK_SSH_FAIL_STATUS:-}" != "" ]]; then exit "$MOCK_SSH_FAIL_STATUS"; fi
+python3 - "$MOCK_SSH_INPUT" <<'PYSERVER'
+import json, os, sys
+with open(sys.argv[1], encoding="utf8") as f:
+    req=json.load(f)
+commit=req["commit"] or "0123456789abcdef0123456789abcdef01234567"
+req["commit"]=commit
+req["id"]=f"{commit[:12]}-0123456789abcdef"
+if os.getenv("MOCK_OVERRIDE_NAME"):
+    req["name"]=os.environ["MOCK_OVERRIDE_NAME"]
+if os.getenv("MOCK_OVERRIDE_COMMIT"):
+    req["commit"]=os.environ["MOCK_OVERRIDE_COMMIT"]
+if os.getenv("MOCK_OVERRIDE_REPO"):
+    req["repo"]=os.environ["MOCK_OVERRIDE_REPO"]
+print(json.dumps(req))
+PYSERVER
 SH
 chmod +x "$tmp/bin/ssh"
 export PATH="$tmp/bin:$PATH" MOCK_SSH_INPUT="$tmp/spec.json"
@@ -38,4 +53,31 @@ python3 - "$tmp/spec.json" <<'PY'
 import json, sys
 assert json.load(open(sys.argv[1]))["commit"] is None
 PY
-echo "SSH deploy composite-action smoke checks passed"
+
+export SKRYNIA_REPO=""
+original_output="$(cat "$tmp/github-output")"
+for field in MOCK_OVERRIDE_NAME MOCK_OVERRIDE_COMMIT MOCK_OVERRIDE_REPO; do
+  case "$field" in
+    MOCK_OVERRIDE_NAME) value="wrong-name" ;;
+    MOCK_OVERRIDE_COMMIT) value="ffffffffffffffffffffffffffffffffffffffff" ;;
+    MOCK_OVERRIDE_REPO) value="https://github.com/other/replaced" ;;
+  esac
+  export "$field=$value"
+  if bash "$repo/action/deploy/deploy.sh" > "$tmp/unexpected.log" 2>&1; then
+    echo "ERROR: remote result mismatch accepted: $field" >&2
+    exit 1
+  fi
+  unset "$field"
+  test "$(cat "$tmp/github-output")" = "$original_output"
+done
+echo "SSH deploy composite-action provenance/refusal checks passed"
+
+export MOCK_SSH_FAIL_STATUS=124
+if bash "$repo/action/deploy/deploy.sh" > "$tmp/timedout.log" 2>&1; then
+  echo 'ERROR: lost SSH result treated as committed deployment' >&2
+  exit 1
+fi
+grep -q 'remote activation may have occurred' "$tmp/timedout.log"
+test "$(cat "$tmp/github-output")" = "$original_output"
+unset MOCK_SSH_FAIL_STATUS
+echo "SSH timeout/lost-result handling checks passed"

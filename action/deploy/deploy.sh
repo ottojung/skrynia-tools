@@ -26,18 +26,33 @@ request = {"name": env["SKRYNIA_APP_NAME"], "apps_dir": env["SKRYNIA_APPS_DIR"],
 with open(sys.argv[1], "w", encoding="utf8") as stream:
     json.dump(request, stream)
 PY
-ssh -F /dev/null -T -p "${SKRYNIA_SSH_PORT:-22}" \
+# Bound entire SSH call, including remote build and network stalls.
+if timeout --signal=TERM --kill-after=15s 2100s \
+  ssh -F /dev/null -T -p "${SKRYNIA_SSH_PORT:-22}" \
   -o BatchMode=yes -o IdentitiesOnly=yes -o ForwardAgent=no \
   -o ProxyCommand=none -o ControlMaster=no -o PermitLocalCommand=no \
   -o StrictHostKeyChecking=yes -o ConnectTimeout=15 \
   -o ServerAliveInterval=30 -o ServerAliveCountMax=4 \
   -o UserKnownHostsFile="$tmp/known_hosts" -i "$tmp/key" -- \
   "${SKRYNIA_USER}@${SKRYNIA_HOST}" \
-  'skrynia-tools app deploy --spec-stdin true' < "$tmp/spec.json" > "$tmp/result.json"
-python3 - "$tmp/result.json" <<'PY'
+  'skrynia-tools app deploy --spec-stdin true' < "$tmp/spec.json" > "$tmp/result.json"; then
+  :
+else
+  status=$?
+  echo "SSH deployment not confirmed (exit $status); remote activation may have occurred. Inspect the remote active release before retrying." >&2
+  exit "$status"
+fi
+python3 - "$tmp/result.json" "$tmp/spec.json" <<'PY'
 import json, os, re, sys
 with open(sys.argv[1], encoding="utf8") as stream:
     result = json.load(stream)
+with open(sys.argv[2], encoding="utf8") as stream:
+    requested = json.load(stream)
+for field in ("name", "repo", "subdir", "builder_image"):
+    if result.get(field) != requested[field]:
+        raise SystemExit(f"remote deployment {field} does not match the request")
+if requested["commit"] is not None and result.get("commit", "").lower() != requested["commit"].lower():
+    raise SystemExit("remote deployed commit does not match pinned Git commit")
 name = result["name"]
 release = result["id"]
 commit = result["commit"]

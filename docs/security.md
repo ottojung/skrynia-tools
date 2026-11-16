@@ -75,3 +75,7 @@ Native client error responses are read with a 4 KiB cap, rather than materializi
 ## Isolated real-server credential lifecycle regression
 
 The source-pinned Skrynia CI compatibility job now also exercises `admin create`, `revoke-user`, `revoke-grant` and repeated completed revocation against a disposable localhost server and grant hierarchy. It confirms a revoked user is rejected when attempting a new object creation, a revoked grant's former issuer cannot issue a user, the journal has shed its secrets, and the bytes published before revocation remain readable. All test credentials are private under a temporary owner-only directory, never reused from a production deployment. This checks server/client interoperability but not physical power-loss recovery or complete credential-lifecycle security.
+
+## GitHub Actions result attestation boundary
+
+The composite action confirms the remote release metadata's name, exact repository URL, source subdirectory, builder image and any requested full Git commit **before** writing GitHub Action outputs. It also enforces a bounded SSH session (35 minutes) rather than hanging indefinitely if the remote connection stalls. This is metadata consistency checking, **not cryptographic host attestation**: the authorized deployment host controls its response and is trusted to build and publish the supplied source. An SSH timeout cannot roll back changes already accepted by the server. When an outcome is uncertain, reconcile by inspecting the remote release before resubmitting.

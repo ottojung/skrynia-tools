@@ -1,4 +1,5 @@
 use super::Fixture;
+mod audit;
 mod checks;
 mod compare;
 mod doctor;
@@ -18,4 +19,5 @@ pub fn verify() {
     compare::verify(&fixture, &first, &one, &three);
     doctor::verify(&fixture);
     recovery::verify(&fixture, &first);
+    audit::verify(&fixture, &first);
 }

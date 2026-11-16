@@ -8,6 +8,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         "current" | "inspect" | "show" | "verify" | "rollback" | "activate" => status::run(args),
         "compare" => compare::run(args),
         "doctor" => status::doctor::run(args),
+        "audit" => status::audit::run(args),
         _ => bail!("unsupported remote app action"),
     }
 }

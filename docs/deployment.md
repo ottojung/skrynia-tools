@@ -147,3 +147,7 @@ Git checkout and app builds run as isolated Unix subprocess groups. On a configu
 ## Builder image arguments and option boundary
 
 The \`--builder-image\` value is a **single OCI image reference**, not an arbitrary Podman command line. The CLI validates a bounded, printable image-reference character set and rejects leading dashes and whitespace. The Podman command also places \`--\` before the image argument, so a malformed value cannot be reinterpreted as a container privilege, mount or networking option. Both locally and over the restricted SSH interface the same validation applies before any clone or build. Other Podman options are not forwarded from app source or a deployment request.
+
+## Detecting orphaned release state after crashes
+
+Use \`skrynia-tools app audit --name NAME --apps-dir DIR [--format json]\` to discover release metadata records with missing artifact trees, artifact trees lacking metadata, incomplete staging directories, and unexpected filesystem entries. The command reports each category and does not delete anything, preserving every potentially useful rollback target for investigation. It can run remotely via the same pinned-host SSH CLI. Unlike rollback, it scans historical entries and is not constant-time. In-progress builds can temporarily produce incomplete states; run it again after the build lock is free. \`app verify\` is the separate full-content integrity scan.

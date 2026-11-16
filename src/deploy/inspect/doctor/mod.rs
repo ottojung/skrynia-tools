@@ -1,5 +1,7 @@
-use super::{files, process};
+use super::{files, process, release, valid_name, validate};
+mod audit;
 use anyhow::Result;
+pub use audit::{Audit, audit};
 use serde::Serialize;
 use std::{path::Path, process::Command};
 

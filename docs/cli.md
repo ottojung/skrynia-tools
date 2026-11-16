@@ -11,6 +11,7 @@ skrynia-tools app new --name hello --directory ./apps/hello
 skrynia-tools app deploy --name hello --repo https://github.com/OWNER/REPO --subdir apps/hello --apps-dir /srv/skrynia-apps [--commit FULL_SHA] [--builder-image IMAGE]
 skrynia-tools app list --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app doctor --apps-dir /srv/skrynia-apps [--format table|json]
+skrynia-tools app audit --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app current --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
@@ -111,3 +112,9 @@ Use `admin revoke-user` to invalidate the **one user token recorded in the crede
 After a confirmed success or an expected Skrynia 404 error code (`user_not_found` or `grant_not_found`), the journal transitions to `user_revoked` (removes the user token) or `grant_revoked` (removes all issuer/user credentials). Repeating a completed operation is idempotent. On a failed/uncertain response, the journal remains pending and the CLI refuses another DELETE without `--retry-after-uncertain true`. Inspect the state first; the flag is an **explicit operator retry decision**, not automatic recovery.
 
 Revocation only applies to grants represented by a wrapped child-grant journal; it does not accept a raw root-credentials file or independently create grants. Per Skrynia's API contract, **revoking a grant does not delete previously stored object bytes**. Revocation does not roll back application code, migrate data, free historical release artifacts or clean up clients that copied credentials earlier.
+
+### Crash-recovery release auditing
+
+\`app audit --name NAME\` reports complete published versions plus any release metadata whose artifact directory is missing, artifact directories without a matching metadata record, abandoned \`.RELEASE_ID.staging\` directories, and malformed or unsafe release entries. It prints the report even when incomplete records are found, but exits nonzero so automation can detect inconsistencies. \`--format json\` exposes \`clean\`, \`available_releases\`, and per-category arrays. The same action works over restricted SSH.
+
+Auditing is **read-only**: it never prunes historical releases, removes staging files, changes the active symlink, performs a source build or touches Skrynia object data. It is O(number of release entries) rather than O(1); the \`rollback\` algorithm is unchanged. An audit can observe an in-progress build between separate directory writes, so repeat after deployment completes before treating transient results as persistent corruption. For content integrity use the separate \`app verify\` command.

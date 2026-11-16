@@ -7,9 +7,18 @@ fn delayed_deployment_must_not_override_newer_activation() {
     let manually_restored = fixture.add(2);
     let prepared = fixture.add(3);
     fixture.active(&before.id);
-    let expected = inspect(&fixture.root, "hello").unwrap().unwrap().id;
+    let (expected, generation) = publish::observe(&fixture.root, "hello").unwrap();
     fixture.active(&manually_restored.id);
-    assert!(publish::activate(&fixture.root, "hello", Some(&expected), &prepared.id).is_err());
+    assert!(
+        publish::activate(
+            &fixture.root,
+            "hello",
+            expected.as_deref(),
+            generation,
+            &prepared.id
+        )
+        .is_err()
+    );
     assert_eq!(
         inspect(&fixture.root, "hello").unwrap().unwrap().id,
         manually_restored.id

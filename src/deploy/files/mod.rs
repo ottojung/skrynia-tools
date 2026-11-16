@@ -1,6 +1,7 @@
 mod copy;
 mod dirs;
 mod durable;
+pub(super) mod generation;
 mod integrity;
 mod switch;
 pub use copy::copy_tree;
@@ -11,3 +12,5 @@ pub use switch::switch;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_generation;

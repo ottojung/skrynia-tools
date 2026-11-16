@@ -1,4 +1,4 @@
-use super::sync_dir;
+use super::{generation, sync_dir};
 use anyhow::{Result, bail};
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -11,6 +11,9 @@ pub fn switch(root: &Path, name: &str, release: &str) -> Result<()> {
     {
         bail!("application path is not an owned release symlink");
     }
+    // Persist this intent before touching the active link: even A -> B -> A
+    // invalidates an in-flight build that started before the administrator's change.
+    generation::advance(root, name)?;
     let candidate = public.join(format!(".{name}.{:032x}", rand::random::<u128>()));
     symlink(format!("../releases/{name}/{release}"), &candidate)?;
     if let Err(error) = fs::rename(&candidate, &link) {

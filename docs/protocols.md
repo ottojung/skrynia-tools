@@ -7,7 +7,7 @@
 | Raw client (implemented) | bytes, grants, listing and CAS; Push not yet wrapped | HTTP operations | available |
 | `CasCell` (implemented) | reads byte snapshots; conditional replace, re-evaluated update callback | byte-SHA256 CAS | available |
 | `AppendLog` (implemented) | bounded contiguous reads and create-only appends with operation IDs | create-only slots | available |
-| `EventSet<T>` | concurrent unordered contributions | create + list | P1 |
+| `EventSet` (implemented) | unordered, create-only byte contributions; bounded, non-snapshot scan | create + GET + list | available |
 | `SnapshotStore<T>` | multi-object logical snapshot and transaction | immutable records + CAS head | P1 |
 | `SealedEpochLog<T>` | retained log with registered consumer cursors | grants + CAS + delete | P2 |
 | `TaskQueue<T>` | collaborative tasks and recovery | CAS + log | research |
@@ -24,6 +24,16 @@ The implemented `CasCell` API reads authoritative bytes, computes their SHA-256 
 The implemented `AppendLog` uses fixed epoch `e000001` and twelve-digit slot keys. There is no current epoch rotation or garbage collection. Initialize a genesis key in that epoch; cooperating writers discover the first missing **consecutive** successor with fresh reads and race `POST` at that exact key. 201 is the append's commit, 409 advances to the successor, and a lost response requires checking the attempted key's **operation ID** before deciding to retry. Readers replay the contiguous prefix and stop at the first currently missing key; that is not a permanently sealed end.
 
 Writers must be limited to **create only**, not modify/delete, and the live epoch must not be collected. This ordering proof requires cooperating writers, no deletion and fresh observations. A malicious writer can occupy future slots, insert invalid bytes or exhaust quota; the Rust API cannot enforce its algorithm on others. Tail hints and listing can accelerate scans but do not certify missing predecessor slots. Expose explicit positions (epoch, sequence), bounds and cancellation. A linear scan from genesis must not be disguised as constant-time.
+
+## Unordered event set (optional)
+
+The native `event_set::EventSet` stores arbitrary event **bytes** at `PREFIX.ID`, with 32 lowercase hexadecimal characters in each explicitly supplied ID (use independent random IDs or a domain-defined unique scheme). `insert(id, bytes)` uses create-only `POST`: a repeated ID with identical bytes succeeds idempotently, but a repeated ID with different bytes fails as a collision. When a create response is lost, the client reads the attempted key: identical persisted bytes establish successful publication; a missing key leaves an **uncertain** outcome, never an automatic second POST.
+
+`scan(max_pages)` performs lexicographic, paginated listing and then reads each advertised key. It checks page ordering, key scope, ID grammar, and advancing cursors. It stops after at most 100 pages of 1000 keys and indicates `complete=false` if additional pages remain. A completed scan means only that the observed pagination had no next page: **it is not a consistent snapshot**. Newly created keys preceding a cursor can be missed. This data structure is grow-only only when all writers have *create-only* authority and no delete/modify capabilities overlap the scope; Skrynia itself does not enforce the event-set protocol beyond individual operations. Listing requires a user token with `list`; object reads are public. Unknown IDs are not automatically trusted or cryptographically authenticated.
+
+`EventSet` is an optional client protocol for unordered contributions—not a mandatory app architecture, queue, log, globally ordered timeline, exactly-once stream, or garbage-collected store. It does not impose a JSON schema, event-processing strategy, or lifecycle on applications.
+
+The [native example](../examples/event_set.rs) can run with `SKRYNIA_URL`, `SKRYNIA_EVENT_TOKEN` (a narrowly scoped `create` + `list` user token), and a fresh `SKRYNIA_EVENT_PREFIX`. The optional [live integration test](../tests/ssh/events_live.sh) starts an isolated real Skrynia server, issues a child grant and validates create, idempotency, collision rejection and listing with no authority to modify or delete. Run it by setting `SKRYNIA_TEST_SERVER_BIN` to the full path of a previously built compatible `skrynia-server` executable. Test credentials and state are destroyed after the test.
 
 ## Logical transactions / snapshots
 

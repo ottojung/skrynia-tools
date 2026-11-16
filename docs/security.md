@@ -51,3 +51,7 @@ Grant revocation does **not** erase stored bytes; do not confuse authority lifec
 ## Build timeout containment
 
 Git/build tool subprocesses are started in separate Unix process groups; timeout cleanup signals their group and reaps the direct process. Captured output is bounded and concurrently drained. Podman build failures additionally trigger container removal. A script that deliberately daemonizes into a different session, starts a remote process or escapes the configured container boundary may outlive this group, so this is failure containment rather than a universal process-sandbox guarantee.
+
+## Podman builder-image boundary
+
+The builder-image selector is strictly one validated OCI-style reference. The runner inserts an explicit \`--\` argument terminator before the image, disallowing option interpretation (such as \`--privileged\`, \`--network\` or \`--mount\`). The builder command remains fixed to \`make build\`, in rootless Podman with all Linux capabilities dropped and no operator credentials mounted. Image validation does not establish that the selected image's contents are trustworthy; pin reviewed images by digest for reproducibility.

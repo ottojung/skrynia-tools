@@ -127,6 +127,13 @@ git -C "$tmp/source" add payload.txt
 git -C "$tmp/source" -c user.name=Fixture -c user.email=fixture@example.invalid \
   commit -qm 'second artifact'
 second_sha="$(git -C "$tmp/source" rev-parse HEAD)"
+if remote deploy --name demo --repo https://github.com/owner/repo \
+  --subdir apps/demo --commit "$second_sha" --builder-image '--privileged' \
+  > "$tmp/rejected.out" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: builder-image flag injection accepted' >&2
+    exit 1
+fi
+grep -q 'invalid builder image reference' "$tmp/rejected.err"
 remote deploy --name demo --repo https://github.com/owner/repo \
   --subdir apps/demo --commit "$second_sha" \
   --builder-image docker.io/library/rust:1.93-bookworm > "$tmp/second.json"

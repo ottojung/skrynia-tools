@@ -31,6 +31,7 @@ pub fn build(spec: &DeploySpec, work: &Path) -> Result<()> {
         &format!("{}:/workspace:Z", source.display()),
         "-w",
         &format!("/workspace/{}", spec.subdir),
+        "--",
         &spec.builder_image,
         "make",
         "build",

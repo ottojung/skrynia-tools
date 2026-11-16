@@ -143,3 +143,7 @@ Use `skrynia-tools app doctor --apps-dir DIR [--format json]`, locally or with t
 ## Build subprocess timeouts
 
 Git checkout and app builds run as isolated Unix subprocess groups. On a configured deadline, the administrative CLI kills the whole group and reaps the direct child rather than leaving shell-spawned descendants running. It also bounds captured subprocess stdout to 64 KiB and consumes it concurrently so verbose tools cannot deadlock on full pipes. The Podman runner separately removes the named container after build failure. These controls do not replace container resource quotas, external service isolation, or the operator's responsibility to vet executable builder images.
+
+## Builder image arguments and option boundary
+
+The \`--builder-image\` value is a **single OCI image reference**, not an arbitrary Podman command line. The CLI validates a bounded, printable image-reference character set and rejects leading dashes and whitespace. The Podman command also places \`--\` before the image argument, so a malformed value cannot be reinterpreted as a container privilege, mount or networking option. Both locally and over the restricted SSH interface the same validation applies before any clone or build. Other Podman options are not forwarded from app source or a deployment request.

@@ -41,3 +41,12 @@ pub fn valid_release_id(id: &str) -> bool {
             .enumerate()
             .all(|(i, b)| i == 12 || b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
+
+pub fn valid_builder_image(image: &str) -> bool {
+    !image.is_empty()
+        && image.len() <= 512
+        && image.as_bytes()[0].is_ascii_alphanumeric()
+        && image
+            .bytes()
+            .all(|v| v.is_ascii_alphanumeric() || b"._:/@-".contains(&v))
+}

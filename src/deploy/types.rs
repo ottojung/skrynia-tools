@@ -38,8 +38,8 @@ impl DeploySpec {
         {
             bail!("commit must be a full 40-character Git SHA-1");
         }
-        if self.builder_image.trim().is_empty() {
-            bail!("builder image is required");
+        if !super::validate::valid_builder_image(&self.builder_image) {
+            bail!("invalid builder image reference");
         }
         Ok(())
     }

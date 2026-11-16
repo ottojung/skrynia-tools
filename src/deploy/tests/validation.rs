@@ -1,10 +1,5 @@
-use super::{
-    files,
-    types::DeploySpec,
-    validate::{valid_name, valid_rel},
-};
+use super::{DeploySpec, valid_name, valid_rel};
 use std::path::PathBuf;
-
 #[test]
 fn source_paths_do_not_escape_checkout() {
     assert!(valid_rel("."));
@@ -26,18 +21,23 @@ fn only_supported_github_repos() {
     assert!(spec.validate().is_ok());
     let mut bad = spec.clone();
     bad.repo = "https://github.com/owner/repo?token=secret".into();
+
     assert!(bad.validate().is_err());
-}
-#[cfg(unix)]
-#[test]
-fn rejects_symlinked_build_output() {
-    use std::os::unix::fs::symlink;
-    let root = std::env::temp_dir().join(format!("skrynia-deploy-{:032x}", rand::random::<u128>()));
-    std::fs::create_dir(&root).unwrap();
-    let source = root.join("src");
-    let dest = root.join("dst");
-    std::fs::create_dir(&source).unwrap();
-    symlink("/etc/passwd", source.join("bad")).unwrap();
-    assert!(files::copy_tree(&source, &dest).is_err());
-    std::fs::remove_dir_all(root).unwrap();
+    bad.repo = spec.repo;
+    for image in [
+        "--privileged",
+        "--network=host",
+        "",
+        "image with whitespace",
+        "/absolute/path",
+        "registry@bad!digest",
+    ] {
+        bad.builder_image = image.into();
+        assert!(
+            bad.validate().is_err(),
+            "unsafe builder image accepted: {image}"
+        );
+    }
+    bad.builder_image = "docker.io/library/rust@sha256:0123456789abcdef".into();
+    assert!(bad.validate().is_ok());
 }

@@ -12,7 +12,7 @@ impl SkryniaClient {
         if response.status() == StatusCode::PRECONDITION_FAILED {
             return Ok(false);
         }
-        Self::success(response)?;
+        Self::committed(response, StatusCode::OK, "compare_replace")?;
         Ok(true)
     }
 }

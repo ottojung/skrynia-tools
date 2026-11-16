@@ -10,7 +10,7 @@ impl BrowserClient {
         if response.status() == 409 {
             return Ok(false);
         }
-        Self::accept(&response)?;
+        Self::accept_exact(&response, 201)?;
         Ok(true)
     }
     #[wasm_bindgen(js_name = replace)]
@@ -27,7 +27,7 @@ impl BrowserClient {
         if response.status() == 412 {
             return Ok(false);
         }
-        Self::accept(&response)?;
+        Self::accept_exact(&response, 200)?;
         Ok(true)
     }
     #[wasm_bindgen(js_name = delete)]
@@ -39,7 +39,7 @@ impl BrowserClient {
         if response.status() == 412 {
             return Ok(false);
         }
-        Self::accept(&response)?;
+        Self::accept_exact(&response, 200)?;
         Ok(true)
     }
 }

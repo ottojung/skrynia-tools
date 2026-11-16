@@ -74,3 +74,7 @@ GitHub CI also builds the real upstream Skrynia Rust server from commit `3139a82
 ### Concurrent duplicate operation regression
 
 Native tests synchronize two writers at a missing slot and verify that simultaneous attempts with identical IDs and bytes occupy exactly one entry. A second synchronized race verifies that the same ID with different bytes rejects one writer rather than publishing two entries. The browser/Wasm integration also publishes eight simultaneous identical operations and verifies that all resolve to the same position with one stored slot. These checks strengthen the **optional** log protocol, without requiring apps to use an append-only structure or claiming correct behavior from noncooperating writers that delete/mutate occupied slots.
+
+## HTTP status contract verification
+
+Native and browser clients now require the response codes specified by the upstream Skrynia API: object creation 201, successful mutation and grant operations 200, and full object reads/listing 200. Unexpected 2xx statuses are errors, not proof of durable mutation. In particular, 202 cannot justify publishing a log position or acknowledging a snapshot CAS; 206 cannot represent the complete bytes of an object. Tests inject 202 and 204 into native mutations and 202 and 206 into headless browser fixtures; the real-server compatibility gate retains coverage of the successful status paths.

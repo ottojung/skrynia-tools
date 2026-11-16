@@ -23,7 +23,7 @@ impl BrowserClient {
             url.query_pairs_mut().append_pair("after", &after);
         }
         let response = self.fetch("GET", url.as_str(), None, true, None).await?;
-        Self::accept(&response)?;
+        Self::accept_exact(&response, 200)?;
         String::from_utf8(Self::bytes(&response).await?)
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }

@@ -32,7 +32,7 @@ impl SkryniaClient {
             }
             bail!("unexpected 404 during revocation; authority state cannot be confirmed");
         }
-        Self::success(response)?;
+        Self::committed(response, StatusCode::OK, "revoke")?;
         Ok(())
     }
 }

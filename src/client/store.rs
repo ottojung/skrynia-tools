@@ -12,7 +12,7 @@ impl Store for SkryniaClient {
         if response.status() == StatusCode::CONFLICT {
             return Ok(CreateResult::Exists);
         }
-        Self::success(response)?;
+        Self::committed(response, StatusCode::CREATED, "create")?;
         Ok(CreateResult::Created)
     }
 }
@@ -24,7 +24,7 @@ impl SkryniaClient {
         if let Some(digest) = digest {
             req = req.header("X-Skrynia-If-SHA256", digest);
         }
-        Self::success(Self::mutating(req.send())?)?;
+        Self::committed(Self::mutating(req.send())?, StatusCode::OK, "replace")?;
         Ok(())
     }
     pub fn delete(&self, key: &str, digest: Option<&str>) -> Result<()> {
@@ -32,7 +32,7 @@ impl SkryniaClient {
         if let Some(digest) = digest {
             req = req.header("X-Skrynia-If-SHA256", digest);
         }
-        Self::success(Self::mutating(req.send())?)?;
+        Self::committed(Self::mutating(req.send())?, StatusCode::OK, "delete")?;
         Ok(())
     }
 }

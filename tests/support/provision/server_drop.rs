@@ -16,7 +16,7 @@ pub fn create_then_drop() -> (String, thread::JoinHandle<()>) {
                 assert!(request.starts_with("POST /grants HTTP/1.1"));
                 let body = r#"{"id":"test123","issuerToken":"issuer-top-secret"}"#;
                 let response = format!(
-                    "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len()
                 );
                 socket.write_all(response.as_bytes()).unwrap();

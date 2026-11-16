@@ -33,6 +33,8 @@ class Handler(SimpleHTTPRequestHandler):
             entries = sorted(k for k in objects if k.startswith(matcher))
             return self.reply(200, json.dumps({"keys": entries, "next": None}).encode(),
                               "application/json")
+        if route.path == "/store/test.partial":
+            return self.reply(206, b"part")
         if route.path.startswith("/store/"):
             key = route.path[len("/store/"):]
             return self.reply(200, objects[key]) if key in objects else self.reply(404)
@@ -44,6 +46,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.reply(403, b'{"error":"forbidden"}', "application/json")
         size = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(size)
+        if key == "test.accepted":
+            return self.reply(202)
         if self.command == "POST":
             if key in objects:
                 return self.reply(409, b'{"error":"already_exists"}', "application/json")

@@ -5,6 +5,22 @@ use reqwest::StatusCode;
 pub enum ClientError {
     #[error("Skrynia rejected request: HTTP {status}, {code}")]
     Rejected { status: StatusCode, code: String },
+    #[error(
+        "Skrynia returned HTTP {actual} for {operation}; expected {expected}; mutation outcome unconfirmed"
+    )]
+    UnexpectedMutationStatus {
+        operation: &'static str,
+        actual: StatusCode,
+        expected: StatusCode,
+    },
+    #[error(
+        "Skrynia returned HTTP {actual} for {operation}; expected {expected}; read cannot be trusted"
+    )]
+    UnexpectedReadStatus {
+        operation: &'static str,
+        actual: StatusCode,
+        expected: StatusCode,
+    },
     #[error("Skrynia transport failure: {source}")]
     Transport {
         #[source]
@@ -27,5 +43,7 @@ impl ClientError {
 }
 #[cfg(test)]
 use super::{SkryniaClient, Store};
+#[cfg(test)]
+mod status_test;
 #[cfg(test)]
 mod tests;

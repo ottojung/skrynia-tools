@@ -10,7 +10,7 @@ impl BrowserClient {
         if response.status() == 404 {
             return Ok(None);
         }
-        Self::accept(&response)?;
+        Self::accept_exact(&response, 200)?;
         Ok(Some(js_sys::Uint8Array::from(
             Self::bytes(&response).await?.as_slice(),
         )))

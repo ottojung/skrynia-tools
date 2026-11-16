@@ -4,7 +4,7 @@ use std::{
     net::TcpListener,
 };
 
-fn response(reply: Option<&str>) -> String {
+pub(super) fn response(reply: Option<&str>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let message = reply.map(str::to_owned);

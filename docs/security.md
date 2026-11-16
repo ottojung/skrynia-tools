@@ -63,3 +63,7 @@ Remote SSH management uses an explicit-size JSON message (at most 16 KiB) and an
 ## Browser URL and credential boundaries
 
 The browser client rejects non-HTTP(S) base URLs, embedded usernames/passwords, fragments and queries. This matches the native client's URL policy and avoids treating credentials embedded in a URL as a supported authentication workflow. Browser tokens are supplied explicitly as optional capability strings and sent only on authenticated operations; public GETs remain unauthenticated. Browser JavaScript cannot hide tokens bundled in public code, and browser cross-origin requests still require appropriate server CORS headers.
+
+## Exact HTTP commitment and read-response statuses
+
+The native and browser clients do not infer that *every* 2xx status means an operation completed. Skrynia's versioned contract returns **201 Created** for object creation and **200 OK** for confirmed replacement/deletion and grant operations; object GET and list results must also be **200 OK**. `409` is the create collision, `412` the CAS mismatch, and `404` the missing object. Unexpected successful responses (e.g. `202 Accepted`, `204 No Content`, or `206 Partial Content`) are reported as contract violations rather than silently treated as committed writes or complete reads. A mutation receiving an unexpected success status may still have taken effect, so the caller must reconcile it with an authoritative read before retrying.

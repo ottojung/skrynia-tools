@@ -23,6 +23,14 @@ try {
   const client = new BrowserClient(location.origin, "narrow-test-token");
   const input = new TextEncoder().encode("hello wasm");
   check(await client.get("test.object") === undefined, "missing read");
+  let partialAccepted = false;
+  try { await client.get("test.partial"); partialAccepted = true; }
+  catch (_) { /* 206 is not a complete object. */ }
+  check(!partialAccepted, "partial HTTP response must not be trusted as full object");
+  let acceptedAsCommitted = false;
+  try { await client.create("test.accepted", input); acceptedAsCommitted = true; }
+  catch (_) { /* 202 means unconfirmed, not created. */ }
+  check(!acceptedAsCommitted, "202 cannot be treated as committed create");
   check(await client.create("test.object", input), "create");
   check(!(await client.create("test.object", input)), "create conflict");
   const old = await client.get("test.object");

@@ -1,5 +1,6 @@
 use super::{errors::ClientError, types::SkryniaClient};
 use anyhow::Result;
+use reqwest::StatusCode;
 use sha2::{Digest, Sha256};
 
 impl SkryniaClient {
@@ -12,7 +13,11 @@ impl SkryniaClient {
         if Self::not_found(response.status()) {
             return Ok(None);
         }
-        Ok(Some(Self::success(response)?.bytes()?.to_vec()))
+        Ok(Some(
+            Self::fetched(response, StatusCode::OK, "get")?
+                .bytes()?
+                .to_vec(),
+        ))
     }
     pub fn digest(data: &[u8]) -> String {
         hex::encode(Sha256::digest(data))
@@ -29,9 +34,11 @@ impl SkryniaClient {
             url.query_pairs_mut().append_pair("after", after);
         }
         let req = self.auth(self.http.get(url))?;
-        Ok(Self::success(
+        Ok(Self::fetched(
             req.send()
                 .map_err(|source| ClientError::Transport { source })?,
+            StatusCode::OK,
+            "list",
         )?
         .json()?)
     }

@@ -4,6 +4,7 @@ mod audit;
 mod broken_active;
 mod checks;
 mod compare;
+mod diff;
 mod doctor;
 mod recovery;
 
@@ -20,6 +21,7 @@ pub fn verify() {
     checks::verify(&fixture, &first, &one, &three);
     compare::verify(&fixture, &first, &one, &three);
     doctor::verify(&fixture);
+    diff::verify(&fixture, &first);
     recovery::verify(&fixture, &first);
     audit::verify(&fixture, &first);
     #[cfg(unix)]

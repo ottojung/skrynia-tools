@@ -6,7 +6,7 @@ Rust library and command-line tools for [Skrynia](https://github.com/ottojung/Sk
 
 ## Implemented
 
-- Application CLI: `app new`, `deploy`, `list`, `doctor`, `current`, `versions`, `show`, `compare`, `verify`, `rollback` and `activate`, with JSON and human-readable views.
+- Application CLI: `app new`, `deploy`, `list`, `doctor`, `audit`, `current`, `versions`, `show`, `compare`, `diff`, `verify`, `rollback` and `activate`, with JSON and human-readable views.
 - Native Rust HTTP client for public GET, create-if-absent, replace, delete, byte-SHA256 CAS, paginated listing, child-grant creation and user-token issuance.
 - `admin plan`, `create`, `inspect`, `resume`, `revoke-user` and `revoke-grant`: optional app data-grant lifecycle tooling with explicit recovery states, with private credential files.
 - Optional `CasCell`, create-only `AppendLog`, unordered `EventSet`, and CAS-backed immutable-manifest `SnapshotStore` client protocols; `object` and `log` CLI operations.

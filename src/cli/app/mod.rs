@@ -27,6 +27,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         "deploy" => publish::run(args),
         "list" | "ls" => inventory::run(args),
         "compare" => compare::run(args),
+        "diff" => compare::diff(args),
         "doctor" => status::doctor::run(args),
         "audit" => status::audit::run(args),
         "versions" | "history" | "releases" => history::run(args),

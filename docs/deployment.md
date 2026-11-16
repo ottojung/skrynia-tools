@@ -112,7 +112,7 @@ The action defaults to SSH port 22; the optional `port` input supports other SSH
 
 ## Remote CLI release management
 
-The **same** `skrynia-tools app` release commands can run from a developer machine without a shell session on the hosting machine. Add `--ssh-host`, `--ssh-user`, `--ssh-key` and `--ssh-known-hosts` (and optional `--ssh-port`) to `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `rollback` or `activate`. The local CLI serializes a bounded operation request as JSON over SSH; the remote handler uses the same release-management functions. All app code and metadata remain on the hosting machine.
+The **same** `skrynia-tools app` release commands can run from a developer machine without a shell session on the hosting machine. Add `--ssh-host`, `--ssh-user`, `--ssh-key` and `--ssh-known-hosts` (and optional `--ssh-port`) to `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `diff`, `rollback` or `activate`. The local CLI serializes a bounded operation request as JSON over SSH; the remote handler uses the same release-management functions. All app code and metadata remain on the hosting machine.
 
 To grant that SSH key both deployment and management rights, restrict its `authorized_keys` entry to the **root-scoped RPC handler**, instead of a general interactive shell:
 
@@ -155,3 +155,7 @@ Use \`skrynia-tools app audit --name NAME --apps-dir DIR [--format json]\` to di
 ## Bounded SSH input delivery
 
 Remote management and deployment commands now apply the timeout to the **entire** SSH subprocess, including sending the bounded JSON request into its stdin pipe. A background writer prevents a server that does not read stdin from blocking the CLI before the deadline starts. The SSH subprocess is isolated into its own process group and cancelled with its local descendants when the deadline expires. A timeout or an interrupted stdin write does **not** prove that the remote command failed: inspect the active version and artifact state before retrying. SSH disconnection cannot atomically cancel work that the remote host has already accepted.
+
+## Comparing retained code artifacts
+
+`skrynia-tools app diff --name NAME --from RELEASE1 --to RELEASE2 --apps-dir DIR [--format json]` compares all relative directory and file paths, SHA-256 file contents, and executable flags between two immutable releases. `app compare` remains the fast metadata-only provenance comparison; the new `diff` operation scans and hashes actual bytes. Both releases are verified against stored whole-tree integrity commitments first, and any known mismatch is rejected rather than presented as an authoritative diff. Releases without legacy commitments are explicitly marked unverified in JSON. This inspection is available over the same pinned-host restricted SSH interface and does not change the active symlink. It is O(total artifact bytes and paths), unrelated to the O(1) rollback guarantee.

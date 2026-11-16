@@ -36,3 +36,14 @@ pub fn run(args: &Arguments) -> Result<()> {
     );
     Ok(())
 }
+
+mod changes;
+mod changes_print;
+mod diff;
+mod hash;
+mod tree;
+mod types;
+pub use diff::run as diff;
+
+#[cfg(test)]
+mod tests;

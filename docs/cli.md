@@ -16,6 +16,7 @@ skrynia-tools app current --name hello --apps-dir /srv/skrynia-apps [--format ta
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app compare --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
+skrynia-tools app diff --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app verify --name hello [--release RELEASE_ID] --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
 # Compatibility aliases:
@@ -31,11 +32,11 @@ The default format for `list`, `current`, `versions`, `history`, `rollback` and 
 
 The `doctor` command checks for a real deployment root, available Git, rootless Podman and initialized release directories. It is **diagnostic only**: it does not build applications, pull images, create the root or verify sufficient disk capacity or production web routing. Missing internal subdirectories are reported but can be created by an actual deployment.
 
-The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. Code rollback never invokes application migrations or changes Skrynia object data.
+The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. The separate `app diff` command validates any available release integrity commitments and then streams every artifact byte to compare directory membership, SHA-256 file content, and executable bits. `--format json` returns sorted `changes.added`, `changes.removed`, and `changes.modified` arrays with relative paths and per-entry metadata. A legacy release without a stored integrity commitment is explicitly reported as unverified (`null`); a known mismatch causes the command to fail. It never activates, deletes, or copies releases, and takes O(total artifact bytes plus entries) rather than O(1). Code rollback never invokes application migrations or changes Skrynia object data.
 
 ## Remote CLI release management
 
-Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `verify`, `doctor`, `rollback` and `activate`, can run on an authorized host by adding:
+Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `diff`, `verify`, `doctor`, `rollback` and `activate`, can run on an authorized host by adding:
 
 ```text
 --ssh-host HOST --ssh-user DEPLOY_USER --ssh-key PRIVATE_KEY_FILE

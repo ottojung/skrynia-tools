@@ -30,6 +30,7 @@ impl Request {
                 | "rollback"
                 | "activate"
                 | "compare"
+                | "diff"
                 | "verify"
                 | "doctor"
                 | "audit"

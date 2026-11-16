@@ -144,12 +144,17 @@ PYID
 )"
 remote compare --name demo --from "$first_id" --to "$second_id" --format json \
   > "$tmp/compare.json"
+remote diff --name demo --from "$first_id" --to "$second_id" --format json > "$tmp/diff.json"
 remote versions --name demo --format json > "$tmp/versions.json"
 remote verify --name demo --format json > "$tmp/verification.json"
 python3 - "$tmp" "$first_id" "$second_id" <<'PYID'
 import json,pathlib,sys
 root=pathlib.Path(sys.argv[1])
 assert json.loads((root/'compare.json').read_text())['to']['id']==sys.argv[3]
+diff=json.loads((root/'diff.json').read_text())
+assert diff['from_verified'] is True and diff['to_verified'] is True
+assert [v['path'] for v in diff['changes']['modified']]==['deep/artifact.bin']
+assert diff['changes']['modified'][0]['before']['sha256'] != diff['changes']['modified'][0]['after']['sha256']
 entries=json.loads((root/'versions.json').read_text())
 assert len(entries)==2 and entries[0]['id']==sys.argv[3] and entries[0]['active']
 assert entries[1]['id']==sys.argv[2] and not entries[1]['active']
@@ -208,4 +213,10 @@ if remote verify --name demo --release "$first_id" --format json \
     exit 1
 fi
 python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["verified"] is False' "$tmp/tampered.json"
+if remote diff --name demo --from "$first_id" --to "$second_id" --format json \
+  > "$tmp/invalid-diff.json" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: diff trusted a corrupted release' >&2
+    exit 1
+fi
+grep -q 'release integrity mismatch' "$tmp/rejected.err"
 echo 'REAL SSH INTEGRITY PASS: clean versions verified; modified historical artifact rejected'

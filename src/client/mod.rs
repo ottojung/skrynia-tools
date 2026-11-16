@@ -5,6 +5,7 @@ mod grants;
 mod path;
 mod read;
 mod request;
+mod revoke;
 mod store;
 mod types;
 pub(super) use super::wire;

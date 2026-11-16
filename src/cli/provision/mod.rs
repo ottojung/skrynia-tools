@@ -5,6 +5,8 @@ mod create;
 mod inspect;
 mod issue;
 mod resume;
+mod revoke;
 pub use create::create;
 pub use inspect::inspect;
 pub use resume::resume;
+pub use revoke::run as revoke;

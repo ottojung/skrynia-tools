@@ -8,6 +8,9 @@ pub fn run(args: &Arguments) -> Result<()> {
     if args.action == "resume" {
         return super::provision::resume(args);
     }
+    if matches!(args.action.as_str(), "revoke-user" | "revoke-grant") {
+        return super::provision::revoke(args);
+    }
     if !matches!(args.action.as_str(), "plan" | "create") {
         bail!("unknown admin action");
     }

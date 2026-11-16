@@ -15,3 +15,8 @@ An ordinary browser should receive only its explicitly delegated, publicly expos
 `skrynia-tools admin plan --name hello --max-bytes N --max-objects N` previews a data prefix and owner grant without side effects. Supply its 32-hex `--id` to `skrynia-tools admin create --name hello --url URL --parent-token-file FILE --credentials-out FILE --max-bytes N --max-objects N --id ID` to provision that exact scope. This owner grant has broad operations and its credentials must never be shipped in a public app. Neither command creates protocol data.
 
 Revoking a grant never deletes stored bytes, and redeploying or rolling back an app never revokes any data grants.
+
+
+## Credential lifecycle
+
+The initial grant and first user credential can be managed without any relation to application code deployment. `admin inspect` reports the journal's state without displaying credentials; `admin resume` handles recoverable issuance states. For deliberate revocation, `admin revoke-user` invalidates the recorded user token, and `admin revoke-grant` invalidates the entire descendant authority tree. Both require `--confirm-grant-id ID` and write a recoverable private revocation state before sending DELETE. An uncertain result must be inspected before retrying with `--retry-after-uncertain true`. Revocation **does not delete object data**, release history or application code.

@@ -25,4 +25,6 @@ pub fn print() {
     println!("  admin plan|create --name NAME --max-bytes BYTES --max-objects N");
     println!("  admin inspect|resume --credentials-file PRIVATE_FILE [--url URL]");
     println!("      resume requires explicit acknowledgment if issuance outcome is unknown");
+    println!("  admin revoke-user|revoke-grant --credentials-file FILE --url URL");
+    println!("      --confirm-grant-id ID [--retry-after-uncertain true]");
 }

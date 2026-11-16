@@ -40,3 +40,10 @@ New code releases store an SHA-256 commitment to all copied artifact bytes, rela
 ## Administrative grant recovery
 
 Optional grant provisioning writes a private journal before remote creation, saves the one-time issuer response before user issuance, and marks `issuing_user` on disk before sending that request. `admin inspect` reports recovery state without printing capabilities. A failed/uncertain user-token request may have minted an unrecorded token. For that state, `admin resume` refuses to reissue unless the operator explicitly passes `--accept-duplicate-token-risk true`. Reissuance cannot revoke an orphaned token or guarantee exactly-once semantics. A lost grant-creation issuer response is unrecoverable through this client; repeating `POST /grants` would create an additional grant, so the CLI refuses automatic recovery. Private journal changes serialize under a persistent owner-only filesystem lock.
+
+
+## Explicit revocation and uncertain DELETE
+
+`admin revoke-user` and `admin revoke-grant` use the locally held issuer capability in the private child-grant journal. The CLI requires the exact grant ID again before either destructive **authority** change. It persists an in-progress state before the HTTP DELETE and requires explicit acknowledgement to retry an uncertain result. A 404 is treated as confirmed absence only with the expected Skrynia `user_not_found` or `grant_not_found` error code; an arbitrary 404 does not confirm revocation. Once done, corresponding credentials are removed from the journal; `admin inspect` never reveals them. Root credentials are not a supported journal input. A revoked capability can still exist as a copied secret elsewhere but must be rejected by Skrynia if revocation was committed.
+
+Grant revocation does **not** erase stored bytes; do not confuse authority lifecycle with data retention or application release lifecycle. Deleting a child grant also affects subordinate users/grants, so treat `revoke-grant` as a privileged operation.

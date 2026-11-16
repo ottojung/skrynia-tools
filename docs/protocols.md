@@ -1,6 +1,6 @@
 # Client protocol catalog and proof obligations
 
-**Implementation status:** the native raw HTTP client, byte-SHA256 CAS cell, and basic create-only append log exist. Other protocols below are design proposals. No client-side protocol can increase Skrynia-enforced authority.
+**Implementation status:** the native raw HTTP client, byte-SHA256 CAS cell, create-only append log, unordered event set and initial immutable-manifest snapshots exist. Other protocols below are design proposals. No client-side protocol can increase Skrynia-enforced authority.
 
 | Module | Function | Primitives | Priority |
 | --- | --- | --- | --- |
@@ -8,7 +8,7 @@
 | `CasCell` (implemented) | reads byte snapshots; conditional replace, re-evaluated update callback | byte-SHA256 CAS | available |
 | `AppendLog` (implemented) | bounded contiguous reads and create-only appends with operation IDs | create-only slots | available |
 | `EventSet` (implemented) | unordered, create-only byte contributions; bounded, non-snapshot scan | create + GET + list | available |
-| `SnapshotStore<T>` | multi-object logical snapshot and transaction | immutable records + CAS head | P1 |
+| `SnapshotStore` (initial) | byte-valued multi-object snapshot, immutable manifest + single CAS head | create + modify + GET | initial |
 | `SealedEpochLog<T>` | retained log with registered consumer cursors | grants + CAS + delete | P2 |
 | `TaskQueue<T>` | collaborative tasks and recovery | CAS + log | research |
 | Signed/encrypted records | independently validated trust/confidentiality | client cryptography | separate design |
@@ -33,11 +33,23 @@ The native `event_set::EventSet` stores arbitrary event **bytes** at `PREFIX.ID`
 
 `EventSet` is an optional client protocol for unordered contributions—not a mandatory app architecture, queue, log, globally ordered timeline, exactly-once stream, or garbage-collected store. It does not impose a JSON schema, event-processing strategy, or lifecycle on applications.
 
-The [native example](../examples/event_set.rs) can run with `SKRYNIA_URL`, `SKRYNIA_EVENT_TOKEN` (a narrowly scoped `create` + `list` user token), and a fresh `SKRYNIA_EVENT_PREFIX`. The optional [live integration test](../tests/ssh/events_live.sh) starts an isolated real Skrynia server, issues a child grant and validates create, idempotency, collision rejection and listing with no authority to modify or delete. Run it by setting `SKRYNIA_TEST_SERVER_BIN` to the full path of a previously built compatible `skrynia-server` executable. Test credentials and state are destroyed after the test.
+The [native example](../examples/event_set.rs) can run with `SKRYNIA_URL`, `SKRYNIA_EVENT_TOKEN` (a narrowly scoped `create` + `list` user token), and a fresh `SKRYNIA_EVENT_PREFIX`. The optional [live integration test](../tests/ssh/protocols_live.sh) starts an isolated real Skrynia server, issues a child grant and validates create, idempotency, collision rejection and listing with no authority to modify or delete. Run it by setting `SKRYNIA_TEST_SERVER_BIN` to the full path of a previously built compatible `skrynia-server` executable. Test credentials and state are destroyed after the test.
 
-## Logical transactions / snapshots
+## Atomic multi-object snapshots (optional)
 
-Create new immutable data and a manifest before publishing a **single** small CAS root. Readers pin one root, then traverse only that manifest. A successful root CAS is the logical commit point; 412 triggers full transaction reevaluation and uncertain commits need transaction-ID evidence. Garbage collection of old manifest/data is unsafe without protecting staged writers and in-progress readers, so retain versions until an explicit proven reclamation strategy exists.
+The native `cas::snapshot::SnapshotStore` implements an initial **byte-valued logical transaction**. It operates on a map of arbitrary named byte values, independent of append-only logs, application deployment, schema migrations or execution architecture. An app explicitly opts into this protocol; Skrynia itself remains a raw object store.
+
+**Storage contract.** Each logical snapshot stores a mutable JSON head at `PREFIX.head` containing a format version, monotonically increasing revision, 32-character hexadecimal transaction ID and SHA-256 of one immutable manifest. The manifest at `PREFIX.manifest.TXID` maps logical member names to immutable blob keys `PREFIX.blob.TXID.NAME` and exact SHA-256 values. Unchanged blobs are referenced from previous manifests rather than copied. Names must follow Skrynia key syntax. Readers read the head once, then validate the manifest and all referenced blobs against the committed hashes. If objects are missing or altered, the reader **fails** rather than silently exposing partial contents.
+
+**Commit algorithm.** `initialize(genesis_txid)` creates the empty manifest first, then create-only publishes the head; concurrent initialization converges on one validated head. For updates, `read()` yields an immutable in-memory `Snapshot` including a copy of its values and its original head digest. `commit(&old, txid, &desired_map)` stages all changed blobs and their immutable manifest with create-only operations, then performs exactly one byte-SHA256 CAS replacing the head. Successful CAS is the logical linearization point for the **whole map**. A stale head returns `Commit::Conflict`; the caller should re-read and *recompute* a proposed update rather than copying over a competing change. A repeated transaction ID with exactly the same staged bytes is safe; conflicting reused IDs are rejected.
+
+A lost staging response is reconciled by reading that exact immutable object. A lost head CAS response yields `Committed` **only** when the current head exactly equals the proposed bytes; if it cannot establish that, the client reports an unknown outcome instead of replaying a transaction. A byte-identical replay against the now-current head also confirms `Committed`. Revision increments and unique transaction IDs prevent ordinary ABA within cooperating writers. The current API does **not** run user callbacks, auto-retry conflicts, coordinate external side effects, or create a cross-application transaction.
+
+**Authority and retention.** Writers require `create` on the namespace and `modify` on its head; readers use public known-key GETs. Readers assume blobs and manifests are never deleted or modified by any authorized actor and that older immutable data is retained while it could be referenced. Applications must avoid issuing broad delete/modify permissions overlapping those immutable keys. Hash checks detect a violated assumption; they cannot stop an authorized attacker or restore missing data. Failed/stale transactions can leave immutable staged objects. **There is no garbage collector, pruning, bounded historical storage guarantee, or safe cleanup command**. Deletion needs a separately proven protocol covering in-flight writers and readers.
+
+The [native example](../examples/snapshot.rs) demonstrates initialization, atomic two-member updates, stale-writer conflicts and repeated immutable transactions. The isolated [real HTTP integration test](../tests/ssh/protocols_live.sh) exercises Skrynia grants, CAS and blob reads with no delete authority. The public `values()` accessor is read-only so a caller cannot mutate an observed snapshot and trick unchanged-blob reuse.
+
+This is an **initial** implementation with deterministic model fixtures, concurrent tests and real-server smoke coverage, not a claim of formal verification, machine-crash qualification or safe garbage collection.
 
 ## Garbage-collected append log
 

@@ -1,5 +1,7 @@
 //! Single-key byte-hash compare-and-swap with explicit conflict handling.
-use super::client::SkryniaClient;
+pub(super) use super::client::{CreateResult, SkryniaClient, Store};
+pub(super) use super::wire;
+pub mod snapshot;
 use anyhow::{Result, bail};
 
 pub struct CasCell<'a> {

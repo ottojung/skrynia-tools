@@ -38,9 +38,16 @@ parent=post("/grants/"+root["id"]+"/users",root["issuerToken"],{})
 grant=post("/grants",parent["userToken"],{"locations":"events.*",
     "operations":["create","list"],"maxBytes":1000000,"maxObjects":100})
 user=post("/grants/"+grant["id"]+"/users",grant["issuerToken"],{})
+snapshot_grant=post("/grants",parent["userToken"],{"locations":"snapshots.*",
+    "operations":["create","modify"],"maxBytes":1000000,"maxObjects":100})
+snapshot_user=post("/grants/"+snapshot_grant["id"]+"/users",snapshot_grant["issuerToken"],{})
 with open(sys.argv[3],"w",encoding="utf8") as f:
-  f.write(user["userToken"])
+  json.dump({"eventToken":user["userToken"],"snapshotToken":snapshot_user["userToken"]},f)
 PY
-SKRYNIA_EVENT_TOKEN="$(cat "$tmp/token")" SKRYNIA_EVENT_PREFIX="events.live" \
+SKRYNIA_EVENT_TOKEN="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["eventToken"])' "$tmp/token")" \
+  SKRYNIA_EVENT_PREFIX="events.live" \
   cargo run --quiet --manifest-path "$repo/Cargo.toml" --example event_set
-echo "Real Skrynia HTTP event-set integration passed"
+SKRYNIA_SNAPSHOT_TOKEN="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["snapshotToken"])' "$tmp/token")" \
+  SKRYNIA_SNAPSHOT_PREFIX="snapshots.live" \
+  cargo run --quiet --manifest-path "$repo/Cargo.toml" --example snapshot
+echo "Real Skrynia HTTP optional-protocol integrations passed"

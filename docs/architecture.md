@@ -20,3 +20,7 @@ Skrynia object keys cannot contain slashes. The original GitHub-subdir deploymen
 ## Definition of done
 
 A feature is implemented only with real executable commands, validated tests and documented failure behavior. Proposed modules remain explicitly marked as such.
+
+## Optional immutable snapshots
+
+`cas::snapshot::SnapshotStore` offers a client-side multi-object logical snapshot without adding transactions to the Skrynia server. It stages immutable byte objects and a manifest, then CAS-replaces one head pointer; readers validate the pinned manifest and every blob. Old data and failed staging are retained, and no sweeping or deletion is automatic. This protocol is entirely optional and unrelated to serving/deploying an application.

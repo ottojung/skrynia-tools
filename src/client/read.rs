@@ -34,12 +34,11 @@ impl SkryniaClient {
             url.query_pairs_mut().append_pair("after", after);
         }
         let req = self.auth(self.http.get(url))?;
-        Ok(Self::fetched(
+        Self::json_response(Self::fetched(
             req.send()
                 .map_err(|source| ClientError::Transport { source })?,
             StatusCode::OK,
             "list",
-        )?
-        .json()?)
+        )?)
     }
 }

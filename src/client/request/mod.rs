@@ -5,6 +5,7 @@ use reqwest::{
     blocking::{RequestBuilder, Response},
 };
 
+mod body;
 mod status;
 impl SkryniaClient {
     pub(super) fn auth(&self, request: RequestBuilder) -> Result<RequestBuilder> {

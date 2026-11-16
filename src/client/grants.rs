@@ -15,13 +15,21 @@ impl SkryniaClient {
         let req = self
             .auth(self.http.post(self.path(&["grants"])?))?
             .json(&body);
-        Ok(Self::committed(Self::mutating(req.send())?, StatusCode::OK, "create_grant")?.json()?)
+        Self::json_response(Self::committed(
+            Self::mutating(req.send())?,
+            StatusCode::OK,
+            "create_grant",
+        )?)
     }
     pub fn issue_user(&self, grant: &str, issuer_token: &str) -> Result<serde_json::Value> {
         let req = self
             .http
             .post(self.path(&["grants", grant, "users"])?)
             .bearer_auth(issuer_token);
-        Ok(Self::committed(Self::mutating(req.send())?, StatusCode::OK, "issue_user")?.json()?)
+        Self::json_response(Self::committed(
+            Self::mutating(req.send())?,
+            StatusCode::OK,
+            "issue_user",
+        )?)
     }
 }

@@ -36,3 +36,13 @@ fn partial_get_is_not_a_complete_object() {
         Some(ClientError::UnexpectedReadStatus { actual, expected, .. })
         if *actual == StatusCode::PARTIAL_CONTENT && *expected == StatusCode::OK));
 }
+
+#[test]
+fn oversized_list_metadata_is_rejected_without_buffering_entire_response() {
+    let reply = "HTTP/1.1 200 OK\r\nContent-Length: 2000000\r\nConnection: close\r\n\r\n";
+    let client = SkryniaClient::new(&response(Some(reply)))
+        .unwrap()
+        .with_token("token".into());
+    let error = client.list_page("test.*", None).unwrap_err();
+    assert!(error.to_string().contains("exceeds 1 MiB"), "{error}");
+}

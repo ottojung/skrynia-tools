@@ -1,11 +1,14 @@
 use super::{ClientError, Response, Result, SkryniaClient, StatusCode};
+use std::io::Read;
 impl SkryniaClient {
     pub(crate) fn success(response: Response) -> Result<Response> {
         if response.status().is_success() {
             return Ok(response);
         }
         let status = response.status();
-        let body = response.text().unwrap_or_default();
+        let mut bytes = Vec::new();
+        let _ = response.take(4096).read_to_end(&mut bytes);
+        let body = String::from_utf8_lossy(&bytes);
         Err(ClientError::rejected(status, &body).into())
     }
     pub(crate) fn committed(

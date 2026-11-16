@@ -23,7 +23,7 @@ impl SkryniaClient {
 impl SkryniaClient {
     fn accept_revocation(response: reqwest::blocking::Response, missing: &[&str]) -> Result<()> {
         if response.status() == StatusCode::NOT_FOUND {
-            let body: serde_json::Value = response.json()?;
+            let body = Self::json_response(response)?;
             if missing
                 .iter()
                 .any(|code| body["error"].as_str() == Some(*code))

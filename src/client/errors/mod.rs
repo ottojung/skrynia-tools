@@ -44,6 +44,8 @@ impl ClientError {
 #[cfg(test)]
 use super::{SkryniaClient, Store};
 #[cfg(test)]
+mod large_test;
+#[cfg(test)]
 mod status_test;
 #[cfg(test)]
 mod tests;

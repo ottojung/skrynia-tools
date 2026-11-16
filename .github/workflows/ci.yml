@@ -55,6 +55,27 @@ jobs:
           name: skrynia-tools-browser-wasm
           path: dist/skrynia-wasm/
 
+  browser-engines:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - name: Install pinned cross-engine browser harness
+        run: npm ci --prefix tests/browser
+      - name: Install Firefox and WebKit with system dependencies
+        run: ./tests/browser/node_modules/.bin/playwright install --with-deps firefox webkit
+      - uses: actions/download-artifact@v4
+        with:
+          name: skrynia-tools-browser-wasm
+          path: dist/skrynia-wasm
+      - name: Headless Firefox and WebKit Wasm protocol integration
+        run: node tests/browser/cross_browser.mjs
+
   ssh-integration:
     runs-on: ubuntu-latest
     steps:

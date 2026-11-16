@@ -1,6 +1,6 @@
 mod capture;
 mod cleanup;
-mod group;
+pub(crate) mod group;
 mod lock;
 mod run;
 mod status;

@@ -23,14 +23,11 @@ pub fn checkout(spec: &DeploySpec, work: &Path) -> Result<String> {
         .current_dir(&source)
         .args(["checkout", "--detach", reference]);
     process::run(checkout, 180)?;
-    let head = Command::new("git")
-        .current_dir(&source)
-        .args(["rev-parse", "HEAD"])
-        .output()?;
-    if !head.status.success() {
-        bail!("cannot resolve checked-out commit");
-    }
-    let resolved = String::from_utf8(head.stdout)?.trim().to_string();
+    let mut rev_parse = Command::new("git");
+    rev_parse.current_dir(&source).args(["rev-parse", "HEAD"]);
+    let resolved = String::from_utf8(process::capture(rev_parse, 15)?)?
+        .trim()
+        .to_string();
     if !resolved.bytes().all(|c| c.is_ascii_hexdigit()) || resolved.len() != 40 {
         bail!("unexpected Git commit identity");
     }

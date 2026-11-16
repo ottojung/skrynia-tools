@@ -55,3 +55,7 @@ Git/build tool subprocesses are started in separate Unix process groups; timeout
 ## Podman builder-image boundary
 
 The builder-image selector is strictly one validated OCI-style reference. The runner inserts an explicit \`--\` argument terminator before the image, disallowing option interpretation (such as \`--privileged\`, \`--network\` or \`--mount\`). The builder command remains fixed to \`make build\`, in rootless Podman with all Linux capabilities dropped and no operator credentials mounted. Image validation does not establish that the selected image's contents are trustworthy; pin reviewed images by digest for reproducibility.
+
+## Remote CLI input and cancellation
+
+Remote SSH management uses an explicit-size JSON message (at most 16 KiB) and an overall command deadline, including pipe writes. The local SSH process runs in an isolated process group; a blocked stdin pipe cannot indefinitely bypass timeout supervision. Local cancellation may leave a completed or still-running remote deployment, so caller-facing errors identify uncertain effects rather than claiming rollback. Inspect the remote active release before deciding to resend.

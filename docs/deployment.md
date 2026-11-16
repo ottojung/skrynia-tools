@@ -151,3 +151,7 @@ The \`--builder-image\` value is a **single OCI image reference**, not an arbitr
 ## Detecting orphaned release state after crashes
 
 Use \`skrynia-tools app audit --name NAME --apps-dir DIR [--format json]\` to discover release metadata records with missing artifact trees, artifact trees lacking metadata, incomplete staging directories, broken active symlinks, and unexpected filesystem entries. The command reports each category and does not delete anything, preserving every potentially useful rollback target for investigation. It can run remotely via the same pinned-host SSH CLI. Unlike rollback, it scans historical entries and is not constant-time. In-progress builds can temporarily produce incomplete states; run it again after the build lock is free. \`app verify\` is the separate full-content integrity scan.
+
+## Bounded SSH input delivery
+
+Remote management and deployment commands now apply the timeout to the **entire** SSH subprocess, including sending the bounded JSON request into its stdin pipe. A background writer prevents a server that does not read stdin from blocking the CLI before the deadline starts. The SSH subprocess is isolated into its own process group and cancelled with its local descendants when the deadline expires. A timeout or an interrupted stdin write does **not** prove that the remote command failed: inspect the active version and artifact state before retrying. SSH disconnection cannot atomically cancel work that the remote host has already accepted.

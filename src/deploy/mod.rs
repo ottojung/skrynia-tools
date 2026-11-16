@@ -12,6 +12,7 @@ pub use inspect::{
     App, Audit, Doctor, Verification, apps, audit, doctor, inspect, release, releases, rollback,
     verify,
 };
+pub(crate) use process::group;
 pub use types::{DeploySpec, Release};
 pub use validate::valid_name;
 

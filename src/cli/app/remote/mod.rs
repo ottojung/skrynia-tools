@@ -4,6 +4,7 @@ mod options;
 mod policy;
 mod spec;
 mod ssh;
+mod transport;
 mod validate;
 
 pub fn run(args: &Arguments) -> Result<()> {

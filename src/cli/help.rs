@@ -14,6 +14,7 @@ pub fn print() {
     println!("  app diff --name NAME --from ID --to ID --apps-dir DIR [--format json]");
     println!("  app show --name NAME --release ID --apps-dir DIR");
     println!("  app verify --name NAME [--release ID] --apps-dir DIR");
+    println!("  app verify-all --name NAME --apps-dir DIR [--format json]");
     println!("  app rollback --name NAME --release ID --apps-dir DIR");
     println!("  app new --name NAME --directory DIR");
     println!("  Remote app commands: --ssh-host HOST --ssh-user USER");

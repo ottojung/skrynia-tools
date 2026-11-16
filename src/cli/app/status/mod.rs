@@ -3,10 +3,14 @@ use anyhow::{Result, bail};
 pub(super) mod audit;
 pub(super) mod doctor;
 mod verify;
+mod verify_all;
 
 pub fn run(args: &Arguments) -> Result<()> {
     let root = format::apps_dir(args)?;
     let name = args.required("name")?;
+    if args.action == "verify-all" {
+        return verify_all::run(args, &root, name);
+    }
     if args.action == "verify" {
         return verify::run(args, &root, name);
     }

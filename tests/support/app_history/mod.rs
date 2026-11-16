@@ -8,6 +8,7 @@ mod diff;
 mod doctor;
 mod generation;
 mod recovery;
+mod verify_all;
 
 pub fn verify() {
     let fixture = Fixture::new();
@@ -25,6 +26,7 @@ pub fn verify() {
     diff::verify(&fixture, &first);
     generation::verify(&fixture, &first);
     recovery::verify(&fixture, &first);
+    verify_all::verify(&fixture, &first);
     audit::verify(&fixture, &first);
     #[cfg(unix)]
     broken_active::verify(&fixture);

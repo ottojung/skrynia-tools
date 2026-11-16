@@ -164,6 +164,8 @@ assert verification['verified'] is True
 assert verification['expected_sha256']==verification['actual_sha256']
 PYID
 remote rollback --name demo --release "$first_id" > "$tmp/rollback.txt"
+remote verify-all --name demo --format json > "$tmp/all-verified.json"
+python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["verified"]==2 and d["errors"]==0' "$tmp/all-verified.json"
 remote verify --name demo --release "$first_id" --format json > "$tmp/restored-verify.json"
 python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["verified"] is True' "$tmp/restored-verify.json"
 test "$(cat "$tmp/hosted/apps/demo/deep/artifact.bin")" = 'payload from real SSH'
@@ -223,4 +225,9 @@ if remote diff --name demo --from "$first_id" --to "$second_id" --format json \
     exit 1
 fi
 grep -q 'release integrity mismatch' "$tmp/rejected.err"
+if remote verify-all --name demo --format json > "$tmp/all-tampered.json" 2> "$tmp/rejected.err"; then
+  echo 'ERROR: verify-all accepted corrupted retained release' >&2
+  exit 1
+fi
+python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["verified"]==1 and d["mismatched"]==1' "$tmp/all-tampered.json"
 echo 'REAL SSH INTEGRITY PASS: clean versions verified; modified historical artifact rejected'

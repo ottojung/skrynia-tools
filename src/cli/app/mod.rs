@@ -31,7 +31,9 @@ pub fn run(args: &Arguments) -> Result<()> {
         "doctor" => status::doctor::run(args),
         "audit" => status::audit::run(args),
         "versions" | "history" | "releases" => history::run(args),
-        "current" | "inspect" | "show" | "verify" | "rollback" | "activate" => status::run(args),
+        "current" | "inspect" | "show" | "verify" | "verify-all" | "rollback" | "activate" => {
+            status::run(args)
+        }
         _ => bail!("unknown app action"),
     }
 }

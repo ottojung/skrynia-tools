@@ -5,7 +5,9 @@ pub fn run(args: &Arguments) -> Result<()> {
     match args.action.as_str() {
         "list" | "ls" => inventory::run(args),
         "versions" | "history" | "releases" => history::run(args),
-        "current" | "inspect" | "show" | "verify" | "rollback" | "activate" => status::run(args),
+        "current" | "inspect" | "show" | "verify" | "verify-all" | "rollback" | "activate" => {
+            status::run(args)
+        }
         "compare" => compare::run(args),
         "diff" => compare::diff(args),
         "doctor" => status::doctor::run(args),

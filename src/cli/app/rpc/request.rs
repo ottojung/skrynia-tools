@@ -32,6 +32,7 @@ impl Request {
                 | "compare"
                 | "diff"
                 | "verify"
+                | "verify-all"
                 | "doctor"
                 | "audit"
         ) {

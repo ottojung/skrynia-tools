@@ -87,3 +87,7 @@ Application activation/rollback has a per-application eight-byte activation gene
 ## Auditing abandoned code-publication intermediates
 
 The read-only app audit also detects hidden candidate symlinks from interrupted atomic release activations and app-specific build workspaces that survived a crash or failed cleanup. It reports both without deleting them. A running deployment may legitimately expose these intermediate entries, so inspect again when the build lock is released before diagnosing a persistent leak. Other applications' workspaces and private files are outside a per-app audit.
+
+## Full historical integrity verification
+
+`app verify-all` is an explicit, read-only scan of all retained versions. It verifies every available release's whole-tree SHA-256 commitment, including inactive history, and reports mismatches, unverifiable legacy records and per-release read errors without hiding the healthy results. It does not delete objects, alter deployment pointers or provide rollback-time verification. Malformed metadata that prevents version enumeration is handled by the separate `app audit` command. Checksums protect against accidental file changes, **not** a malicious owner of both metadata and artifact trees.

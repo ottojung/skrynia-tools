@@ -18,6 +18,7 @@ skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia
 skrynia-tools app compare --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app diff --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app verify --name hello [--release RELEASE_ID] --apps-dir /srv/skrynia-apps [--format table|json]
+skrynia-tools app verify-all --name hello --apps-dir /srv/skrynia-apps [--format table|json]
 skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
 # Compatibility aliases:
 skrynia-tools app inspect --name hello --apps-dir /srv/skrynia-apps
@@ -119,3 +120,7 @@ Revocation only applies to grants represented by a wrapped child-grant journal; 
 \`app audit --name NAME\` reports complete published versions plus any release metadata whose artifact directory is missing, artifact directories without a matching metadata record, abandoned \`.RELEASE_ID.staging\` directories, malformed or unsafe release entries, broken active-release symlinks, unfinished build workspaces and leftover atomic-activation candidate symlinks. It prints the report even when incomplete records are found, but exits nonzero so automation can detect inconsistencies. \`--format json\` exposes \`clean\`, \`available_releases\`, and per-category arrays. The same action works over restricted SSH.
 
 Auditing is **read-only**: it never prunes historical releases, removes staging files, changes the active symlink, performs a source build or touches Skrynia object data. It is O(number of release entries) rather than O(1); the \`rollback\` algorithm is unchanged. An audit can observe an in-progress build between separate directory writes, so repeat after deployment completes before treating transient results as persistent corruption. For content integrity use the separate \`app verify\` command.
+
+### Full retained-release integrity scan
+
+`app verify-all --name NAME` checks every available historical release, including those not currently active, without switching any code pointer. Its JSON result contains the per-release SHA-256 verification and counts of `verified`, `mismatched`, `unverifiable` (legacy records without a stored commitment) and `errors` (unreadable/symlinked artifacts). It always prints per-release results and exits nonzero if any release cannot be verified. An empty history is not treated as a successful integrity check. Use `app audit` for structural problems such as missing release directories or malformed metadata; these may prevent a complete `verify-all` enumeration. This operation reads and hashes the retained artifacts, so it is intentionally **not** constant-work. `app rollback` remains constant-work and does not invoke verification.

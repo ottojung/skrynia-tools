@@ -41,6 +41,7 @@ skrynia-tools app list --apps-dir /srv/skrynia-apps
 skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps
 skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
 skrynia-tools app verify --name hello --apps-dir /srv/skrynia-apps
+skrynia-tools app verify-all --name hello --apps-dir /srv/skrynia-apps
 skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
 ```
 

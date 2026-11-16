@@ -165,6 +165,14 @@ assert verification['expected_sha256']==verification['actual_sha256']
 PYID
 remote rollback --name demo --release "$first_id" > "$tmp/rollback.txt"
 remote verify-all --name demo --format json > "$tmp/all-verified.json"
+printf '{invalid json' > "$tmp/hosted/metadata/demo/ffffffffffff-0000000000000000.json"
+if remote verify-all --name demo --format json > "$tmp/metadata-incomplete.json" 2> "$tmp/rejected.err"; then
+    echo 'ERROR: malformed metadata was concealed by verify-all' >&2
+    exit 1
+fi
+python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["verified"]==2 and d["errors"]==1 and len(d["releases"])==3' "$tmp/metadata-incomplete.json"
+rm "$tmp/hosted/metadata/demo/ffffffffffff-0000000000000000.json"
+
 python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));assert d["verified"]==2 and d["errors"]==0' "$tmp/all-verified.json"
 remote verify --name demo --release "$first_id" --format json > "$tmp/restored-verify.json"
 python3 -c 'import json,sys;assert json.load(open(sys.argv[1]))["verified"] is True' "$tmp/restored-verify.json"

@@ -1,18 +1,25 @@
-use super::{Item, Report, deploy};
-use anyhow::{Result, bail};
+use super::{Item, Report, deploy, files};
+use anyhow::Result;
 use std::path::Path;
 
 pub fn scan(root: &Path, name: &str) -> Result<Report> {
-    let releases = deploy::releases(root, name)?;
-    if releases.is_empty() {
-        bail!("no retained releases to verify");
-    }
+    let names = files::names(root, name)?;
     let mut report = Report {
         app: name.into(),
         ..Report::default()
     };
-    for release in releases {
-        let item = match deploy::verify(root, name, &release.id) {
+    for filename in names {
+        let id = filename.strip_suffix(".json").unwrap_or("");
+        if !deploy::valid_release_id(id) {
+            report.errors += 1;
+            report.releases.push(Item {
+                release: filename,
+                verification: None,
+                error: Some("invalid release metadata filename".into()),
+            });
+            continue;
+        }
+        let item = match deploy::verify(root, name, id) {
             Ok(verification) => {
                 match verification.verified {
                     Some(true) => report.verified += 1,
@@ -20,7 +27,7 @@ pub fn scan(root: &Path, name: &str) -> Result<Report> {
                     None => report.unverifiable += 1,
                 };
                 Item {
-                    release: release.id,
+                    release: id.to_owned(),
                     verification: Some(verification),
                     error: None,
                 }
@@ -28,7 +35,7 @@ pub fn scan(root: &Path, name: &str) -> Result<Report> {
             Err(error) => {
                 report.errors += 1;
                 Item {
-                    release: release.id,
+                    release: id.to_owned(),
                     verification: None,
                     error: Some(error.to_string()),
                 }

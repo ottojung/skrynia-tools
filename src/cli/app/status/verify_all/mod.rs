@@ -2,6 +2,7 @@ use super::{Arguments, deploy, format};
 use anyhow::{Result, bail};
 use serde::Serialize;
 use std::path::Path;
+mod files;
 mod scan;
 
 #[derive(Debug, Serialize)]

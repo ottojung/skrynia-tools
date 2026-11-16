@@ -15,6 +15,7 @@ pub use inspect::{
 pub(crate) use process::group;
 pub use types::{DeploySpec, Release};
 pub use validate::valid_name;
+pub(crate) use validate::valid_release_id;
 
 pub fn deploy(spec: &DeploySpec) -> Result<Release> {
     spec.validate()?;

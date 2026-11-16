@@ -71,3 +71,7 @@ The native and browser clients do not infer that *every* 2xx status means an ope
 ## Bounded API metadata and diagnostics
 
 Native client error responses are read with a 4 KiB cap, rather than materializing an arbitrarily large error body. Expected JSON responses (pagination metadata and grant issuance/revocation) have a 1 MiB maximum, enforced both through Content-Length and through a streaming read bound for responses with unknown length. Overlarge responses are explicit errors. **Raw GET object payloads are intentionally not subject to the JSON cap**, since applications can store arbitrary byte objects; applications needing stricter object-size budgets should implement those at their own data protocol boundary. Browser fetch still follows its own memory model and must not be mistaken for a bounded streaming client.
+
+## Isolated real-server credential lifecycle regression
+
+The source-pinned Skrynia CI compatibility job now also exercises `admin create`, `revoke-user`, `revoke-grant` and repeated completed revocation against a disposable localhost server and grant hierarchy. It confirms a revoked user is rejected when attempting a new object creation, a revoked grant's former issuer cannot issue a user, the journal has shed its secrets, and the bytes published before revocation remain readable. All test credentials are private under a temporary owner-only directory, never reused from a production deployment. This checks server/client interoperability but not physical power-loss recovery or complete credential-lifecycle security.

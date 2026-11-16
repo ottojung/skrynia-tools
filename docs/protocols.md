@@ -68,7 +68,7 @@ Distinguish: (1) enforced constraints on all authorized callers, (2) invariants 
 
 ## Source-pinned real-server compatibility gate
 
-GitHub CI also builds the real upstream Skrynia Rust server from commit `3139a82fe4a0292d75cc55c49f6a8bb9e6ff7b47` and runs `tests/ssh/protocols_live.sh` against an isolated temporary server/data root. The test issues narrowly scoped create/list and create/modify child capabilities, exercises the optional event set and multi-object CAS snapshots, and deletes all test state afterward. The upstream revision is deliberately pinned to avoid silently changing the tested protocol; update it explicitly with compatibility review. This does **not** test revocation of real grants, power failures, long-lived malicious tenants, or production operation.
+GitHub CI also builds the real upstream Skrynia Rust server from commit `3139a82fe4a0292d75cc55c49f6a8bb9e6ff7b47` and runs `tests/ssh/protocols_live.sh` against an isolated temporary server/data root. The test issues narrowly scoped create/list and create/modify child capabilities, exercises the optional event set and multi-object CAS snapshots, and deletes all test state afterward. The upstream revision is deliberately pinned to avoid silently changing the tested protocol; update it explicitly with compatibility review. The suite also exercises creation and revocation of an isolated real child grant and user, checks that revoked capabilities cannot write or issue another user token, and verifies that revocation retains published object bytes. It does **not** test power failures, long-lived malicious tenants, or production operation.
 
 
 ### Concurrent duplicate operation regression

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 server="${SKRYNIA_TEST_SERVER_BIN:?provide the built skrynia-server binary}"
 tmp="$(mktemp -d /tmp/skrynia-events-live-XXXXXX)"
@@ -25,7 +26,7 @@ for _ in $(seq 1 60); do
 done
 if [ "$ready" != 1 ]; then cat "$tmp/server.log"; exit 1; fi
 "$server" root-credentials > "$tmp/root.json"
-python3 - "$tmp/root.json" "$SKRYNIA_URL" "$tmp/token" <<'PY'
+python3 - "$tmp/root.json" "$SKRYNIA_URL" "$tmp/token" "$tmp/parent-token" <<'PY'
 import json,sys,urllib.request
 root=json.load(open(sys.argv[1],encoding="utf8"))
 url=sys.argv[2]
@@ -35,6 +36,8 @@ def post(path,token,body):
   with urllib.request.urlopen(request,timeout=10) as response:
     return json.load(response)
 parent=post("/grants/"+root["id"]+"/users",root["issuerToken"],{})
+with open(sys.argv[4],"w",encoding="utf8") as f:
+  f.write(parent["userToken"])
 grant=post("/grants",parent["userToken"],{"locations":"events.*",
     "operations":["create","list"],"maxBytes":1000000,"maxObjects":100})
 user=post("/grants/"+grant["id"]+"/users",grant["issuerToken"],{})
@@ -51,3 +54,5 @@ SKRYNIA_SNAPSHOT_TOKEN="$(python3 -c 'import json,sys;print(json.load(open(sys.a
   SKRYNIA_SNAPSHOT_PREFIX="snapshots.live" \
   cargo run --quiet --manifest-path "$repo/Cargo.toml" --example snapshot
 echo "Real Skrynia HTTP optional-protocol integrations passed"
+cargo build --quiet --locked --manifest-path "$repo/Cargo.toml" --bin skrynia-tools
+python3 "$repo/tests/ssh/revoke_live.py" "$repo/target/debug/skrynia-tools"   "$SKRYNIA_URL" "$tmp/parent-token" "$tmp"

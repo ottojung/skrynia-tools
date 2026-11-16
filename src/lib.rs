@@ -15,4 +15,5 @@ pub mod event_set;
 pub mod log;
 pub mod wire;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use deploy::group;

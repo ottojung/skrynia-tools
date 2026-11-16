@@ -1,5 +1,7 @@
 use super::Fixture;
 mod audit;
+#[cfg(unix)]
+mod broken_active;
 mod checks;
 mod compare;
 mod doctor;
@@ -20,4 +22,6 @@ pub fn verify() {
     doctor::verify(&fixture);
     recovery::verify(&fixture, &first);
     audit::verify(&fixture, &first);
+    #[cfg(unix)]
+    broken_active::verify(&fixture);
 }

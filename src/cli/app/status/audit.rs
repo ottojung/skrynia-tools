@@ -7,6 +7,9 @@ pub fn run(args: &Arguments) -> Result<()> {
     if format::json(args, false)? {
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
+        if let Some(error) = &report.active_error {
+            println!("Active symlink error: {error}");
+        }
         println!(
             "Audit {}: {} retained releases, {}",
             report.name,

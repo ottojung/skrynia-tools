@@ -1,4 +1,4 @@
-use super::{files, process, release, valid_name, validate};
+use super::{files, inspect, process, release, valid_name, validate};
 mod audit;
 use anyhow::Result;
 pub use audit::{Audit, audit};

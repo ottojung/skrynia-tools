@@ -139,3 +139,7 @@ An administrator who can modify both release artifacts and metadata can forge a 
 ## Host diagnostics
 
 Use `skrynia-tools app doctor --apps-dir DIR [--format json]`, locally or with the remote SSH options, to check that the hosting root exists as a real directory, Git is callable, rootless Podman is available and the expected private publication subdirectories have been initialized. This is a prerequisite diagnostic, **not** a synthetic deployment or guarantee of production hosting readiness. The check does not touch application data or depend on any client-side Skrynia protocol.
+
+## Build subprocess timeouts
+
+Git checkout and app builds run as isolated Unix subprocess groups. On a configured deadline, the administrative CLI kills the whole group and reaps the direct child rather than leaving shell-spawned descendants running. It also bounds captured subprocess stdout to 64 KiB and consumes it concurrently so verbose tools cannot deadlock on full pipes. The Podman runner separately removes the named container after build failure. These controls do not replace container resource quotas, external service isolation, or the operator's responsibility to vet executable builder images.

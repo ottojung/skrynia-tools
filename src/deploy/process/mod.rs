@@ -1,5 +1,6 @@
 mod capture;
 mod cleanup;
+mod group;
 mod lock;
 mod run;
 pub(super) use capture::capture;
@@ -9,3 +10,6 @@ pub(super) use run::run;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_group;

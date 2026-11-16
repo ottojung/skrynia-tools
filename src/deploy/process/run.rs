@@ -1,3 +1,4 @@
+use super::group;
 use anyhow::{Context, Result, bail};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -11,6 +12,7 @@ pub fn run(mut cmd: Command, seconds: u64) -> Result<()> {
         return Err(std::io::Error::last_os_error().into());
     }
     cmd.stdout(Stdio::from(unsafe { std::fs::File::from_raw_fd(fd) }));
+    group::isolate(&mut cmd);
     let description = format!("{:?}", cmd.get_program());
     let mut child = cmd
         .spawn()
@@ -24,8 +26,7 @@ pub fn run(mut cmd: Command, seconds: u64) -> Result<()> {
             bail!("{description} failed with {status}");
         }
         if Instant::now() >= until {
-            child.kill()?;
-            let _ = child.wait();
+            group::terminate(&mut child);
             bail!("{description} timed out after {seconds} seconds");
         }
         std::thread::sleep(Duration::from_millis(100));

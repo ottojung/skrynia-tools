@@ -14,12 +14,22 @@ pub fn parse() -> Result<Arguments> {
         if !key.starts_with("--") || key.len() <= 2 {
             bail!("invalid option {key}");
         }
-        let Some(value) = input.next() else {
-            bail!("missing value for {key}");
+        let value = if key == "--parent-grant-is-root" {
+            "true".into()
+        } else {
+            input
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("missing value for {key}"))?
         };
         if flags.insert(key, value).is_some() {
             bail!("duplicate option");
         }
+    }
+    if !flags.contains_key("--url")
+        && let Ok(url) = std::env::var("SKRYNIA_URL")
+        && !url.is_empty()
+    {
+        flags.insert("--url".into(), url);
     }
     Ok(Arguments {
         group,

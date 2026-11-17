@@ -104,3 +104,6 @@ jobs:
             bash tests/http/deploy_live.sh
           SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
             bash tests/http/protocols_live.sh
+          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
+            SKRYNIA_TEST_CLI_BIN="$(pwd)/target/debug/skrynia-tools" \
+            bash tests/http/grant_live.sh

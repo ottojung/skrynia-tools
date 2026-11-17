@@ -2,6 +2,9 @@ use super::args::Arguments;
 use anyhow::{Result, bail};
 
 pub fn run(args: &Arguments) -> Result<()> {
+    if args.action == "grant" {
+        return super::provision::grant(args);
+    }
     if args.action == "inspect" {
         return super::provision::inspect(args);
     }

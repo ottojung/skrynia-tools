@@ -135,6 +135,6 @@ if SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant \
   > "$tmp/wrong-flag.log" 2>&1; then
   echo "accepted a separate root-data-dir setting" >&2; exit 1
 fi
-grep -q SKRYNIA_DATA_DIR "$tmp/wrong-flag.log"
+grep -q -- "--data-dir" "$tmp/wrong-flag.log"
 test ! -e "$tmp/wrong-flag.json"
 echo "PASS: generic grant, SKRYNIA_URL fallback/override, SKRYNIA_DATA_DIR root, parent, reuse, HTTP isolation"

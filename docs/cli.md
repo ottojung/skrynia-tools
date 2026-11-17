@@ -1,5 +1,18 @@
 # Skrynia Tools CLI
 
+Use standard nested help and version flags to inspect the supported
+commands and their required arguments:
+
+~~~sh
+skrynia-tools --help
+skrynia-tools --version
+skrynia-tools admin grant --help
+skrynia-tools app deploy --help
+~~~
+
+The CLI reports unknown options and missing required arguments with
+a nonzero exit status and a command-specific usage message.
+
 The native Rust CLI talks directly to Skrynia's HTTP store and grant
 endpoints. There is no remote shell or static hosting deployment daemon.
 Application release operations require --url and a user bearer token in

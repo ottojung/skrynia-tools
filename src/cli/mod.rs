@@ -4,7 +4,7 @@ pub(super) use args::Arguments;
 mod admin;
 mod app;
 mod args;
-mod help;
+mod command;
 mod log;
 mod object;
 mod provision;
@@ -12,13 +12,6 @@ mod scaffold;
 mod secrets;
 
 pub fn run() -> anyhow::Result<()> {
-    if matches!(
-        std::env::args().nth(1).as_deref(),
-        None | Some("help" | "--help")
-    ) {
-        help::print();
-        return Ok(());
-    }
     let args = args::Arguments::parse()?;
     match args.group.as_str() {
         "app" => app::run(&args),

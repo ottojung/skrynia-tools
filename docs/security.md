@@ -7,7 +7,7 @@ Skrynia enforces one-key atomic operations and scoped bearer grants. It does not
 ## Credential model
 
 - **Issuer tokens** issue/revoke exact-grant user tokens and revoke the grant subtree; **user tokens** perform operations, including `delegate` when granted.
-- Never put root or issuer credentials into public bytes, JavaScript bundles, URLs, logs, Git or ordinary CLI JSON. Admin secrets are stored in owner-only local/private files, written atomically, and never emitted without explicit private export.
+- Never put **plaintext** root or issuer credentials into public bytes, JavaScript bundles, URLs, logs, Git or ordinary CLI JSON. Native CLI admin secrets reside in owner-only private files. The web admin stores grant credentials only as authenticated-encrypted ciphertext in publicly readable Skrynia objects, using a high-entropy owner-held access secret. Anyone who obtains both the ciphertext and the access secret can decrypt them; this is not server-side private storage.
 - A public browser `list` token intentionally exposes enumeration within its matching scope. A browser publisher token can be extracted by its holder; grant narrowing, not JS secrecy, defines the protection.
 - Grant authority is decided by Skrynia on every operation; locally stated scope is not proof of authorization.
 
@@ -67,8 +67,11 @@ it is not an independently verifying cryptographic loader.
 Each application should have a stable browser origin across releases.
 Redirecting application navigation to the shared Skrynia API origin
 mixes untrusted applications in one browser security boundary.
-A read-only app gateway must never expose Skrynia mutations or grant
-administration under those app origins.
+Application page and immutable release paths must be read-only.
+An independently scoped `/_skrynia/` API proxy on an app hostname
+may forward credential-authorized mutations, but the gateway must not
+create privileges or expose a blanket writer token. The Rust Skrynia
+server enforces operations and grant scope for every mutation.
 
 Applications with absolute asset paths, custom CSP or service-worker
 scopes may not function from the versioned URL until their build

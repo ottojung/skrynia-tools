@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import {createClient, openVault, validateConfig} from '../../web-admin/skrynia.js';
+import {decrypt} from '../../web-admin/crypto.js';
+import {createGrant, issueUser, importGrant, inspectGrant,
+  revokeUser, revokeGrant} from '../../web-admin/admin.js';
+
+const origin = process.env.SKRYNIA_TOOLS_ORIGIN;
+const password = process.env.TEST_ACCESS_SECRET;
+const parentToken = process.env.SKRYNIA_TOOLS_GRANT;
+const entry = await fetch(origin + '/', {redirect:'error'});
+assert.equal(entry.status, 200);
+assert.match(await entry.text(), /active\.json/);
+const pointer = await (await fetch(origin + '/active.json')).json();
+assert.match(pointer.release, /^[a-f0-9]{32}$/);
+const base = origin + '/releases/' + pointer.release + '/';
+const config = validateConfig(await (await fetch(base + 'config.json')).json());
+const response = await fetch(base + 'index.html');
+assert.equal(response.status, 200);
+const html = await response.text();
+assert.doesNotMatch(html, new RegExp(parentToken));
+assert.ok(html.includes("Content-Security-Policy"));
+assert.ok(!html.includes(password));
+const client = createClient(origin + '/_skrynia');
+const {bytes, hash} = await openVault(client, config.vault);
+const envelope = new TextDecoder().decode(bytes);
+assert.ok(!envelope.includes(parentToken));
+assert.ok(!envelope.includes(password));
+const decrypted = await decrypt(bytes, password, config.vault);
+assert.equal(decrypted.parentToken, parentToken);
+await assert.rejects(() => decrypt(bytes, 'incorrect', config.vault));
+await assert.rejects(() => decrypt(bytes, password, config.vault.replace('vault/', 'other/')));
+const session = {client, key:config.vault, hash, data:decrypted, password};
+const baseline = session.data.grants.length;
+const spec = {locations:'apps/example/*',operations:['create','modify','list','delegate'],
+  maxBytes:1000000, maxObjects:10};
+const grant = await createGrant(session, spec, () => {throw Error('recovery not expected')});
+assert.match(grant.id, /^[0-9a-f]{32}$/);
+assert.equal(session.data.grants.length, baseline + 1);
+assert.equal(session.data.pending, null);
+const issued = await issueUser(session, grant.id, () => {throw Error('recovery not expected')});
+assert.match(issued.token, /^[a-zA-Z0-9_-]+$/);
+const inspected = await inspectGrant(session, grant.id);
+assert.equal(inspected.id, grant.id);
+assert.equal(inspected.locations, 'apps/example/*');
+const grandchild = await createGrant(session,
+  {locations:'apps/example/sub/*',operations:['create'],
+    maxBytes:10000,maxObjects:1}, () => {}, grant.id);
+assert.equal(grandchild.parentId, grant.id);
+const stored = await client.read(config.vault);
+assert.ok(!new TextDecoder().decode(stored).includes(grant.issuerToken));
+await revokeUser(session, grant.id, issued.id);
+assert.equal(session.data.grants.find(g => g.id === grant.id).users.length, 0);
+await revokeGrant(session, grant.id);
+assert.equal(session.data.grants.find(g => g.id === grant.id).revoked, true);
+assert.equal(session.data.grants.find(g => g.id === grant.id).issuerToken, undefined);
+assert.equal(session.data.grants.find(g => g.id === grandchild.id).revoked, true);
+await assert.rejects(() => issueUser(session, grant.id, () => {}));
+await importGrant(session, crypto.randomUUID().replaceAll('-', ''), 'demo-issuer');
+assert.equal(session.data.grants.length, baseline + 3);
+console.log('Encrypted vault, delegated grant, issuer import, user issuance, inspection, revocation and CAS passed');

@@ -65,6 +65,20 @@ publish it separately from immutable code releases with
 `icon.svg` may also be published at the stable app root. Rollback
 only changes the active code pointer and leaves these assets alone.
 
+## Browser-based administration
+
+The new web admin is published into Skrynia itself. One small
+`deploy.sh` bootstrap asks for `SKRYNIA_URL`, a scoped
+`SKRYNIA_TOOLS_GRANT` user token, and the separate HTTPS app origin,
+then prints the admin URL and a random 256-bit vault-unlock secret.
+All credentials reside in an encrypted Skrynia object, never in
+the public application files. The browser provides grant and user
+management, **all-app release history**, and atomic rollback **or
+forward activation** of any ready version using Skrynia CAS.
+
+See [Web administration](docs/web-admin.md) for prerequisites,
+the bootstrap command, security assumptions, and integration tests.
+
 ## CLI examples
 
 ~~~sh

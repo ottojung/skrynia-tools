@@ -6,7 +6,7 @@ Read README, docs/architecture.md, docs/security.md, and the relevant protocol s
 
 - All side effects go through **injected capabilities**: HTTP transport, secret storage, filesystem, clock, randomness and diagnostics as applicable. Protocol state machines must be testable with deterministic fake capabilities, without ambient I/O.
 - Distinguish Skrynia-enforced storage guarantees, cooperative protocol guarantees, and independently verified reader guarantees. Never claim server-side multi-object atomicity, private reads or enforcement of client-defined protocols.
-- Treat wire data and independently written clients as hostile. Keep root and issuer tokens out of public objects, client bundles, URLs, Git history, normal CLI JSON and logs.
+- Treat wire data and independently written clients as hostile. Keep root and issuer tokens out of public objects, client bundles, URLs, Git history, public files and logs.
 - Make invalid states difficult to represent. Use private constructors, Rust enums/newtypes, precise `Result` failures and boundary validation; avoid ambiguous Boolean switches, generic errors and unchecked casts. Define nominal-type invariants and explain exactly which constructors prove each property.
 - Differentiate conflict, quota rejection, unauthorized access, invalid data and unknown mutation outcomes. Never silently replay a write after an uncertain network response.
 - API docs and code comments explain living contracts, proof obligations and subtle failure modes. Never narrate obsolete code, prompts, workarounds or PR history in source comments.
@@ -28,3 +28,11 @@ Volodyslav convention for GitHub discussion posts: light metaphor or humor where
 ## Intent Records
 
 `docs/intent-records/` records **current directly sourced user intent**, not agent-derived decisions. Use random stable opaque `$id-<16 decimal digits>`, descriptive title, establishment date, provenance and kind. Do not forge `source: @ottojung` from an agent prompt, issue or code artifact. Surface conflicting intents and remove withdrawn ones, letting Git carry their history. Derivative architecture belongs in the design documents.
+
+## Public interface
+
+Skrynia Tools exposes **no CLI executable, command parser, or
+command-line administration interface**. The one-time `deploy.sh`
+bootstrap installs its web admin, and GitHub Actions use private
+JavaScript HTTP modules. Do not reintroduce a CLI for app publication
+or grant management.

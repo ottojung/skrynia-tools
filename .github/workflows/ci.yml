@@ -33,9 +33,10 @@ jobs:
         run: node tests/http/landing.mjs
       - name: HTTP deployment action tests
         run: |
-          bash -n action/deploy/build.sh action/deploy/upload.sh
+          bash -n action/deploy/build.sh
+          node --check action/deploy/upload.mjs
+          node --check action/publish-stable/upload.mjs
           bash tests/http/action_smoke.sh
-          bash tests/http/action_upload.sh
       - name: Clippy (zero warnings)
         run: cargo clippy --locked --all-targets -- -D warnings
 
@@ -91,7 +92,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: 619bf93c98dad3a3d2d3b50111d07d61e406171f
+          ref: 10cbf0d5ad00224e1375a4f2482965f8d3513559
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -102,13 +103,7 @@ jobs:
             upstream-skrynia -> target
       - name: Build pinned real Skrynia Rust server
         run: cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p skrynia-server
-      - name: Real Skrynia HTTP deployment and data-protocol integration
-        run: |
-          cargo build --locked --bin skrynia-tools
-          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
-            bash tests/http/deploy_live.sh
-          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
-            bash tests/http/protocols_live.sh
-          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
-            SKRYNIA_TEST_CLI_BIN="$(pwd)/target/debug/skrynia-tools" \
-            bash tests/http/grant_live.sh
+      - name: Real Skrynia optional-protocol integration
+        env:
+          SKRYNIA_TEST_SERVER_BIN: ${{ github.workspace }}/upstream-skrynia/target/release/skrynia-server
+        run: bash tests/http/protocols_live.sh

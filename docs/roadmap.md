@@ -8,11 +8,11 @@ immutable release-qualified assets, and single-key CAS activation.
 
 - Native HTTP client, scoped grants, object operations and optional
   append log, CAS cell, event set, and immutable snapshots.
-- Native application CLI: local Git-based builds, prebuilt-directory
-  upload, release inventory, current version, manifests, comparisons,
-  SHA-256 verification, and constant-work CAS rollback.
-- Reusable HTTP-only GitHub composite action: build on the ephemeral
-  runner, publish via a scoped Skrynia user token. No SSH, extra
+- Static web administration: grants, all-app release inventory,
+  retained versions and atomic backward/forward CAS activation.
+- Reusable GitHub composite Actions: build on the ephemeral
+  runner, publish over HTTP via JavaScript modules using scoped
+  Skrynia user tokens; no CLI executable. No SSH, extra
   deployment server, remote filesystem or cutover variable.
 - Real Skrynia server integration tests for upload, nested asset paths,
   browser entrypoint, rollback, history, quota and grant compatibility.

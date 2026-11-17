@@ -33,4 +33,4 @@ export SKRYNIA_APP_SUBDIR=../private
 if bash "$repo/action/deploy/build.sh" > "$tmp/failed" 2>&1; then
   echo "Action accepted traversal in source subdir" >&2; exit 1
 fi
-echo "HTTP-only Action builds Git commit locally and refuses mismatch/traversal"
+echo "Deployment Action verifies exact Git commit and rejects unsafe paths"

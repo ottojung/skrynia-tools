@@ -19,6 +19,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
     - shell: bash
       env:
         SKRYNIA_URL: ${{ inputs.url }}
@@ -26,4 +29,4 @@ runs:
         SKRYNIA_APP_NAME: ${{ inputs.name }}
         SKRYNIA_STABLE_ASSET: ${{ inputs.asset }}
         SKRYNIA_STABLE_FILE: ${{ inputs.file }}
-      run: bash "${{ github.action_path }}/upload.sh"
+      run: node "${{ github.action_path }}/upload.mjs"

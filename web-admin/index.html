@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Skrynia Administration</title>
+<link rel="stylesheet" href="./styles.css">
+<script type="module" src="./main.js"></script>
+</head>
+<body>
+<main>
+<header><h1>Skrynia Administration</h1><p>Grant administration, protected by your access secret.</p></header>
+<section id="unlock">
+<h2>Unlock credential vault</h2>
+<form id="unlock-form"><label>Access secret <input id="password" type="password" autocomplete="off" required spellcheck="false"></label><button>Unlock</button></form>
+<p>Only encrypted credentials are stored on Skrynia. Your access secret is never sent to the server.</p>
+</section>
+<div id="workspace" hidden>
+<div class="toolbar"><strong>Credential vault unlocked</strong><button id="lock" type="button">Lock</button></div>
+<section><div class="toolbar">
+<h2>Applications and release history</h2><button id="refresh-apps" type="button">Refresh all apps</button>
+</div><p>View every ready release and atomically switch any app to an older or newer version.</p>
+<div id="applications"></div>
+</section>
+<section><h2>Delegate a grant</h2>
+<form id="grant-form">
+<label>Parent grant <select id="grant-parent"><option value="">Installed root grant</option></select></label>
+<label>Locations <input name="locations" placeholder="apps/myapp/*" required></label>
+<label>Maximum bytes <input name="maxBytes" type="number" min="0" max="9007199254740991" value="50000000" required></label>
+<label>Maximum objects <input name="maxObjects" type="number" min="0" max="9007199254740991" value="1000" required></label>
+<fieldset><legend>Operations</legend>
+<label><input name="op" type="checkbox" value="create" checked>Create</label>
+<label><input name="op" type="checkbox" value="modify" checked>Modify</label>
+<label><input name="op" type="checkbox" value="delete">Delete</label>
+<label><input name="op" type="checkbox" value="list" checked>List</label>
+<label><input name="op" type="checkbox" value="delegate">Delegate</label>
+<label><input name="op" type="checkbox" value="subscribe">Subscribe</label>
+</fieldset>
+<button>Create grant</button></form></section>
+<section><h2>Existing grants</h2>
+<form id="import-form">
+<label>Grant ID <input name="id" required></label>
+<label>Issuer token <input name="issuer" type="password" autocomplete="off" required></label>
+<button>Import issuer capability</button></form>
+<div id="grants"></div>
+</section>
+<section id="pending-section" hidden><h2>Uncertain operation</h2><p id="pending-text"></p>
+<button id="resolve">I investigated; clear pending state</button></section>
+<section id="recovery" hidden><h2>Emergency capability recovery</h2>
+<p>Persistence failed after the server issued a capability. Save the recovery file privately before leaving this page.</p>
+<button id="download-recovery">Save private recovery file</button></section>
+<section><h2>Credential output</h2>
+<p>Only capabilities you explicitly request appear here. Clear them before sharing your screen.</p>
+<textarea id="credential-output" readonly rows="3" spellcheck="false"></textarea>
+<button id="clear-output">Clear</button></section>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+</main>
+</body>
+</html>

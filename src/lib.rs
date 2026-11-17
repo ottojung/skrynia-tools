@@ -1,10 +1,8 @@
-//! Reusable client-side protocols for Skrynia and optional native administration.
+//! Reusable client-side protocols for Skrynia and the browser.
 #[cfg(target_arch = "wasm32")]
 pub mod browser;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cas;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod cli;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod client;
 #[cfg(not(target_arch = "wasm32"))]

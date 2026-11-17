@@ -17,8 +17,8 @@ or ephemeral CI runner, not on an application/deployment server.
 4. Browser entrypoint: stable HTML fetches the active pointer and
    navigates to the selected release's index.html. No dynamic server
    routing, backend execution, HTML rewriting or symlink activation.
-5. GitHub Action: builds on the runner, authenticates with a scoped user
-   token and invokes the Rust CLI through ordinary Skrynia HTTP.
+5. GitHub Actions: build on the runner, authenticate with scoped user
+   tokens, and publish directly using JavaScript HTTP modules.
 
 Skrynia's hierarchical store URLs preserve directory layouts and MIME
 types. Every publish is a series of single-object operations; only
@@ -38,3 +38,24 @@ ready marker and bounded active pointer and performs one CAS.
 CAS conflict fails rather than overwriting concurrent activation.
 Lost mutation replies remain ambiguous until reconciled by reading
 the authoritative active pointer.
+
+## Web administration
+
+The interactive administrative interface is a static app deployed as
+ordinary Skrynia objects on its **own browser origin**. The one-time
+bootstrap prints the URL and a cryptographically random access secret;
+there is no privileged admin daemon. The admin app fetches its
+publicly readable, **encrypted** credential vault after the user
+unlocks it locally. Skrynia itself authenticates every operation
+using the grant user or issuer token held in the unlocked browser.
+
+The browser lists all apps and their ready release manifests through
+Skrynia's paginated list API. Any backward/forward activation replaces
+only the fixed-size `active.json` pointer with a byte-SHA256 CAS;
+release assets and application data are untouched. The interface
+never promises a multi-object atomic grant workflow, and persists
+an encrypted intent journal before credential mutations.
+
+There is **no CLI binary**. CI uses composite GitHub Actions; interactive
+administration is through the web interface. See
+[Web administration](web-admin.md).

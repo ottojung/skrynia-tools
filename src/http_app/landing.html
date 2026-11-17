@@ -7,13 +7,20 @@
 <script>
 (async () => {
   try {
-    const response = await fetch('./active.json', {cache: 'no-store'});
+    // Direct Skrynia object URLs remain usable alongside app hostnames.
+    const legacy = location.pathname.match(
+      /^((?:\/_skrynia)?\/store\/apps\/[a-z0-9-]+\/)index\.html$/);
+    const base = new URL(legacy ? legacy[1] : '/', location.origin);
+    const requested = legacy ? 'index.html' : location.pathname.slice(1) || 'index.html';
+    const response = await fetch(new URL('active.json', base), {cache: 'no-store'});
     if (!response.ok) throw new Error('No published release');
     const pointer = await response.json();
     if (pointer.schema !== 1 || !/^[0-9a-f]{32}$/.test(pointer.release))
       throw new Error('Invalid release pointer');
-    const target = './releases/' + pointer.release + '/index.html' + location.search + location.hash;
-    location.replace(new URL(target, location.href));
+    const target = new URL('releases/' + pointer.release + '/' + requested, base);
+    target.search = location.search;
+    target.hash = location.hash;
+    location.replace(target.href);
   } catch (error) {
     document.getElementById('message').textContent =
       'Application unavailable: ' + error.message;

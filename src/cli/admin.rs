@@ -18,7 +18,7 @@ pub fn run(args: &Arguments) -> Result<()> {
         bail!("unknown admin action");
     }
     let name = args.required("name")?;
-    if !crate::http_app::Keys::new(name).is_ok() {
+    if crate::http_app::Keys::new(name).is_err() {
         bail!("invalid app name");
     }
     let bytes = args.number("max-bytes")?;

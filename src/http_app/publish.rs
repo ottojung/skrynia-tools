@@ -34,7 +34,7 @@ pub fn deploy(
         files,
     };
     create_exact(client, &keys.version(&id)?, &serde_json::to_vec(&entry)?)?;
-    create_exact(client, &keys.entry(), super::assets::landing().as_bytes())?;
+    super::assets::ensure(client, &keys)?;
     create_exact(client, &keys.stamp(&id)?, b"ready")?;
     activate(client, name, &id)?;
     Ok(entry)

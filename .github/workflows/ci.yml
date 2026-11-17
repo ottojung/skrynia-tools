@@ -26,6 +26,11 @@ jobs:
         run: |
           rustc --test source_lints/mod.rs -o "${RUNNER_TEMP}/skrynia-lint-tests"
           "${RUNNER_TEMP}/skrynia-lint-tests"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stable application bootstrap tests
+        run: node tests/http/landing.mjs
       - name: HTTP deployment action tests
         run: |
           bash -n action/deploy/build.sh action/deploy/upload.sh

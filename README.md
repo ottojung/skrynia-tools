@@ -22,6 +22,10 @@ apps/hello/releases/<release-id>/assets/main.js
 
 The stable index.html reads active.json and navigates to the chosen
 immutable version, so relative HTML/CSS/JS URLs resolve naturally.
+A read-only gateway can expose each app on its own permanent browser
+origin (for example, `hello.a.vau.place`) and internally proxy release
+paths to Skrynia. No hostname configuration is required by the CLI.
+See [application URLs](docs/deployment.md#application-urls-and-browser-origins).
 A fixed-size ready marker and active pointer make rollback **O(1) in
 history size and artifact bytes**. No data migrations run during rollback.
 Manifests record per-file SHA-256 digests for explicit verification.

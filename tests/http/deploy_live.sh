@@ -5,7 +5,9 @@ server="$SKRYNIA_TEST_SERVER_BIN"
 bin="$repo/target/debug/skrynia-tools"
 tmp="$(mktemp -d)"
 pid=""
+proxy_pid=""
 cleanup() {
+  if [ -n "$proxy_pid" ]; then kill "$proxy_pid" 2>/dev/null || true; wait "$proxy_pid" 2>/dev/null || true; fi
   if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
   rm -rf "$tmp"
 }
@@ -43,17 +45,33 @@ export SKRYNIA_TOKEN="$(cat "$tmp/user-token")"
 mkdir -p "$tmp/site/assets"
 cat > "$tmp/site/index.html" <<'HTML'
 <!doctype html><html><body>
-<h1 id="app">waiting</h1><script src="./assets/app.js"></script></body></html>
+<h1 id="app">waiting</h1><script src="./assets/app.js"></script>
+<script>document.documentElement.dataset.url =
+  location.pathname + location.search + location.hash;</script></body></html>
 HTML
 printf "document.getElementById('app').textContent='HTTP release one';" > "$tmp/site/assets/app.js"
+mkdir -p "$tmp/site/docs"
+cat > "$tmp/site/docs/about.html" <<'HTML'
+<!doctype html><html><body><h1>Nested page works</h1><script>
+document.documentElement.dataset.href=location.pathname+location.search+location.hash;
+</script></body></html>
+HTML
+
+# Simulate the old stable entrypoint: a deploy must upgrade it safely.
+curl -fsS -X POST "$url/store/apps/demo/index.html" \
+  -H "Authorization: Bearer $SKRYNIA_TOKEN" \
+  --data-binary 'outdated stable bootstrap' >/dev/null
 sha=1111111111111111111111111111111111111111
 "$bin" app deploy --url "$url" --name demo --directory "$tmp/site" --commit "$sha" > "$tmp/first.json"
 id1="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["id"])' "$tmp/first.json")"
+curl -fsS "$url/store/apps/demo/index.html" > "$tmp/bootstrap"
+grep -q "location.pathname.slice(1)" "$tmp/bootstrap"
 test "$(curl -fsS "$url/store/apps/demo/releases/$id1/assets/app.js")" = "document.getElementById('app').textContent='HTTP release one';"
 "$bin" app current --url "$url" --name demo | grep -q "$id1"
 printf "document.getElementById('app').textContent='HTTP release two';" > "$tmp/site/assets/app.js"
 "$bin" app deploy --url "$url" --name demo --directory "$tmp/site" --commit "$sha" > "$tmp/second.json"
 id2="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["id"])' "$tmp/second.json")"
+cmp "$tmp/bootstrap" <(curl -fsS "$url/store/apps/demo/index.html")
 test "$id1" != "$id2"
 "$bin" app versions --url "$url" --name demo > "$tmp/versions.json"
 python3 - "$tmp/versions.json" <<'PY'
@@ -70,6 +88,17 @@ if "$bin" app rollback --url "$url" --name demo --release "000000000000000000000
 fi
 test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $(cat "$tmp/root-token")" "$url/store/apps/demo" -d x)" = 409
 echo "HTTP object releases, nested files, CAS rollback, history and verification passed"
+origin_port="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+origin="http://127.0.0.1:$origin_port"
+python3 tests/http/fixture_app_origin.py "$url" "$origin_port" > "$tmp/origin.log" 2>&1 &
+proxy_pid="$!"
+for _ in $(seq 1 80); do
+  if curl -fsS "$origin/active.json" >/dev/null 2>&1; then break; fi
+  if ! kill -0 "$proxy_pid" 2>/dev/null; then cat "$tmp/origin.log"; exit 1; fi
+  sleep 0.1
+done
+test "$(curl -fsS -D "$tmp/headers" -o /dev/null "$origin/active.json" && grep -i 'Cache-Control: no-store' "$tmp/headers" | wc -l)" -ge 1
+test "$(curl -s -o /dev/null -w '%{http_code}' "$origin/missing.js")" = 404
 if command -v chromium >/dev/null 2>&1; then
   chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
     --no-first-run --user-data-dir="$tmp/chromium" \
@@ -79,4 +108,15 @@ if command -v chromium >/dev/null 2>&1; then
     tail -24 "$tmp/chrome-err"; echo "browser static HTML bootstrap did not load"; exit 1;
   }
   echo "Chromium served nested relative assets through Skrynia HTTP"
+  chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage     --no-first-run --user-data-dir="$tmp/chromium-app"     --virtual-time-budget=5000 --dump-dom     "$origin/?some=query&argument=list#section" > "$tmp/app-dom" 2> "$tmp/app-err" || true
+  grep -q 'HTTP release two' "$tmp/app-dom" || {
+    tail -15 "$tmp/app-err"; echo "stable app origin did not load release"; exit 1;
+  }
+  grep -q "/releases/$id2/index.html?some=query&amp;argument=list#section" "$tmp/app-dom" || {
+    echo "release navigation lost pathname, query, or fragment"; exit 1;
+  }
+  chromium --headless --no-sandbox --disable-gpu --disable-dev-shm-usage     --no-first-run --user-data-dir="$tmp/chromium-deep"     --virtual-time-budget=5000 --dump-dom     "$origin/docs/about.html?x=3#details" > "$tmp/deep-dom" 2> "$tmp/deep-err" || true
+  grep -q 'Nested page works' "$tmp/deep-dom"
+  grep -q "/releases/$id2/docs/about.html?x=3#details" "$tmp/deep-dom"
+  echo "Chromium preserved app origin, relative assets, deep links, query and fragment"
 fi

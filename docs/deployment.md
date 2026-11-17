@@ -21,6 +21,53 @@ apps/NAME/releases/ID/index.html. Relative asset links work because
 the browser sees the real release directory. No HTML/JS/CSS rewriting
 or additional hosting service is necessary.
 
+## Application URLs and browser origins
+
+A gateway may expose each application on its own stable hostname, e.g.
+`https://hello.a.vau.place`. It must **proxy internally** from that
+origin to Skrynia public objects, not send the browser to a shared
+`vau.place` origin. The recommended read-only gateway mapping is:
+
+| App-host URL | Skrynia object key |
+| --- | --- |
+| `/` and `/index.html` | `apps/hello/index.html` |
+| `/active.json` | `apps/hello/active.json` |
+| `/releases/ID/file.js` | `apps/hello/releases/ID/file.js` |
+| `/sw.js` | `apps/hello/sw.js` (separately maintained) |
+
+Skrynia Tools needs **no public hostname or URL-scheme option**:
+the browser fetches `active.json` from its current application origin.
+A stable bootstrap runs whenever that stable page is loaded; it reads
+the active release, then uses `location.replace` to navigate within
+the same origin to the chosen immutable version. Query strings and
+fragments survive. Refreshing an immutable version keeps that version;
+returning to the stable root checks the current release again.
+
+If a request for a **non-versioned** deep path is an HTML navigation,
+nginx can serve the stable bootstrap. It then navigates to the
+matching path in the active release. The path must be a real file;
+unmatched SPA routes require an explicitly configured app fallback.
+Do not serve an HTML fallback for missing JavaScript, stylesheets or
+images.
+
+Service workers should register at the stable app-root path `/sw.js`
+when persistent root scope is required. A worker under a versioned
+release has version-specific scope. The stable worker is an independent
+object and is **not** rewritten by deployment or rollback. Applications
+own its compatibility and update lifecycle.
+
+The gateway should set `Cache-Control: no-store` for the bootstrap
+and `active.json`, and may cache successful release objects with
+`Cache-Control: public, max-age=31536000, immutable` if release
+assets are truly never modified. Under a broad Skrynia grant this
+immutability is cooperative, not storage-enforced.
+
+The same stable bootstrap remains directly accessible through the
+existing `/_skrynia/store/apps/hello/index.html` endpoint. A
+deployment upgrades an older bootstrap using byte-SHA256
+compare-and-swap when necessary, rather than failing or silently
+overwriting a concurrent change.
+
 Activation creates or CAS-replaces active.json with a JSON object
 containing the release ID and a unique nonce. Rollback checks the
 constant-size ready marker and current pointer and makes one CAS.

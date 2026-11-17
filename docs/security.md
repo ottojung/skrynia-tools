@@ -64,9 +64,19 @@ assets together is not authenticated by these hashes. The stable
 browser entrypoint reads the active pointer and follows a relative URL;
 it is not an independently verifying cryptographic loader.
 
+Each application should have a stable browser origin across releases.
+Redirecting application navigation to the shared Skrynia API origin
+mixes untrusted applications in one browser security boundary.
+A read-only app gateway must never expose Skrynia mutations or grant
+administration under those app origins.
+
 Applications with absolute asset paths, custom CSP or service-worker
 scopes may not function from the versioned URL until their build
-configuration is changed. The tool refuses nonregular build files,
+configuration is changed. In particular, registering a worker at
+`./sw.js` in a versioned directory scopes it to that version;
+the app must independently publish and register a stable `/sw.js`
+if it needs persistent worker scope across deployments. The code
+publisher does not modify that stable worker as part of rollback. The tool refuses nonregular build files,
 unsafe paths, and overlong keys. It leaves abandoned partial releases
 in place rather than deleting unknown data.
 

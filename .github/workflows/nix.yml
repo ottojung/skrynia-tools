@@ -1,0 +1,27 @@
+name: Nix flake
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Validate flake
+        run: nix flake check --all-systems --no-build
+      - name: Build package
+        run: nix build .#skrynia-tools --print-build-logs
+      - name: Install into an isolated profile
+        run: |
+          nix profile add --profile "$RUNNER_TEMP/skrynia-tools-profile" .
+          "$RUNNER_TEMP/skrynia-tools-profile/bin/skrynia-tools" help
+      - name: Test nix run
+        run: nix run . -- help

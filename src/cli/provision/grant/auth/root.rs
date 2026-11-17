@@ -8,7 +8,7 @@ pub fn token(args: &Arguments, client: &SkryniaClient) -> Result<String> {
     let dir = env::var_os("SKRYNIA_DATA_DIR")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
-        .context("--root-grant requires SKRYNIA_DATA_DIR, just like skrynia-server")?;
+        .context("--parent-grant-is-root requires SKRYNIA_DATA_DIR, just like skrynia-server")?;
     let (id, issuer) = scan::find(&dir)?;
     let user = client.issue_user(&id, &issuer)?;
     user["userToken"]

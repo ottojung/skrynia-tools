@@ -24,20 +24,20 @@ for _ in $(seq 1 80); do
 done
 if [ "$ready" != 1 ]; then cat "$tmp/server.log"; exit 1; fi
 if env -u SKRYNIA_DATA_DIR SKRYNIA_URL="$url" "$tool" admin grant \
-  --root-grant --locations 'apps/*' --max-bytes 5000000 \
+  --parent-grant-is-root --locations 'apps/*' --max-bytes 5000000 \
   --max-objects 200 --credentials-out "$tmp/unconfigured.json" >"$tmp/error" 2>&1; then
-  echo "--root-grant succeeded without SKRYNIA_DATA_DIR" >&2; exit 1
+  echo "--parent-grant-is-root succeeded without SKRYNIA_DATA_DIR" >&2; exit 1
 fi
 grep -q SKRYNIA_DATA_DIR "$tmp/error"
 test ! -e "$tmp/unconfigured.json"
 if SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/missing-deployment" \
-  "$tool" admin grant --root-grant --locations 'apps/*' --max-bytes 6000 \
+  "$tool" admin grant --parent-grant-is-root --locations 'apps/*' --max-bytes 6000 \
   --max-objects 4 --credentials-out "$tmp/missing-root.json" >/dev/null 2>&1; then
   echo "accepted nonexistent Skrynia data directory" >&2; exit 1
 fi
 test ! -e "$tmp/missing-root.json"
-SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant \
-  --root-grant --locations 'apps/*' \
+SKRYNIA_URL="$url" SKRYNIA_PARENT_GRANT=not-a-token SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant \
+  --parent-grant-is-root --locations 'apps/*' \
   --operations create,modify,list,delegate \
   --max-bytes 5000000 --max-objects 200 \
   --credentials-out "$tmp/parent.json" > "$tmp/parent-result.json"
@@ -52,8 +52,10 @@ assert record["grant"]["issuerToken"] and record["user"]["userToken"]
 assert os.stat(sys.argv[1]).st_mode & 0o077 == 0
 assert "userToken" not in result and "issuerToken" not in result
 PY
-SKRYNIA_URL=http://127.0.0.1:1 "$tool" admin grant --url "$url" \
-  --parent-grant "$tmp/parent.json" --locations 'apps/long/*' \
+parent_token="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["user"]["userToken"])' "$tmp/parent.json")"
+SKRYNIA_URL=http://127.0.0.1:1 SKRYNIA_PARENT_GRANT=not-a-token \
+  "$tool" admin grant --url "$url" \
+  --parent-grant "$parent_token" --locations 'apps/long/*' \
   --max-bytes 50000 --max-objects 20 \
   --credentials-out "$tmp/child.json" > "$tmp/child-result.json"
 python3 - "$tmp/child.json" <<'PY'
@@ -83,7 +85,10 @@ test "$status" = 403
 SKRYNIA_URL="$url" "$tool" object get --key apps/long/test.js > "$tmp/object.txt"
 test "$(cat "$tmp/object.txt")" = worked
 # Omitted --credentials-out uses a private randomized XDG state path.
-XDG_STATE_HOME="$tmp/state" SKRYNIA_URL="$url" SKRYNIA_PARENT_GRANT="$tmp/parent.json"   "$tool" admin grant --locations 'apps/tesicca/*'   --max-bytes 9000 --max-objects 15 > "$tmp/default-result.json"
+XDG_STATE_HOME="$tmp/state" SKRYNIA_URL="$url" \
+  SKRYNIA_PARENT_GRANT="$parent_token" "$tool" admin grant \
+  --locations 'apps/tesicca/*' --max-bytes 9000 --max-objects 15 \
+  > "$tmp/default-result.json"
 python3 - "$tmp/default-result.json" "$tmp/state" <<'PYXD'
 import json,os,pathlib,sys
 info=json.load(open(sys.argv[1],encoding="utf8"))
@@ -101,14 +106,33 @@ if SKRYNIA_URL="$url" "$tool" admin grant --existing-grant "$tmp/child.json" \
   echo "accepted conflicting existing-grant options" >&2; exit 1
 fi
 test ! -e "$tmp/conflicting.json"
-if SKRYNIA_URL="$url" "$tool" admin grant --parent-grant "$tmp/parent.json" \
+if SKRYNIA_URL="$url" "$tool" admin grant --parent-grant "$parent_token" \
   --locations 'apps/bad/*' --operations make-everything --max-bytes 10 \
   --max-objects 10 --credentials-out "$tmp/invalid.json" >/dev/null 2>&1; then
   echo "invalid grant operations accepted" >&2; exit 1
 fi
 test ! -e "$tmp/invalid.json"
-# Root-grant must reject alternate configuration instead of silently using it.
-if SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant   --root-grant --data-dir "$tmp/root" --locations 'apps/*'   --max-bytes 6000 --max-objects 4 --credentials-out "$tmp/wrong-flag.json"   > "$tmp/wrong-flag.log" 2>&1; then
+# Parent grant is a bearer token, never a path to saved credentials.
+if SKRYNIA_URL="$url" "$tool" admin grant \
+  --parent-grant "$tmp/parent.json" --locations 'apps/path/*' \
+  --max-bytes 6000 --max-objects 4 --credentials-out "$tmp/path-arg.json" \
+  >/dev/null 2>&1; then
+  echo "accepted a path instead of parent grant token" >&2; exit 1
+fi
+test ! -e "$tmp/path-arg.json"
+# Explicitly choosing the root conflicts with another explicit parent token.
+if SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant \
+  --parent-grant-is-root --parent-grant "$parent_token" \
+  --locations 'apps/*' --max-bytes 6000 --max-objects 4 \
+  --credentials-out "$tmp/both-parents.json" >/dev/null 2>&1; then
+  echo "accepted two parents" >&2; exit 1
+fi
+test ! -e "$tmp/both-parents.json"
+# Root grant must reject alternate configuration instead of silently using it.
+if SKRYNIA_URL="$url" SKRYNIA_DATA_DIR="$tmp/root" "$tool" admin grant \
+  --parent-grant-is-root --data-dir "$tmp/root" --locations 'apps/*' \
+  --max-bytes 6000 --max-objects 4 --credentials-out "$tmp/wrong-flag.json" \
+  > "$tmp/wrong-flag.log" 2>&1; then
   echo "accepted a separate root-data-dir setting" >&2; exit 1
 fi
 grep -q SKRYNIA_DATA_DIR "$tmp/wrong-flag.log"

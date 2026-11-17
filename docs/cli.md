@@ -112,15 +112,20 @@ Skrynia Tools can create ordinary grants independently of application
 deployment. The CLI supports `SKRYNIA_URL` as the default URL for **every**
 command; an explicit `--url` overrides the environment variable.
 
-**Normal case:** delegate from an existing parent grant whose private
-credentials were saved by Skrynia Tools. The parent grant must have
-`delegate` authority and sufficient scope and quota for the child.
+**Normal case:** pass the parent grant's **user bearer token** directly.
+The parent must have `delegate` authority and enough scope and quota.
+`--parent-grant` takes a token, **not** a credentials filename.
 
 ~~~sh
 export SKRYNIA_URL=https://vau.place/_skrynia
-skrynia-tools admin grant --parent-grant /private/path/parent.json \
+skrynia-tools admin grant --parent-grant "$PARENT_GRANT_USER_TOKEN" \
   --locations 'apps/long/*' --max-bytes 50000000 --max-objects 500
 ~~~
+
+You can also supply the same token through `SKRYNIA_PARENT_GRANT`;
+`--parent-grant` overrides that variable. Note that command-line
+tokens may be visible in shell history or operating-system process
+listings. Keep the parent token private.
 
 **Root case:** on the machine with access to the Skrynia server's
 `SKRYNIA_DATA_DIR`, use the exact same environment variable as the
@@ -133,7 +138,7 @@ record missing or ambiguous, it exits with an error.
 ~~~sh
 export SKRYNIA_URL=https://vau.place/_skrynia
 export SKRYNIA_DATA_DIR=/absolute/path/to/skrynia
-skrynia-tools admin grant --root-grant \
+skrynia-tools admin grant --parent-grant-is-root \
   --locations 'apps/*' --max-bytes 500000000 --max-objects 15000
 ~~~
 

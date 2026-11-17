@@ -1,28 +1,28 @@
 mod root;
 mod scan;
-use super::{Arguments, SkryniaClient, secrets};
+use super::{Arguments, SkryniaClient};
 use anyhow::{Result, bail};
-use serde_json::Value;
 pub fn parent(args: &Arguments, client: &SkryniaClient) -> Result<String> {
-    if args.optional("root-grant").is_some() {
-        if args.optional("parent-grant").is_some() || args.optional("parent-token-file").is_some() {
-            bail!("--root-grant conflicts with --parent-grant/--parent-token-file");
+    if args.optional("parent-token-file").is_some() {
+        bail!("admin grant accepts a token via --parent-grant, not a file");
+    }
+    if args.optional("parent-grant-is-root").is_some() {
+        if args.optional("parent-grant").is_some() {
+            bail!("--parent-grant-is-root conflicts with --parent-grant");
         }
         return root::token(args, client);
     }
-    let source = args
+    let token = args
         .optional("parent-grant")
         .map(str::to_owned)
         .or_else(|| std::env::var("SKRYNIA_PARENT_GRANT").ok());
-    if let Some(file) = source {
-        let record: Value = serde_json::from_str(&secrets::read(&file)?)?;
-        return record["user"]["userToken"]
-            .as_str()
-            .map(str::to_owned)
-            .ok_or_else(|| anyhow::anyhow!("parent grant lacks saved user token"));
+    let token = token.ok_or_else(|| {
+        anyhow::anyhow!(
+            "supply --parent-grant TOKEN (or SKRYNIA_PARENT_GRANT), or --parent-grant-is-root"
+        )
+    })?;
+    if token.len() != 64 || !token.bytes().all(|b| b.is_ascii_hexdigit()) {
+        bail!("--parent-grant must be a Skrynia grant user token, not a path");
     }
-    if let Some(file) = args.optional("parent-token-file") {
-        return secrets::read(file);
-    }
-    bail!("supply --parent-grant FILE (or SKRYNIA_PARENT_GRANT), or --root-grant")
+    Ok(token)
 }

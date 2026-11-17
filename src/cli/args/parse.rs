@@ -14,7 +14,7 @@ pub fn parse() -> Result<Arguments> {
         if !key.starts_with("--") || key.len() <= 2 {
             bail!("invalid option {key}");
         }
-        let value = if key == "--root-grant" {
+        let value = if key == "--parent-grant-is-root" {
             "true".into()
         } else {
             input

@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::path::Path;
 pub fn issue(args: &Arguments, client: &SkryniaClient, path: &Path, existing: &str) -> Result<()> {
     for field in [
-        "root-grant",
+        "parent-grant-is-root",
         "parent-grant",
         "parent-token-file",
         "locations",

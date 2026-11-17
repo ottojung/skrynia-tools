@@ -115,7 +115,7 @@ The source-pinned Skrynia CI compatibility job now also exercises `admin create`
 
 ## Generic grant CLI and root discovery
 
-`admin grant --root-grant` reads the generated root grant from the
+`admin grant --parent-grant-is-root` reads the generated root grant from the
 private state directory selected by **`SKRYNIA_DATA_DIR`**, the exact
 same variable as the Skrynia server. It never assumes an HTTP root
 credential endpoint or silently falls back to another path. An unset,
@@ -129,3 +129,8 @@ file. Files and lock files use 0600 permissions; the default credential
 directory is owner-only. Uncertain grant creation leaves a pending
 record rather than blindly repeating the mutation. Never publish
 issuer credentials into GitHub Actions or application assets.
+
+`--parent-grant` takes a raw parent grant **user bearer token**, not a
+file path. Because an argv token may be exposed through process listings
+and shell history, use `SKRYNIA_PARENT_GRANT` where those risks matter.
+The root selector overrides the environment default for a parent token.

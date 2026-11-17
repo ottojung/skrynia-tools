@@ -65,14 +65,14 @@ create-only asset and mutable-pointer grants.
 ## Generic grant provisioning
 
 The CLI also supports `admin grant` for any delegated scope, not just
-application deployments. Use a previously saved parent with
-`--parent-grant FILE` or find the generated root grant with
-`--root-grant` and **the server's own `SKRYNIA_DATA_DIR`**:
+application deployments. Use a parent grant's **user token** with
+`--parent-grant TOKEN` or find the generated root grant with
+`--parent-grant-is-root` and **the server's own `SKRYNIA_DATA_DIR`**:
 
 ~~~sh
 export SKRYNIA_URL=https://vau.place/_skrynia
 export SKRYNIA_DATA_DIR=/path/to/server-data
-skrynia-tools admin grant --root-grant --locations 'apps/*' \
+skrynia-tools admin grant --parent-grant-is-root --locations 'apps/*' \
   --max-bytes 500000000 --max-objects 15000
 ~~~
 

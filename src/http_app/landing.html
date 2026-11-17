@@ -12,7 +12,7 @@
     const pointer = await response.json();
     if (pointer.schema !== 1 || !/^[0-9a-f]{32}$/.test(pointer.release))
       throw new Error('Invalid release pointer');
-    const target = './releases/' + pointer.release + '/index.html';
+    const target = './releases/' + pointer.release + '/index.html' + location.search + location.hash;
     location.replace(new URL(target, location.href));
   } catch (error) {
     document.getElementById('message').textContent =

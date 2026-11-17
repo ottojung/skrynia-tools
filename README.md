@@ -62,6 +62,25 @@ issuer token. This single-token design follows cooperative immutable
 release conventions; for server-enforced immutability, use separate
 create-only asset and mutable-pointer grants.
 
+## Generic grant provisioning
+
+The CLI also supports `admin grant` for any delegated scope, not just
+application deployments. Use a previously saved parent with
+`--parent-grant FILE` or find the generated root grant with
+`--root-grant` and **the server's own `SKRYNIA_DATA_DIR`**:
+
+~~~sh
+export SKRYNIA_URL=https://vau.place/_skrynia
+export SKRYNIA_DATA_DIR=/path/to/server-data
+skrynia-tools admin grant --root-grant --locations 'apps/*' \
+  --max-bytes 500000000 --max-objects 15000
+~~~
+
+`SKRYNIA_URL` supplies the URL for every CLI command by default;
+`--url` overrides it. The issuer and user token are saved in a
+private credential file, never printed. See
+[grant creation](docs/cli.md#generic-grant-creation).
+
 ## Other capabilities
 
 - Native Rust HTTP client for public GET, create-only POST, PUT, DELETE,

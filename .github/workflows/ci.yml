@@ -85,7 +85,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: a33336e29c8781115489a3b4adc270573bc458fc
+          ref: 619bf93c98dad3a3d2d3b50111d07d61e406171f
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -103,3 +103,6 @@ jobs:
             bash tests/http/deploy_live.sh
           SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
             bash tests/http/protocols_live.sh
+          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
+            SKRYNIA_TEST_CLI_BIN="$(pwd)/target/debug/skrynia-tools" \
+            bash tests/http/grant_live.sh

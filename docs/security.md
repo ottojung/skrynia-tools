@@ -112,3 +112,20 @@ Native client error responses are read with a 4 KiB cap, rather than materializi
 ## Isolated real-server credential lifecycle regression
 
 The source-pinned Skrynia CI compatibility job now also exercises `admin create`, `revoke-user`, `revoke-grant` and repeated completed revocation against a disposable localhost server and grant hierarchy. It confirms a revoked user is rejected when attempting a new object creation, a revoked grant's former issuer cannot issue a user, the journal has shed its secrets, and the bytes published before revocation remain readable. All test credentials are private under a temporary owner-only directory, never reused from a production deployment. This checks server/client interoperability but not physical power-loss recovery or complete credential-lifecycle security.
+
+## Generic grant CLI and root discovery
+
+`admin grant --root-grant` reads the generated root grant from the
+private state directory selected by **`SKRYNIA_DATA_DIR`**, the exact
+same variable as the Skrynia server. It never assumes an HTTP root
+credential endpoint or silently falls back to another path. An unset,
+inaccessible or invalid directory causes a clean failure before grant
+creation. It issues a transient root user token through the normal
+Skrynia HTTP issuer endpoint; it does not accept issuer credentials
+as ordinary mutation authority.
+
+The CLI prints only the new grant ID and path to its private credential
+file. Files and lock files use 0600 permissions; the default credential
+directory is owner-only. Uncertain grant creation leaves a pending
+record rather than blindly repeating the mutation. Never publish
+issuer credentials into GitHub Actions or application assets.

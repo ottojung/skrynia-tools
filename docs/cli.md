@@ -105,3 +105,72 @@ Use `admin revoke-user` to invalidate the **one user token recorded in the crede
 After a confirmed success or an expected Skrynia 404 error code (`user_not_found` or `grant_not_found`), the journal transitions to `user_revoked` (removes the user token) or `grant_revoked` (removes all issuer/user credentials). Repeating a completed operation is idempotent. On a failed/uncertain response, the journal remains pending and the CLI refuses another DELETE without `--retry-after-uncertain true`. Inspect the state first; the flag is an **explicit operator retry decision**, not automatic recovery.
 
 Revocation only applies to grants represented by a wrapped child-grant journal; it does not accept a raw root-credentials file or independently create grants. Per Skrynia's API contract, **revoking a grant does not delete previously stored object bytes**. Revocation does not roll back application code, migrate data, free historical release artifacts or clean up clients that copied credentials earlier.
+
+## Generic grant creation
+
+Skrynia Tools can create ordinary grants independently of application
+deployment. The CLI supports `SKRYNIA_URL` as the default URL for **every**
+command; an explicit `--url` overrides the environment variable.
+
+**Normal case:** delegate from an existing parent grant whose private
+credentials were saved by Skrynia Tools. The parent grant must have
+`delegate` authority and sufficient scope and quota for the child.
+
+~~~sh
+export SKRYNIA_URL=https://vau.place/_skrynia
+skrynia-tools admin grant --parent-grant /private/path/parent.json \
+  --locations 'apps/long/*' --max-bytes 50000000 --max-objects 500
+~~~
+
+**Root case:** on the machine with access to the Skrynia server's
+`SKRYNIA_DATA_DIR`, use the exact same environment variable as the
+server. The CLI finds the generated root grant in
+`$SKRYNIA_DATA_DIR/state/grants/` and temporarily issues a root user
+token over HTTP. It needs **no separate root user credential**.
+If the variable is unset, the directory inaccessible, or its root
+record missing or ambiguous, it exits with an error.
+
+~~~sh
+export SKRYNIA_URL=https://vau.place/_skrynia
+export SKRYNIA_DATA_DIR=/absolute/path/to/skrynia
+skrynia-tools admin grant --root-grant \
+  --locations 'apps/*' --max-bytes 500000000 --max-objects 15000
+~~~
+
+The default operations are `create,modify,list`; use
+`--operations create,modify,list,delegate` to delegate further,
+or any comma-separated subset of `create`, `modify`, `delete`,
+`list`, `delegate` and `subscribe`. Both quota limits are required,
+and `max-bytes` must be at least 2048. Server authority checks
+remain authoritative.
+
+The CLI saves issuer and user credentials with mode 0600 in a random
+private file under `$XDG_STATE_HOME/skrynia-tools/grants/` (or
+`~/.local/state/skrynia-tools/grants/`). Standard output contains
+only the new grant ID and the path to its private credential file,
+**never tokens**. To choose the output use
+`--credentials-out /private/path/grant.json`. Existing files are
+not overwritten.
+
+You can also issue a new user token for an existing grant **without
+creating another grant**:
+
+~~~sh
+skrynia-tools admin grant --existing-grant /private/path/grant.json \
+  --credentials-out /private/path/additional-user.json
+~~~
+
+The new token is stored at `.user.userToken` in the private JSON file.
+To install it for all application releases:
+
+~~~sh
+jq -r '.user.userToken' /private/path/grant.json |
+  gh secret set SKRYNIA_DEPLOY_TOKEN --repo ottojung/skrynia-apps
+~~~
+
+The issuer credential remains private. A lost create response may leave
+a `pending_grant_create` record; the CLI does not automatically retry
+because the request may already have committed. Use `admin inspect`
+to examine the record. When the grant is saved but user issuance
+failed, `admin resume` is supported; ambiguous user issuance
+requires explicit duplicate-risk acknowledgment.

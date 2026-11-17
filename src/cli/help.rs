@@ -13,5 +13,11 @@ pub fn print() {
     println!("  app deploy builds on this machine (never on Skrynia)");
     println!("  object get|create|replace|delete|list --url URL --key KEY");
     println!("  log init|append|read --prefix PREFIX --url URL");
+    println!("  admin grant --locations 'apps/*' --max-bytes 500000000 --max-objects 15000");
+    println!("    --parent-grant CREDENTIALS.json  OR  --root-grant");
+    println!("    --root-grant uses SKRYNIA_DATA_DIR (the server's own data directory)");
+    println!("    --operations create,modify,list  (default)");
+    println!("    --existing-grant CREDENTIALS.json reissues a user token");
     println!("  admin plan|create|inspect|resume|revoke-user|revoke-grant");
+    println!("  SKRYNIA_URL supplies --url by default; explicit --url overrides it");
 }

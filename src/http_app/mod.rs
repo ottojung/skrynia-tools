@@ -9,6 +9,7 @@ mod scan;
 use super::client;
 pub use activate::activate;
 use anyhow::{Result, bail};
+pub use assets::publish as publish_stable;
 use client::Store;
 pub use keys::Keys;
 pub use manifest::{Asset, Pointer, Release};

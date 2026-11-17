@@ -68,6 +68,23 @@ curl -fsS "$url/store/apps/demo/index.html" > "$tmp/bootstrap"
 grep -q "location.pathname.slice(1)" "$tmp/bootstrap"
 test "$(curl -fsS "$url/store/apps/demo/releases/$id1/assets/app.js")" = "document.getElementById('app').textContent='HTTP release one';"
 "$bin" app current --url "$url" --name demo | grep -q "$id1"
+printf 'self.addEventListener("push",()=>{});' > "$tmp/worker.js"
+"$bin" app publish-stable --url "$url" --name demo --asset sw.js   --file "$tmp/worker.js" > "$tmp/worker1.json"
+test "$(curl -fsS "$url/store/apps/demo/sw.js")" =   'self.addEventListener("push",()=>{});'
+"$bin" app publish-stable --url "$url" --name demo --asset sw.js   --file "$tmp/worker.js" > "$tmp/worker-repeat.json"
+cmp "$tmp/worker1.json" "$tmp/worker-repeat.json"
+printf 'self.addEventListener("push",()=>{ /* updated */ });' > "$tmp/worker.js"
+"$bin" app publish-stable --url "$url" --name demo --asset sw.js   --file "$tmp/worker.js" > "$tmp/worker2.json"
+test "$(curl -fsS "$url/store/apps/demo/sw.js")" =   'self.addEventListener("push",()=>{ /* updated */ });'
+if "$bin" app publish-stable --url "$url" --name demo   --asset '../active.json' --file "$tmp/worker.js" >/dev/null 2>&1; then
+  echo "stable publication accepted a traversal path" >&2; exit 1
+fi
+printf '{"start_url":"/","scope":"/"}' > "$tmp/manifest.webmanifest"
+"$bin" app publish-stable --url "$url" --name demo --asset manifest.webmanifest   --file "$tmp/manifest.webmanifest" >/dev/null
+test "$(curl -fsS "$url/store/apps/demo/manifest.webmanifest")" =   '{"start_url":"/","scope":"/"}'
+printf '<svg xmlns="http://www.w3.org/2000/svg"></svg>' > "$tmp/icon.svg"
+"$bin" app publish-stable --url "$url" --name demo --asset icon.svg   --file "$tmp/icon.svg" >/dev/null
+test "$(curl -fsS "$url/store/apps/demo/icon.svg")" =   '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
 printf "document.getElementById('app').textContent='HTTP release two';" > "$tmp/site/assets/app.js"
 "$bin" app deploy --url "$url" --name demo --directory "$tmp/site" --commit "$sha" > "$tmp/second.json"
 id2="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["id"])' "$tmp/second.json")"
@@ -81,6 +98,7 @@ PY
 "$bin" app verify --url "$url" --name demo --release "$id1"
 "$bin" app rollback --url "$url" --name demo --release "$id1" > /dev/null
 "$bin" app current --url "$url" --name demo | grep -q "$id1"
+test "$(curl -fsS "$url/store/apps/demo/sw.js")" =   'self.addEventListener("push",()=>{ /* updated */ });'
 "$bin" app rollback --url "$url" --name demo --release "$id2" > /dev/null
 "$bin" app current --url "$url" --name demo | grep -q "$id2"
 if "$bin" app rollback --url "$url" --name demo --release "00000000000000000000000000000000" > /dev/null 2>&1; then

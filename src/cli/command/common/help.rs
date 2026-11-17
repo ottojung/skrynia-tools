@@ -14,6 +14,7 @@ pub fn text(name: &str) -> &'static str {
         "accept-duplicate-token-risk" => "Accept possible duplicate user issuance",
         "retry-after-uncertain" => "Retry an uncertain revocation",
         "directory" => "Application source or built directory",
+        "asset" => "Stable file path (sw.js, manifest.webmanifest, icon.svg)",
         "repo" => "Git repository containing the application",
         "commit" => "Exact Git commit",
         "subdir" => "Application directory within the repository",

@@ -5,6 +5,7 @@ pub fn name(name: &str) -> &'static str {
         | "token-file" | "existing-grant" | "parent-token-file" => "PATH",
         "max-bytes" | "max-objects" | "from" => "NUMBER",
         "parent-grant" => "TOKEN",
+        "asset" => "NAME",
         "commit" | "if-sha256" => "SHA256",
         "locations" => "SCOPE",
         _ => "VALUE",

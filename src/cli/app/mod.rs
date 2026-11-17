@@ -1,5 +1,6 @@
 mod inspect;
 mod source;
+mod stable;
 use super::{Arguments, client, http_app};
 use anyhow::{Result, bail};
 fn client(args: &Arguments) -> Result<client::SkryniaClient> {
@@ -38,6 +39,7 @@ pub fn run(args: &Arguments) -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&pointer)?);
             Ok(())
         }
+        "publish-stable" => stable::run(args),
         "verify" => http_app::verify(&client, args.required("name")?, args.required("release")?),
         "current" | "inspect" | "show" | "versions" | "history" | "releases" | "list" | "ls"
         | "compare" | "diff" | "verify-all" => inspect::run(args, &client),

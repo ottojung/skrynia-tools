@@ -4,27 +4,17 @@ use std::{env, path::PathBuf, process::Command};
 pub fn clone(args: &Arguments) -> Result<PathBuf> {
     let repo = args.required("repo")?;
     let commit = args.required("commit")?;
-    let Some(slug) = repo.strip_prefix("https://github.com/") else {
-        bail!("--repo must be a GitHub HTTPS repository URL");
-    };
-    let slug = slug.strip_suffix(".git").unwrap_or(slug);
-    if slug.split('/').count() != 2
-        || slug.split('/').any(|part| {
-            part.is_empty()
-                || !part
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
-        })
-    {
-        bail!("--repo must be a GitHub HTTPS repository URL");
-    }
+    super::validate::github(repo)?;
     if commit.len() != 40 || !commit.bytes().all(|x| x.is_ascii_hexdigit()) {
         bail!("invalid Git commit");
     }
     let root = env::temp_dir().join(format!("skrynia-source-{:032x}", rand::random::<u128>()));
+    let secret = args.optional("token-env").unwrap_or("SKRYNIA_TOKEN");
     let out = Command::new("git")
         .args(["clone", "--quiet", "--no-checkout", repo])
         .arg(&root)
+        .env_remove("SKRYNIA_TOKEN")
+        .env_remove(secret)
         .output()?;
     if !out.status.success() {
         let _ = std::fs::remove_dir_all(&root);
@@ -37,6 +27,8 @@ pub fn clone(args: &Arguments) -> Result<PathBuf> {
         .args(["-C"])
         .arg(&root)
         .args(["checkout", "--quiet", "--detach", commit])
+        .env_remove("SKRYNIA_TOKEN")
+        .env_remove(secret)
         .output()?;
     if !out.status.success() {
         let _ = std::fs::remove_dir_all(&root);

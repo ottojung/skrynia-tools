@@ -5,10 +5,12 @@ directory="${SKRYNIA_BUILT_DIRECTORY:?build step missing}"
 name="${SKRYNIA_APP_NAME:?missing app name}"
 commit="${SKRYNIA_BUILT_COMMIT:?missing exact Git SHA}"
 url="${SKRYNIA_URL:?missing Skrynia HTTP URL}"
-test -n "${SKRYNIA_TOKEN:?missing scoped Skrynia user token}"
+token="${SKRYNIA_TOKEN:?missing scoped Skrynia user token}"
+unset SKRYNIA_TOKEN
 cargo build --locked --release --bin skrynia-tools   --manifest-path "$root/Cargo.toml"   --target-dir "${RUNNER_TEMP:?missing runner temp}/skrynia-tools-target"
 binary="$RUNNER_TEMP/skrynia-tools-target/release/skrynia-tools"
-release="$("$binary" app deploy --url "$url" --name "$name"    --directory "$directory" --commit "$commit"    --repo "${SKRYNIA_SOURCE_REPO:-https://github.com/$GITHUB_REPOSITORY}"    --subdir "${SKRYNIA_APP_SUBDIR:-.}")"
+release="$(SKRYNIA_TOKEN="$token" "$binary" app deploy --url "$url" --name "$name"    --directory "$directory" --commit "$commit"    --repo "${SKRYNIA_SOURCE_REPO:-https://github.com/$GITHUB_REPOSITORY}"    --subdir "${SKRYNIA_APP_SUBDIR:-.}")"
+unset token
 python3 -c '
 import json,os,sys
 r=json.loads(sys.argv[1])

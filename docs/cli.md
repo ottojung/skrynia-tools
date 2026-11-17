@@ -1,65 +1,52 @@
 # Skrynia Tools CLI
 
-**Implemented commands**, executed by the `skrynia-tools` native Rust binary (or an installed `skrynia` alias). See `skrynia-tools help` for a summary. Static application commands do not require a Skrynia token, an append-only log, or access to the Skrynia object store.
+The native Rust CLI talks directly to Skrynia's HTTP store and grant
+endpoints. There is no remote shell or static hosting deployment daemon.
+Application release operations require --url and a user bearer token in
+SKRYNIA_TOKEN (or the environment variable selected by --token-env).
 
-## Application releases
+## Application release commands
 
-Set `SKRYNIA_APPS_DIR=/srv/skrynia-apps` to use a default hosting root for interactive `app` commands. An explicit `--apps-dir` overrides the environment. No application data or migration protocol is required.
+~~~sh
+skrynia-tools app new --name hello --directory ./hello
+skrynia-tools app deploy --url URL --name hello --repo GITHUB_URL   --commit FULL_40_HEX_SHA --subdir apps/hello [--output build]
+skrynia-tools app deploy --url URL --name hello --directory ./hello/build   [--repo GITHUB_URL --commit FULL_SHA --subdir apps/hello]
+skrynia-tools app list --url URL
+skrynia-tools app current --url URL --name hello
+skrynia-tools app versions --url URL --name hello
+skrynia-tools app show --url URL --name hello --release RELEASE_ID
+skrynia-tools app compare --url URL --name hello --from RELEASE_A --to RELEASE_B
+skrynia-tools app diff --url URL --name hello --from RELEASE_A --to RELEASE_B
+skrynia-tools app verify --url URL --name hello --release RELEASE_ID
+skrynia-tools app verify-all --url URL --name hello
+skrynia-tools app rollback --url URL --name hello --release RELEASE_ID
+skrynia-tools app activate --url URL --name hello --release RELEASE_ID
+~~~
 
-```sh
-skrynia-tools app new --name hello --directory ./apps/hello
-skrynia-tools app deploy --name hello --repo https://github.com/OWNER/REPO --subdir apps/hello --apps-dir /srv/skrynia-apps [--commit FULL_SHA] [--builder-image IMAGE]
-skrynia-tools app list --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app doctor --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app audit --name hello --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app current --name hello --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app show --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app compare --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app diff --name hello --from OLD_ID --to NEW_ID --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app verify --name hello [--release RELEASE_ID] --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app verify-all --name hello --apps-dir /srv/skrynia-apps [--format table|json]
-skrynia-tools app rollback --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps [--format table|json]
-# Compatibility aliases:
-skrynia-tools app inspect --name hello --apps-dir /srv/skrynia-apps
-skrynia-tools app releases --name hello --apps-dir /srv/skrynia-apps
-skrynia-tools app history --name hello --apps-dir /srv/skrynia-apps
-skrynia-tools app activate --name hello --release RELEASE_ID --apps-dir /srv/skrynia-apps
-```
+All output is JSON except new and verify. Every release has a random
+32-character hexadecimal ID, immutable file keys, a manifest and a
+constant-size ready marker. List/history enumeration may require many
+scoped HTTP listing pages; compare examines the two manifests, reporting
+added, removed and changed relative paths. Verification streams every
+stored asset through its expected SHA-256 commitment.
 
-`app new` fails if the destination already exists. `app deploy` clones the whole Git repository (HTTPS or `git@github.com:owner/repo.git`), checks out the specified or resolved commit, runs the Makefile's `build` target in the given subdirectory inside rootless Podman, validates the hierarchical `build/` output and switches one symlink atomically. It makes **no assumption about the files in `build/`**, preserves arbitrary regular files and nested directories, and records source/commit/subdirectory/builder metadata. Errors leave any previous active release intact. A build lock serializes source builds; a separate brief activation lock protects only the active-code pointer. The CLI host must have writable access to the static server's app directory; no server-side deployment endpoint is called.
+Rollback does not fetch a manifest or any asset. It reads the ready
+marker, reads the small active pointer, and CAS-updates that one key.
+Runtime and additional RAM are constant in artifact size and history
+length (subject to parameterized HTTP/filesystem costs). A stale pointer
+produces a conflict; unknown network outcomes must be reconciled by
+reading app current before any deliberate retry.
 
-The default format for `list`, `current`, `versions`, `history`, `rollback` and `activate` is a readable table or confirmation. `inspect`, `show` and legacy `releases` retain JSON output by default. All views accept `--format json|table`. The `versions` display lists the newest published snapshots first, marking the currently active one with `*` in tables and `"active": true` in JSON; legacy `releases` JSON remains unchanged. Legacy releases without a publication timestamp remain available and show `unknown`. `show` and `rollback` address a version **directly by its opaque release ID**, without enumerating the history. `list` includes registered apps without an active release. The `verify` command explicitly scans the requested release (default: currently active), recomputes its directory-tree SHA-256 and reports verified, mismatch or unverifiable legacy metadata. A mismatch or missing expected digest returns a nonzero exit status; verification reads all artifact bytes, unlike rollback.
+GitHub source mode clones the exact commit locally and runs make build
+in the chosen subdirectory, with the full monorepo checkout available.
+Directory mode uploads an already built tree without running a build.
+Output paths are preserved under apps/NAME/releases/ID/ and must
+satisfy Skrynia's safe hierarchical key grammar. The build must
+contain index.html. Do not use absolute-path asset URLs in builds.
 
-The `doctor` command checks for a real deployment root, available Git, rootless Podman and initialized release directories. It is **diagnostic only**: it does not build applications, pull images, create the root or verify sufficient disk capacity or production web routing. Missing internal subdirectories are reported but can be created by an actual deployment.
-
-The `compare` command reads two records directly and compares their source provenance (commits, repositories, builder images, timestamps), **not** their file contents. The separate `app diff` command validates any available release integrity commitments and then streams every artifact byte to compare directory membership, SHA-256 file content, and executable bits. `--format json` returns sorted `changes.added`, `changes.removed`, and `changes.modified` arrays with relative paths and per-entry metadata. A legacy release without a stored integrity commitment is explicitly reported as unverified (`null`); a known mismatch causes the command to fail. It never activates, deletes, or copies releases, and takes O(total artifact bytes plus entries) rather than O(1). Code rollback never invokes application migrations or changes Skrynia object data.
-
-## Remote CLI release management
-
-Any implemented code-management command, including `app deploy`, `list`, `versions`, `current`, `show`, `compare`, `diff`, `verify`, `doctor`, `rollback` and `activate`, can run on an authorized host by adding:
-
-```text
---ssh-host HOST --ssh-user DEPLOY_USER --ssh-key PRIVATE_KEY_FILE
---ssh-known-hosts PINNED_KNOWN_HOSTS_FILE [--ssh-port PORT]
-```
-
-For example:
-
-```sh
-skrynia-tools app versions --name hello --apps-dir /srv/skrynia-apps \
-  --ssh-host deploy.example.org --ssh-user deployer \
-  --ssh-key ~/.ssh/skrynia-deploy --ssh-known-hosts ~/.ssh/skrynia-hosts
-
-skrynia-tools app rollback --name hello --release RELEASE_ID \
-  --apps-dir /srv/skrynia-apps --ssh-host deploy.example.org \
-  --ssh-user deployer --ssh-key ~/.ssh/skrynia-deploy \
-  --ssh-known-hosts ~/.ssh/skrynia-hosts
-```
-
-The CLI opens an SSH connection with strict host-key checking, no agent forwarding, no proxy commands and no inherited SSH configuration. It sends a small JSON request to `skrynia-tools app rpc --spec-stdin true` on the remote machine. The restricted RPC handler checks `SKRYNIA_DEPLOY_ROOT`, accepts only listed release operations, and uses the **same local code** for formatting and atomic rollback. The `--apps-dir` value must identify the authorized directory **on the remote host**; `SKRYNIA_APPS_DIR` can supply that default. The private key must be a non-symlinked, owner-only regular file; the trusted host-key file must be supplied explicitly.
-
-SSH failures and timeouts do not prove that a remote activation failed: inspect `app current` before retrying. Remote deploys have a 30-minute command timeout; management commands have a two-minute limit. The remote command does not expose object storage credentials.
+Code releases do not imply any application-data format, log, grants or
+migrations. The deployer token must have narrow create/modify/list
+authority for apps/NAME/* and sufficient quota.
 
 ## Optional object data
 
@@ -102,10 +89,14 @@ The plan is side-effect-free. Reuse its `--id` with `admin create` to preserve t
 
 Credential operations use an owner-only persistent `.lock` sidecar file to serialize updates across concurrent local processes. The journal and sidecar remain private; inspection/resumption never prints issuer or user tokens. No automatic grant-create issuer recovery or guaranteed exactly-once user issuance is claimed. Revocation is explicit and journaled.
 
+
 ## Current boundaries
 
-GitHub Actions can deploy remotely through the SSH composite action under `action/deploy`; the CLI itself has no managed remote build service, hosted app registry, push-subscription management or sealed-epoch collection. CAS-backed immutable-manifest snapshots are available as a separate initial client protocol. Future commands for these must be implemented and qualified separately.
-
+The CLI implements HTTP release publication and optional application
+data protocols. It does not deploy application servers, install hosting
+software, run remote builds, sweep historical assets automatically,
+manage push subscriptions, or provide a data-migration framework.
+There is no SSH transport or deployment-specific HTTP endpoint.
 
 ### Revoking optional app credentials
 
@@ -114,13 +105,3 @@ Use `admin revoke-user` to invalidate the **one user token recorded in the crede
 After a confirmed success or an expected Skrynia 404 error code (`user_not_found` or `grant_not_found`), the journal transitions to `user_revoked` (removes the user token) or `grant_revoked` (removes all issuer/user credentials). Repeating a completed operation is idempotent. On a failed/uncertain response, the journal remains pending and the CLI refuses another DELETE without `--retry-after-uncertain true`. Inspect the state first; the flag is an **explicit operator retry decision**, not automatic recovery.
 
 Revocation only applies to grants represented by a wrapped child-grant journal; it does not accept a raw root-credentials file or independently create grants. Per Skrynia's API contract, **revoking a grant does not delete previously stored object bytes**. Revocation does not roll back application code, migrate data, free historical release artifacts or clean up clients that copied credentials earlier.
-
-### Crash-recovery release auditing
-
-\`app audit --name NAME\` reports complete published versions plus any release metadata whose artifact directory is missing, artifact directories without a matching metadata record, abandoned \`.RELEASE_ID.staging\` directories, malformed or unsafe release entries, broken active-release symlinks, unfinished build workspaces and leftover atomic-activation candidate symlinks. It prints the report even when incomplete records are found, but exits nonzero so automation can detect inconsistencies. \`--format json\` exposes \`clean\`, \`available_releases\`, and per-category arrays. The same action works over restricted SSH.
-
-Auditing is **read-only**: it never prunes historical releases, removes staging files, changes the active symlink, performs a source build or touches Skrynia object data. It is O(number of release entries) rather than O(1); the \`rollback\` algorithm is unchanged. An audit can observe an in-progress build between separate directory writes, so repeat after deployment completes before treating transient results as persistent corruption. For content integrity use the separate \`app verify\` command.
-
-### Full retained-release integrity scan
-
-`app verify-all --name NAME` checks every available historical release, including those not currently active, without switching any code pointer. Its JSON result contains the per-release SHA-256 verification and counts of `verified`, `mismatched`, `unverifiable` (legacy records without a stored commitment) and `errors` (unreadable/symlinked artifacts). It always prints per-release results and exits nonzero if any release cannot be verified. An empty history is not treated as a successful integrity check. The scan enumerates metadata filenames directly and reports malformed records, missing artifact trees and invalid filenames as per-release errors while preserving healthy results. Use `app audit` for structural inconsistencies, including artifact-only releases that have no metadata record; inability to read the metadata directory itself remains a fatal error. This operation reads and hashes the retained artifacts, so it is intentionally **not** constant-work. `app rollback` remains constant-work and does not invoke verification.

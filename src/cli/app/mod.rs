@@ -1,39 +1,46 @@
-use super::{args::Arguments, deploy};
+mod inspect;
+mod source;
+use super::{Arguments, client, http_app};
 use anyhow::{Result, bail};
-mod compare;
-mod format;
-mod history;
-mod inventory;
-mod publish;
-mod remote;
-mod rpc;
-mod status;
-mod stdin;
-
+fn client(args: &Arguments) -> Result<client::SkryniaClient> {
+    let url = args.required("url")?;
+    let variable = args.optional("token-env").unwrap_or("SKRYNIA_TOKEN");
+    let token = std::env::var(variable)
+        .map_err(|_| anyhow::anyhow!("missing deployment grant in {variable}"))?;
+    if token.is_empty() {
+        bail!("empty deployment token");
+    }
+    Ok(client::SkryniaClient::new(url)?.with_token(token))
+}
 pub fn run(args: &Arguments) -> Result<()> {
-    if args.action == "rpc" {
-        return rpc::serve(args);
+    if args.action == "new" {
+        return super::scaffold::create(args);
     }
-    if remote::requested(args)? {
-        return remote::run(args);
-    }
+    let client = client(args)?;
     match args.action.as_str() {
-        "help" | "--help" => {
-            super::help::print();
+        "deploy" => {
+            let name = args.required("name")?;
+            let built = source::prepare(args)?;
+            let release = http_app::deploy(
+                &client,
+                name,
+                &built.directory,
+                args.optional("repo").unwrap_or(""),
+                args.optional("commit").unwrap_or(""),
+                args.optional("subdir").unwrap_or("."),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&release)?);
             Ok(())
         }
-        "new" => super::scaffold::create(args),
-        "deploy" if args.optional("spec-stdin") == Some("true") => stdin::deploy(),
-        "deploy" => publish::run(args),
-        "list" | "ls" => inventory::run(args),
-        "compare" => compare::run(args),
-        "diff" => compare::diff(args),
-        "doctor" => status::doctor::run(args),
-        "audit" => status::audit::run(args),
-        "versions" | "history" | "releases" => history::run(args),
-        "current" | "inspect" | "show" | "verify" | "verify-all" | "rollback" | "activate" => {
-            status::run(args)
+        "rollback" | "activate" => {
+            let pointer =
+                http_app::activate(&client, args.required("name")?, args.required("release")?)?;
+            println!("{}", serde_json::to_string_pretty(&pointer)?);
+            Ok(())
         }
-        _ => bail!("unknown app action"),
+        "verify" => http_app::verify(&client, args.required("name")?, args.required("release")?),
+        "current" | "inspect" | "show" | "versions" | "history" | "releases" | "list" | "ls"
+        | "compare" | "diff" | "verify-all" => inspect::run(args, &client),
+        _ => bail!("unknown HTTP app command: {}", args.action),
     }
 }

@@ -10,13 +10,6 @@ impl Arguments {
     pub fn parse() -> Result<Self> {
         parse::parse()
     }
-    pub fn from_rpc(action: String, flags: BTreeMap<String, String>) -> Self {
-        Self {
-            group: "app".into(),
-            action,
-            flags,
-        }
-    }
     pub fn required(&self, name: &str) -> Result<&str> {
         self.optional(name)
             .ok_or_else(|| anyhow!("missing --{name}"))

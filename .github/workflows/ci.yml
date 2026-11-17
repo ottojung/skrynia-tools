@@ -26,8 +26,10 @@ jobs:
         run: |
           rustc --test source_lints/mod.rs -o "${RUNNER_TEMP}/skrynia-lint-tests"
           "${RUNNER_TEMP}/skrynia-lint-tests"
-      - name: GitHub deployment action smoke
-        run: bash tests/ssh/action_smoke.sh
+      - name: HTTP deployment action tests
+        run: |
+          bash -n action/deploy/build.sh action/deploy/upload.sh
+          bash tests/http/action_smoke.sh
       - name: Clippy (zero warnings)
         run: cargo clippy --locked --all-targets -- -D warnings
 
@@ -76,22 +78,6 @@ jobs:
       - name: Headless Firefox and WebKit Wasm protocol integration
         run: node tests/browser/cross_browser.mjs
 
-  ssh-integration:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install OpenSSH server for isolated integration
-        run: |
-          if ! command -v sshd; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq openssh-server
-          fi
-          sudo mkdir -p /run/sshd
-      - name: Real SSH deployment and refusal tests
-        run: bash tests/ssh/integration.sh
-
   skrynia-protocol-integration:
     runs-on: ubuntu-latest
     steps:
@@ -99,7 +85,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: 3139a82fe4a0292d75cc55c49f6a8bb9e6ff7b47
+          ref: a33336e29c8781115489a3b4adc270573bc458fc
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -110,7 +96,10 @@ jobs:
             upstream-skrynia -> target
       - name: Build pinned real Skrynia Rust server
         run: cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p skrynia-server
-      - name: Real Skrynia event-set and CAS-snapshot integration
+      - name: Real Skrynia HTTP deployment and data-protocol integration
         run: |
+          cargo build --locked --bin skrynia-tools
           SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
-            bash tests/ssh/protocols_live.sh
+            bash tests/http/deploy_live.sh
+          SKRYNIA_TEST_SERVER_BIN="$(pwd)/upstream-skrynia/target/release/skrynia-server" \
+            bash tests/http/protocols_live.sh

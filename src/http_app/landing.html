@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loading application…</title>
+<p id="message">Loading application release…</p>
+<script>
+(async () => {
+  try {
+    const response = await fetch('./active.json', {cache: 'no-store'});
+    if (!response.ok) throw new Error('No published release');
+    const pointer = await response.json();
+    if (pointer.schema !== 1 || !/^[0-9a-f]{32}$/.test(pointer.release))
+      throw new Error('Invalid release pointer');
+    const target = './releases/' + pointer.release + '/index.html';
+    location.replace(new URL(target, location.href));
+  } catch (error) {
+    document.getElementById('message').textContent =
+      'Application unavailable: ' + error.message;
+  }
+})();
+</script>
+</html>

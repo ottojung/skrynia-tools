@@ -1,12 +1,34 @@
-# Implementation sequence
+# Skrynia Tools roadmap
 
-The primary app deployment path is **repository URL + subdirectory → exact checkout → containerized `make build` → immutable release → atomic symlink activation**. Its lifecycle is independent of any Skrynia data protocol.
+The primary deployment path is GitHub repository/subdirectory, exact
+checkout, local or CI-runner build, hierarchical Skrynia HTTP upload,
+immutable release-qualified assets, and single-key CAS activation.
 
-1. **Implemented:** native GitHub static deployment, application inventory, historical release inspection, read-only artifact diff and crash-state audit, and constant-work rollback and on-demand SHA-256 artifact verification with separate build/activation locks and durable ABA-resistant activation generations, provenance, rootless Podman builds and failed-build isolation; SSH-based GitHub Actions deployment is tested against real isolated OpenSSH (including rejected host keys and unauthorized roots); rootless Podman and remote CLI version-management/rollback are qualified in local SSH integration tests. Independently operated production-host qualification remains.
-2. **Partially implemented:** native Skrynia HTTP operations with exact committed/read status validation, child grants, issued user tokens and optional data grants. Administrative journaling, inspection and guarded user-token recovery are implemented. Grant-create issuer recovery remains impossible without server support. Explicit user/grant revocation with locked journals and guarded retries is implemented; isolated real-server grant/user revocation and retained-object tests pass; independently operated production lifecycle tests and more comprehensive adverse-failure qualification remain. Static apps need no grant.
-3. **Initial implementation:** byte-oriented CAS cells and create-only append-only logs, with deterministic same-operation-ID concurrency tests, a browser concurrency regression, and real-Skrynia smoke tests. Complete fault-injection and model-based testing before production qualification.
-4. **Initial implementation:** optional unordered byte-event sets with create-only insert, exact-ID idempotency and bounded non-snapshot pagination. An initial CAS-backed immutable-manifest multi-object snapshot store is implemented with concurrent CAS, repeated state-machine fault traces and failure tests, plus real-server qualification. The live Skrynia HTTP protocol suite uses a source-pinned server in CI. Proof-based snapshot/epoch garbage collection remains separate work.
-5. **Initial implementation:** browser/Wasm HTTP operations and append-only log bindings, with shared native/Wasm log byte-format and key semantics. Wasm target compilation, generated JavaScript bindings, headless Chrome integration and npm tarball assembly are implemented in CI. Independent Firefox/WebKit integration is added as a separate CI job using the same Wasm artifact; public registry release and optional ergonomic TypeScript APIs remain. Browser-engine qualification must pass CI before it is treated as verified.
-6. Further client-side coordination as individually justified protocols rather than mandatory app infrastructure.
+## Implemented
 
-Use deterministic unit tests, real Skrynia API tests where possible, and security tests around build containers, secret handling, root/symlink path escapes and partial deployment failures. The license is AGPL-3.0-or-later.
+- Native HTTP client, scoped grants, object operations and optional
+  append log, CAS cell, event set, and immutable snapshots.
+- Native application CLI: local Git-based builds, prebuilt-directory
+  upload, release inventory, current version, manifests, comparisons,
+  SHA-256 verification, and constant-work CAS rollback.
+- Reusable HTTP-only GitHub composite action: build on the ephemeral
+  runner, publish via a scoped Skrynia user token. No SSH, extra
+  deployment server, remote filesystem or cutover variable.
+- Real Skrynia server integration tests for upload, nested asset paths,
+  browser entrypoint, rollback, history, quota and grant compatibility.
+- Optional browser WebAssembly package and cross-browser protocol tests.
+
+## Remaining work
+
+- Separate immutable asset-create authority from pointer-modify
+  authority in the GitHub Action to enforce historical immutability.
+- Robust deployment reconciliation after a lost activation reply.
+- Explicit retention and garbage-collection policy for abandoned
+  versions and orphan uploads.
+- Operational qualification of large uploads, HTTP timeouts, cache
+  behavior, service workers, CSP, frontend routers and absolute assets.
+- Publish the browser SDK to npm when separately approved.
+- Extend isolated adversarial/failed-I/O integration coverage.
+
+Only Skrynia's ordinary HTTP object operations are required to serve
+and mutate a published app.

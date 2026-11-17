@@ -1,5 +1,6 @@
 //! Native CLI for static applications and optional Skrynia data.
-pub(super) use super::{client, deploy, log as protocol_log};
+pub(super) use super::{client, http_app, log as protocol_log};
+pub(super) use args::Arguments;
 mod admin;
 mod app;
 mod args;

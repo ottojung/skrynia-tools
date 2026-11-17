@@ -69,6 +69,21 @@ jobs:
           subdir: apps/myapp
 ```
 
+The same action accepts the legacy deployment naming: namespace is an
+alias for name, and builder is an alias for builder-image. Supplying both
+spellings with different values fails closed. The optional base-path controls
+the output URL prefix (default /apps, use /a for the existing /a/NAME/
+route); it does not configure the hosting web server.
+
+To migrate an old workflow, reference the pinned Skrynia Tools action and
+keep namespace, subdir, repo, commit and builder as appropriate. Supply
+host, user, ssh-private-key, known-hosts and apps-dir instead of
+skrynia-url and token: the new Skrynia server has no deploy API.
+The host must have skrynia-tools, Git, rootless Podman, and a static
+web-server mapping to the apps directory's apps/ subdirectory.
+No cutover or runtime feature flag belongs in the action. Deploy only
+from trusted push or explicitly authorized workflow_dispatch events.
+
 When `repo` is omitted the action uses the current GitHub repository and commit. When `repo` is explicitly provided without `commit`, the remote checkout resolves that repository's default branch. For reproducibility pass a full commit SHA and a pinned builder image digest. Releases, commits and public app paths are returned as action outputs.
 After SSH returns, the composite action checks that the reported release belongs to the **requested app name, repository, subdirectory and builder image**, and that its resolved Git commit matches any supplied pinned commit. A mismatched response is rejected rather than published as a successful workflow output. The action also bounds the full SSH operation to **35 minutes** using GNU \`timeout\` on the GitHub-hosted Ubuntu runner. If the connection is lost or times out, the remote build might still have committed; inspect the current release before retrying. A deployment without an explicitly pinned commit records, but does not independently prescribe, the Git default-branch commit.
 

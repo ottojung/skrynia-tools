@@ -67,7 +67,7 @@ Use the same SSH options on `app deploy` to build a GitHub repository subdirecto
 
 ## GitHub Actions deployment
 
-Use [the SSH deployment action](action/deploy/action.yml) with a dedicated deploy account, a pinned host key and an SSH private key stored as a GitHub Actions secret. It invokes the same CLI on the static host, transmitting deployment parameters as JSON over SSH without putting secrets into URLs or client builds. See [the full workflow example](docs/deployment.md#github-actions-deployment).
+Use [the SSH deployment action](action/deploy/action.yml) with a dedicated deploy account, a pinned host key and an SSH private key stored as a GitHub Actions secret. It invokes the same CLI on the static host, transmitting deployment parameters as JSON over SSH without putting secrets into URLs or client builds. It also accepts legacy-style namespace and builder inputs and the base-path URL option. See [the full workflow example](docs/deployment.md#github-actions-deployment).
 
 ## Documentation
 

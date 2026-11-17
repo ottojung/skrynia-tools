@@ -16,13 +16,22 @@ if not port.isascii() or not port.isdecimal() or not (1 <= int(port) <= 65535):
     raise SystemExit("invalid SSH port")
 if not re.fullmatch(r"[A-Za-z0-9.-]+", host) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", user):
     raise SystemExit("invalid SSH destination")
-if not env["SKRYNIA_APP_NAME"] or not env["SKRYNIA_APPS_DIR"]:
-    raise SystemExit("missing application name or hosting directory")
+name = env.get("SKRYNIA_APP_NAME") or ""
+namespace = env.get("SKRYNIA_NAMESPACE") or ""
+if name and namespace and name != namespace:
+    raise SystemExit("name and namespace disagree")
+name = namespace or name
+if not name or not env.get("SKRYNIA_APPS_DIR"):
+    raise SystemExit("missing namespace or hosting directory")
+image = env.get("SKRYNIA_BUILDER_IMAGE") or ""
+builder = env.get("SKRYNIA_BUILDER") or ""
+if image and builder and image != builder:
+    raise SystemExit("builder and builder-image disagree")
 repo = env.get("SKRYNIA_REPO") or "https://github.com/" + env["GITHUB_REPOSITORY"]
 commit = env.get("SKRYNIA_COMMIT") or (env.get("GITHUB_SHA") if not env.get("SKRYNIA_REPO") else None)
-request = {"name": env["SKRYNIA_APP_NAME"], "apps_dir": env["SKRYNIA_APPS_DIR"],
+request = {"name": name, "apps_dir": env["SKRYNIA_APPS_DIR"],
            "repo": repo, "subdir": env.get("SKRYNIA_SUBDIR") or ".", "commit": commit,
-           "builder_image": env.get("SKRYNIA_BUILDER_IMAGE") or "docker.io/library/rust:1.93-bookworm"}
+           "builder_image": builder or image or "docker.io/library/rust:1.93-bookworm"}
 with open(sys.argv[1], "w", encoding="utf8") as stream:
     json.dump(request, stream)
 PY
@@ -62,6 +71,10 @@ if not re.fullmatch(r"[0-9a-f]{12}-[0-9a-f]{16}", release):
     raise SystemExit("invalid release ID")
 if not re.fullmatch(r"[0-9a-f]{40}", commit):
     raise SystemExit("invalid commit SHA")
+base = os.environ.get("SKRYNIA_PUBLIC_BASE_PATH") or "/apps"
+if not re.fullmatch(r"/[A-Za-z0-9/_-]*", base) or "//" in base or ".." in base:
+    raise SystemExit("invalid public application base-path")
+base = base.rstrip("/")
 with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as stream:
-    stream.write(f"release={release}\ncommit={commit}\npath=/apps/{name}/\n")
+    stream.write(f"release={release}\ncommit={commit}\npath={base}/{name}/\n")
 PY

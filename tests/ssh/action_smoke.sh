@@ -81,3 +81,39 @@ grep -q 'remote activation may have occurred' "$tmp/timedout.log"
 test "$(cat "$tmp/github-output")" = "$original_output"
 unset MOCK_SSH_FAIL_STATUS
 echo "SSH timeout/lost-result handling checks passed"
+
+# Legacy-style app metadata works through the same SSH deployment transport.
+export SKRYNIA_APP_NAME="" SKRYNIA_NAMESPACE=legacy-app
+export SKRYNIA_BUILDER=ghcr.io/ottojung/skrynia-builder:latest
+export SKRYNIA_BUILDER_IMAGE="" SKRYNIA_PUBLIC_BASE_PATH=/a
+: > "$tmp/github-output"
+bash "$repo/action/deploy/deploy.sh"
+python3 - "$tmp/spec.json" "$tmp/github-output" <<'PY'
+import json, sys
+spec=json.load(open(sys.argv[1],encoding="utf8"))
+assert spec["name"] == "legacy-app"
+assert spec["builder_image"] == "ghcr.io/ottojung/skrynia-builder:latest"
+assert "path=/a/legacy-app/" in open(sys.argv[2]).read()
+PY
+echo "Legacy-style namespace/builder and public URL output verified"
+
+# Conflicting aliases and untrusted output paths must be rejected.
+for variant in name builder base; do
+  case "$variant" in
+    name) export SKRYNIA_APP_NAME=different ;;
+    builder) export SKRYNIA_BUILDER_IMAGE=docker.io/library/rust:1.93-bookworm ;;
+    base) export SKRYNIA_PUBLIC_BASE_PATH=/a/../escape ;;
+  esac
+  before="$(cat "$tmp/github-output")"
+  if bash "$repo/action/deploy/deploy.sh" > "$tmp/rejected.log" 2>&1; then
+    echo "ERROR: accepted invalid $variant input" >&2
+    exit 1
+  fi
+  test "$(cat "$tmp/github-output")" = "$before"
+  case "$variant" in
+    name) export SKRYNIA_APP_NAME="" ;;
+    builder) export SKRYNIA_BUILDER_IMAGE="" ;;
+    base) export SKRYNIA_PUBLIC_BASE_PATH=/a ;;
+  esac
+done
+echo "Deployment alias conflicts and invalid URL prefixes refused"

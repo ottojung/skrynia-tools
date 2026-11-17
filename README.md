@@ -30,6 +30,30 @@ Builds must use relative asset URLs. Host-specific absolute URLs,
 service-worker scopes and frontend routers may need configuration;
 Skrynia does not rewrite arbitrary client source.
 
+## Install with Nix
+
+On Linux or Apple Silicon macOS with Nix flakes enabled, install the CLI directly
+from GitHub:
+
+~~~sh
+nix profile add github:ottojung/skrynia-tools
+skrynia-tools help
+~~~
+
+The flake exposes `packages.<system>.default` and
+`packages.<system>.skrynia-tools`, so you can also run it without
+installing:
+
+~~~sh
+nix run github:ottojung/skrynia-tools -- help
+~~~
+
+The Nix package compiles the native Rust CLI using the pinned
+Cargo.lock. It installs **only the client**: no Skrynia server, SSH,
+system service or deployment daemon is required. For reproducibility
+across future repository changes, pin the GitHub reference to a
+specific commit when installing.
+
 ## CLI examples
 
 ~~~sh

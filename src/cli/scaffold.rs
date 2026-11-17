@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 pub fn create(args: &Arguments) -> Result<()> {
     let name = args.required("name")?;
-    if !super::deploy::valid_name(name) {
+    if !crate::http_app::Keys::new(name).is_ok() {
         bail!("invalid app name");
     }
     let root = Path::new(args.required("directory")?);

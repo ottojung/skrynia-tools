@@ -8,12 +8,9 @@ pub mod cli;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod client;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod deploy;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod event_set;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod http_app;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod log;
 pub mod wire;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use deploy::group;

@@ -1,67 +1,61 @@
-name: Deploy a GitHub app with Skrynia Tools
-description: Build and atomically publish a GitHub repository subdirectory on a Skrynia static host over SSH.
+name: Deploy an application through Skrynia HTTP
+description: Build on the CI runner and atomically publish immutable releases through Skrynia object HTTP endpoints.
 inputs:
-  host:
-    description: SSH hostname or IPv4 address of the authorized static host
+  url:
+    description: Skrynia base HTTP URL, including any path prefix
     required: true
-  port:
-    description: SSH port on the authorized hosting machine
-    required: false
-    default: '22'
-  user:
-    description: SSH deployment account
+  token:
+    description: Scoped Skrynia grant user token; requires create, modify and list
     required: true
-  ssh-private-key:
-    description: Private SSH deployment key (GitHub secret)
+  namespace:
+    description: Application name (legacy compatible)
     required: true
-  known-hosts:
-    description: Trusted SSH host-key record; no TOFU or host-key skipping
-    required: true
-  name:
-    description: Static application name
-    required: true
-  apps-dir:
-    description: Hosting path accessible by skrynia-tools on the remote machine
-    required: true
-  repo:
-    description: GitHub repository URL; defaults to the workflow's source repository
-    required: false
   subdir:
-    description: Monorepo subdirectory containing the Makefile
-    required: false
+    description: GitHub checkout subdirectory with a Makefile build target
     default: .
+  repo:
+    description: GitHub source URL; defaults to the current checkout
+    required: false
   commit:
-    description: Full Git SHA; defaults to workflow SHA only for the workflow source repo
+    description: Full Git SHA; defaults to the GitHub Actions checkout SHA
     required: false
-  builder-image:
-    description: Rootless Podman builder image with Make and application dependencies
+  builder:
+    description: Optional OCI image used to build locally on the GitHub runner
     required: false
-    default: docker.io/library/rust:1.93-bookworm
+  directory:
+    description: Built artifacts directory, relative to subdir
+    default: build
 outputs:
   release:
     description: Immutable release identifier
-    value: ${{ steps.deploy.outputs.release }}
+    value: ${{ steps.upload.outputs.release }}
   commit:
-    description: Exact deployed commit
-    value: ${{ steps.deploy.outputs.commit }}
-  path:
-    description: Static app URL path on the hosting origin
-    value: ${{ steps.deploy.outputs.path }}
+    description: Git commit associated with this exact release
+    value: ${{ steps.upload.outputs.commit }}
+  url:
+    description: Public browser entrypoint served by Skrynia itself
+    value: ${{ steps.upload.outputs.url }}
 runs:
   using: composite
   steps:
-    - id: deploy
+    - id: build
       shell: bash
       env:
-        SKRYNIA_HOST: ${{ inputs.host }}
-        SKRYNIA_USER: ${{ inputs.user }}
-        SKRYNIA_SSH_PORT: ${{ inputs.port }}
-        SKRYNIA_SSH_KEY: ${{ inputs.ssh-private-key }}
-        SKRYNIA_KNOWN_HOSTS: ${{ inputs.known-hosts }}
-        SKRYNIA_APP_NAME: ${{ inputs.name }}
-        SKRYNIA_APPS_DIR: ${{ inputs.apps-dir }}
-        SKRYNIA_REPO: ${{ inputs.repo }}
-        SKRYNIA_SUBDIR: ${{ inputs.subdir }}
-        SKRYNIA_COMMIT: ${{ inputs.commit }}
-        SKRYNIA_BUILDER_IMAGE: ${{ inputs.builder-image }}
-      run: bash "${{ github.action_path }}/deploy.sh"
+        SKRYNIA_APP_NAME: ${{ inputs.namespace }}
+        SKRYNIA_SOURCE_REPO: ${{ inputs.repo }}
+        SKRYNIA_SOURCE_COMMIT: ${{ inputs.commit }}
+        SKRYNIA_APP_SUBDIR: ${{ inputs.subdir }}
+        SKRYNIA_BUILDER_IMAGE: ${{ inputs.builder }}
+        SKRYNIA_BUILD_OUTPUT: ${{ inputs.directory }}
+      run: bash "${{ github.action_path }}/build.sh"
+    - id: upload
+      shell: bash
+      env:
+        SKRYNIA_URL: ${{ inputs.url }}
+        SKRYNIA_TOKEN: ${{ inputs.token }}
+        SKRYNIA_APP_NAME: ${{ inputs.namespace }}
+        SKRYNIA_SOURCE_REPO: ${{ inputs.repo }}
+        SKRYNIA_APP_SUBDIR: ${{ inputs.subdir }}
+        SKRYNIA_BUILT_DIRECTORY: ${{ steps.build.outputs.directory }}
+        SKRYNIA_BUILT_COMMIT: ${{ steps.build.outputs.commit }}
+      run: bash "${{ github.action_path }}/upload.sh"

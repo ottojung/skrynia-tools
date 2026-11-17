@@ -29,13 +29,62 @@ Revoking a grant never deletes stored object bytes. Data deletion and credential
 
 Independent publishers from mutually untrusted groups need separate HTTPS browser origins. Do not claim that an SDK eliminates same-origin or bearer-token security boundaries.
 
-## Local publishing controls
+## HTTP application deployment trust boundary
 
-Private issuer-token files use owner-only permissions, refuse symlinks and are fsynced along with their parent directory before provisioning continues. Credential writes atomically replace a private file before issuing the next credential. Rootless Podman runs builds without adding the operator's Skrynia credentials or SSH key material to the container. Static releases are copied and synchronized separately from source code. The CLI is **not** intended to accept arbitrary untrusted callers on a shared host: users with deployment-host filesystem access can alter release metadata or files.
+Skrynia is the only server. Publishing happens on the caller's machine
+or ephemeral CI runner through authenticated object POST and CAS PUT.
+The deployment token is a scoped user credential, not an issuer token or
+root credential. It must not be included in public build artifacts,
+source history, public logs or the build container environment. The
+GitHub Action builds the application before introducing the upload token.
 
-## Release integrity commitments
+An application release consists of ordinary hierarchical byte objects,
+a JSON manifest with relative paths, SHA-256 digests and byte counts,
+and a fixed-size ready marker. Assets are created before the ready
+marker. The final active pointer is one Skrynia object, changed by
+byte-SHA256 CAS. A concurrent activation produces a conflict; a lost
+network response cannot be safely assumed to mean no change.
 
-New code releases store an SHA-256 commitment to all copied artifact bytes, relative paths, directory entries and executable flags. `app verify` checks this explicitly, including over restricted SSH. It is not part of rollback and does not imply any consistency of application data, storage migrations, running processes or external hosting caches. A host operator with write access to both the metadata and release trees remains trusted.
+Rollback reads only the fixed-size ready marker and bounded active
+pointer and CAS-updates one pointer. A unique random nonce in each
+pointer value avoids ABA for cooperating activation clients. This does
+not guarantee real-time latency and does not migrate application data.
+
+A single broad create/modify/list token covering the whole application
+prefix does **not** make historical assets immutable to adversaries
+holding that token. Strong immutability requires separate create-only
+release authority and narrower mutable-pointer authority. The current
+single-token GitHub Action enforces create-only operation by client
+convention, not by grant separation.
+
+A fake ready marker or manifest may be supplied by another authorized
+writer. Explicit app verify re-reads each asset and checks the declared
+SHA-256 digest, but a malicious writer able to replace manifest and
+assets together is not authenticated by these hashes. The stable
+browser entrypoint reads the active pointer and follows a relative URL;
+it is not an independently verifying cryptographic loader.
+
+Applications with absolute asset paths, custom CSP or service-worker
+scopes may not function from the versioned URL until their build
+configuration is changed. The tool refuses nonregular build files,
+unsafe paths, and overlong keys. It leaves abandoned partial releases
+in place rather than deleting unknown data.
+
+## GitHub build and provenance
+
+Source builds execute make build locally on the developer machine
+or GitHub runner. A build script is arbitrary code: audit the source
+commit and dependencies. A disposable OCI builder can reduce privileges,
+but no container automatically makes arbitrary source safe. When
+provided, its image is run on the same CI runner, never on a hosting
+machine and never with the deployment token.
+
+The Action authenticates uploads only after local build completion.
+It verifies the returned app name and Git commit before writing
+workflow outputs. A lost HTTP activation reply requires an
+authoritative app current inspection before retrying. The tool does
+not assume a separate deployment server, SSH, filesystem symlink or
+static web server. The existing Skrynia HTTP server serves all bytes.
 
 ## Administrative grant recovery
 
@@ -47,18 +96,6 @@ Optional grant provisioning writes a private journal before remote creation, sav
 `admin revoke-user` and `admin revoke-grant` use the locally held issuer capability in the private child-grant journal. The CLI requires the exact grant ID again before either destructive **authority** change. It persists an in-progress state before the HTTP DELETE and requires explicit acknowledgement to retry an uncertain result. A 404 is treated as confirmed absence only with the expected Skrynia `user_not_found` or `grant_not_found` error code; an arbitrary 404 does not confirm revocation. Once done, corresponding credentials are removed from the journal; `admin inspect` never reveals them. Root credentials are not a supported journal input. A revoked capability can still exist as a copied secret elsewhere but must be rejected by Skrynia if revocation was committed.
 
 Grant revocation does **not** erase stored bytes; do not confuse authority lifecycle with data retention or application release lifecycle. Deleting a child grant also affects subordinate users/grants, so treat `revoke-grant` as a privileged operation.
-
-## Build timeout containment
-
-Git/build tool subprocesses are started in separate Unix process groups; timeout cleanup signals their group and reaps the direct process. Captured output is bounded and concurrently drained. Podman build failures additionally trigger container removal. A script that deliberately daemonizes into a different session, starts a remote process or escapes the configured container boundary may outlive this group, so this is failure containment rather than a universal process-sandbox guarantee.
-
-## Podman builder-image boundary
-
-The builder-image selector is strictly one validated OCI-style reference. The runner inserts an explicit \`--\` argument terminator before the image, disallowing option interpretation (such as \`--privileged\`, \`--network\` or \`--mount\`). The builder command remains fixed to \`make build\`, in rootless Podman with all Linux capabilities dropped and no operator credentials mounted. Image validation does not establish that the selected image's contents are trustworthy; pin reviewed images by digest for reproducibility.
-
-## Remote CLI input and cancellation
-
-Remote SSH management uses an explicit-size JSON message (at most 16 KiB) and an overall command deadline, including pipe writes. The local SSH process runs in an isolated process group; a blocked stdin pipe cannot indefinitely bypass timeout supervision. Local cancellation may leave a completed or still-running remote deployment, so caller-facing errors identify uncertain effects rather than claiming rollback. Inspect the remote active release before deciding to resend.
 
 ## Browser URL and credential boundaries
 
@@ -75,19 +112,3 @@ Native client error responses are read with a 4 KiB cap, rather than materializi
 ## Isolated real-server credential lifecycle regression
 
 The source-pinned Skrynia CI compatibility job now also exercises `admin create`, `revoke-user`, `revoke-grant` and repeated completed revocation against a disposable localhost server and grant hierarchy. It confirms a revoked user is rejected when attempting a new object creation, a revoked grant's former issuer cannot issue a user, the journal has shed its secrets, and the bytes published before revocation remain readable. All test credentials are private under a temporary owner-only directory, never reused from a production deployment. This checks server/client interoperability but not physical power-loss recovery or complete credential-lifecycle security.
-
-## GitHub Actions result attestation boundary
-
-The composite action confirms the remote release metadata's name, exact repository URL, source subdirectory, builder image and any requested full Git commit **before** writing GitHub Action outputs. It also enforces a bounded SSH session (35 minutes) rather than hanging indefinitely if the remote connection stalls. This is metadata consistency checking, **not cryptographic host attestation**: the authorized deployment host controls its response and is trusted to build and publish the supplied source. An SSH timeout cannot roll back changes already accepted by the server. When an outcome is uncertain, reconcile by inspecting the remote release before resubmitting.
-
-## Durable activation generations and ABA protection
-
-Application activation/rollback has a per-application eight-byte activation generation saved under the private \`.locks\` directory. The generation is atomically persisted and the lock directory synchronized **before** a release symlink is replaced, so a build launched under A cannot unknowingly override a later A → B → A administrative sequence. A build observes both the active release and its generation under the short activation lock, and rechecks both before switching after its long build. Counter changes are O(1) and independent of release history and artifact size. Failed/uncertain activations can conservatively advance the counter even when the symlink remains unchanged. This is a protocol for **cooperating CLI activations** and relies on durable filesystem ordering; manual symlink edits, hostile host owners, and filesystems that violate fsync ordering are outside the guarantee. Corrupted/symlinked generation files reject activation rather than resetting the counter. The read-only app audit reports such corruption as generation_error and returns nonzero, including when release artifacts themselves remain intact.
-
-## Auditing abandoned code-publication intermediates
-
-The read-only app audit also detects hidden candidate symlinks from interrupted atomic release activations and app-specific build workspaces that survived a crash or failed cleanup. It reports both without deleting them. A running deployment may legitimately expose these intermediate entries, so inspect again when the build lock is released before diagnosing a persistent leak. Other applications' workspaces and private files are outside a per-app audit.
-
-## Full historical integrity verification
-
-`app verify-all` is an explicit, read-only scan of all retained versions. It verifies every available release's whole-tree SHA-256 commitment, including inactive history, and reports mismatches, unverifiable legacy records and per-release read errors without hiding the healthy results. It does not delete objects, alter deployment pointers or provide rollback-time verification. The verifier directly enumerates metadata filenames so a malformed entry or a missing artifact is reported without concealing healthy results. A completely inaccessible metadata directory remains a fatal scan error; use `app audit` to inspect artifact-only releases and other structural inconsistencies. Checksums protect against accidental file changes, **not** a malicious owner of both metadata and artifact trees.

@@ -44,7 +44,7 @@ jobs:
             node --check "$file"
           done
           node tests/web-admin/faults.mjs
-      - name: Chromium encrypted-vault and grant lifecycle
+      - name: Chromium, direct-HTTP GitHub Actions and encrypted-vault lifecycle
         env:
           SKRYNIA_TEST_SERVER_BIN: ${{ github.workspace }}/.deps/skrynia/target/debug/skrynia-server
           SKRYNIA_TEST_BROWSER: "1"

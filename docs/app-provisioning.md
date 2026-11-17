@@ -1,22 +1,20 @@
-# Optional application data provisioning
+# Optional application data grants
 
-**Application deployment does not require Skrynia data or append-only logs.** Static applications can deploy without any grant or storage initialization. This optional workflow assigns a dedicated object key prefix to an application that wants client-side durable storage.
+Static releases do not depend on persistent application data, grants
+for client writers or particular data protocols.
 
-## Independent app identity
+For an app that stores data, unlock the [Skrynia web administration
+interface](web-admin.md), choose a parent user grant with `delegate`
+authority, and issue a narrowly scoped child grant with explicit
+locations, operations and byte/object quotas. Save its issuer token
+in the encrypted vault before issuing a user token.
 
-A human-readable deploy name (e.g. `hello`) identifies the static website and its releases. An independently generated unpredictable data identifier can reserve `a.<id>.*`. No server-side app object exists. No generic `manifest`, `log` or `head` key is required. Apps choose and version their own data protocols.
+Only a user token intended for public use may be embedded in static
+client files. Never publish root or issuer credentials or a global
+writer grant. Grant issuance and vault persistence are not a single
+atomic operation; the browser journals intents and requires explicit
+reconciliation after uncertain failures.
 
-## Minimal authority workflow
-
-Given a parent **user** token authorized for `delegate`, an administrator can create a grant with explicit `locations`, `operations`, `maxBytes`, `maxObjects`. The response is an exact-grant issuer token; securely persist it before any next remote action. Issue the exact-grant user token using that issuer token. Narrow, independent role grants should be requested only when justified by the application's chosen data protocol.
-
-An ordinary browser should receive only its explicitly delegated, publicly exposable user token; it must not receive root or issuer credentials. A grant has exactly **one** location matcher; disjoint role scopes require separate grants and credentials. Overlapping broader grants can still edit data. Creation is not transactional: if the successful grant-create response is lost, its issuer secret may be irrecoverable.
-
-`skrynia-tools admin plan --name hello --max-bytes N --max-objects N` previews a data prefix and owner grant without side effects. Supply its 32-hex `--id` to `skrynia-tools admin create --name hello --url URL --parent-token-file FILE --credentials-out FILE --max-bytes N --max-objects N --id ID` to provision that exact scope. This owner grant has broad operations and its credentials must never be shipped in a public app. Neither command creates protocol data.
-
-Revoking a grant never deletes stored bytes, and redeploying or rolling back an app never revokes any data grants.
-
-
-## Credential lifecycle
-
-The initial grant and first user credential can be managed without any relation to application code deployment. `admin inspect` reports the journal's state without displaying credentials; `admin resume` handles recoverable issuance states. For deliberate revocation, `admin revoke-user` invalidates the recorded user token, and `admin revoke-grant` invalidates the entire descendant authority tree. Both require `--confirm-grant-id ID` and write a recoverable private revocation state before sending DELETE. An uncertain result must be inspected before retrying with `--retry-after-uncertain true`. Revocation **does not delete object data**, release history or application code.
+A revoked grant invalidates its users and descendants but does not
+delete objects. Changing an app's active code version does not
+migrate its data or grant tree.

@@ -54,5 +54,3 @@ SKRYNIA_SNAPSHOT_TOKEN="$(python3 -c 'import json,sys;print(json.load(open(sys.a
   SKRYNIA_SNAPSHOT_PREFIX="snapshots.live" \
   cargo run --quiet --manifest-path "$repo/Cargo.toml" --example snapshot
 echo "Real Skrynia HTTP optional-protocol integrations passed"
-cargo build --quiet --locked --manifest-path "$repo/Cargo.toml" --bin skrynia-tools
-python3 "$repo/tests/http/revoke_live.py" "$repo/target/debug/skrynia-tools"   "$SKRYNIA_URL" "$tmp/parent-token" "$tmp"

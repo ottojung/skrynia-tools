@@ -58,6 +58,7 @@ export SKRYNIA_TOOLS_SOURCE_DIR="$repo"
 bash "$repo/deploy.sh" > "$tmp/output"
 password="$(awk '/^Access secret:/ {print $3}' "$tmp/output")"
 test "${#password}" -ge 40
+node "$repo/tests/web-admin/actions.mjs"
 node "$repo/tests/web-admin/releases.mjs"
 if [[ "${SKRYNIA_TEST_BROWSER:-0}" == 1 ]]; then
   TEST_ACCESS_SECRET="$password" node "$repo/tests/web-admin/browser.mjs"

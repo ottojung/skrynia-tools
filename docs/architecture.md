@@ -17,8 +17,8 @@ or ephemeral CI runner, not on an application/deployment server.
 4. Browser entrypoint: stable HTML fetches the active pointer and
    navigates to the selected release's index.html. No dynamic server
    routing, backend execution, HTML rewriting or symlink activation.
-5. GitHub Action: builds on the runner, authenticates with a scoped user
-   token and invokes the Rust CLI through ordinary Skrynia HTTP.
+5. GitHub Actions: build on the runner, authenticate with scoped user
+   tokens, and publish directly using JavaScript HTTP modules.
 
 Skrynia's hierarchical store URLs preserve directory layouts and MIME
 types. Every publish is a series of single-object operations; only
@@ -56,5 +56,6 @@ release assets and application data are untouched. The interface
 never promises a multi-object atomic grant workflow, and persists
 an encrypted intent journal before credential mutations.
 
-The CLI remains useful for CI and automation; it is not the
-interactive administration interface. See [Web administration](web-admin.md).
+There is **no CLI binary**. CI uses composite GitHub Actions; interactive
+administration is through the web interface. See
+[Web administration](web-admin.md).

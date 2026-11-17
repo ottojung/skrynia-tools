@@ -20,7 +20,7 @@ fn qualified_visibility_import_cannot_descend_into_grandchild() {
 fn module_source_cannot_point_into_descendant_directory() {
     let mut issues = Vec::new();
     imports::check(
-        Path::new("src/main.rs"),
+        Path::new("src/lib.rs"),
         "#[path = \"inner/nested.rs\"] mod nested;",
         &mut issues,
     );

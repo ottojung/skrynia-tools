@@ -30,8 +30,8 @@ controlling terminal. The grant input is read without terminal echo; never
 paste it into shared shell history. The bootstrap requires Bash, curl, tar,
 and Node.js 22 or newer. It downloads Skrynia Tools source and publishes its
 web assets directly over Skrynia HTTP using the supplied user token. No SSH,
-privileged admin daemon, installation on the Skrynia host, or extra API endpoint
-is required.
+privileged admin daemon, CLI executable, installation on the Skrynia host,
+or extra API endpoint is required.
 
 For a reviewed and reproducible installation, fetch `deploy.sh` at an exact
 Git SHA and export `SKRYNIA_TOOLS_REF` to **that same SHA**. An already checked

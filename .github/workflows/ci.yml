@@ -30,6 +30,7 @@ jobs:
         run: |
           bash -n action/deploy/build.sh action/deploy/upload.sh
           bash tests/http/action_smoke.sh
+          bash tests/http/action_upload.sh
       - name: Clippy (zero warnings)
         run: cargo clippy --locked --all-targets -- -D warnings
 
@@ -85,7 +86,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: a33336e29c8781115489a3b4adc270573bc458fc
+          ref: 619bf93c98dad3a3d2d3b50111d07d61e406171f
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable

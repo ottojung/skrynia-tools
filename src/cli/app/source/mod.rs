@@ -1,5 +1,6 @@
 mod checkout;
 mod execute;
+mod validate;
 use super::Arguments;
 use anyhow::Result;
 use std::{fs, path::PathBuf};

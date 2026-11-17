@@ -1,0 +1,29 @@
+name: Publish a stable application asset
+description: Publish a stable PWA asset under the application root, independently of release activation.
+inputs:
+  url:
+    description: Skrynia server URL
+    required: true
+  token:
+    description: Scoped deployment grant user token
+    required: true
+  name:
+    description: Application name
+    required: true
+  asset:
+    description: One of sw.js, manifest.webmanifest, icon.svg
+    required: true
+  file:
+    description: Local file to publish
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        SKRYNIA_URL: ${{ inputs.url }}
+        SKRYNIA_TOKEN: ${{ inputs.token }}
+        SKRYNIA_APP_NAME: ${{ inputs.name }}
+        SKRYNIA_STABLE_ASSET: ${{ inputs.asset }}
+        SKRYNIA_STABLE_FILE: ${{ inputs.file }}
+      run: bash "${{ github.action_path }}/upload.sh"

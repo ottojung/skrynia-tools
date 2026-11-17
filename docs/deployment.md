@@ -50,6 +50,27 @@ unmatched SPA routes require an explicitly configured app fallback.
 Do not serve an HTML fallback for missing JavaScript, stylesheets or
 images.
 
+Stable root files can be published explicitly, independent of
+release creation or activation:
+
+~~~sh
+skrynia-tools app publish-stable --name hello --asset sw.js \
+  --file ./build/sw.js
+skrynia-tools app publish-stable --name hello --asset manifest.webmanifest \
+  --file ./build/manifest.webmanifest
+skrynia-tools app publish-stable --name hello --asset icon.svg \
+  --file ./build/icon.svg
+~~~
+
+The command uses the same environment token and URL as other
+application commands. It creates the missing object, accepts identical
+content as a no-op, or compares its previous SHA-256 before replacing
+it. It refuses other asset paths, and never blindly retries an
+uncertain mutation. These stable objects are **not** changed by
+code rollback. Publishing a stable worker is a distinct operation
+whose compatibility with existing browser subscriptions must be
+verified by the application.
+
 Service workers should register at the stable app-root path `/sw.js`
 when persistent root scope is required. A worker under a versioned
 release has version-specific scope. The stable worker is an independent

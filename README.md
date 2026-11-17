@@ -58,6 +58,13 @@ system service or deployment daemon is required. For reproducibility
 across future repository changes, pin the GitHub reference to a
 specific commit when installing.
 
+For a PWA that needs a permanent root-scoped service worker,
+publish it separately from immutable code releases with
+`skrynia-tools app publish-stable --name hello --asset sw.js
+--file build/sw.js`. Its associated `manifest.webmanifest` and
+`icon.svg` may also be published at the stable app root. Rollback
+only changes the active code pointer and leaves these assets alone.
+
 ## CLI examples
 
 ~~~sh

@@ -9,6 +9,7 @@ pub const NAMES: &[&str] = &[
     "subdir",
     "output",
     "release",
+    "asset",
     "from",
     "to",
     "key",

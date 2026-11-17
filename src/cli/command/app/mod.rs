@@ -1,5 +1,6 @@
 mod mutate;
 mod query;
+mod stable;
 use super::common::action;
 use clap::Command;
 pub fn command() -> Command {
@@ -9,6 +10,7 @@ pub fn command() -> Command {
         .arg_required_else_help(true)
         .subcommand(mutate::new())
         .subcommand(mutate::deploy())
+        .subcommand(stable::command())
         .subcommand(mutate::activate())
         .subcommand(query::list())
         .subcommand(query::current())

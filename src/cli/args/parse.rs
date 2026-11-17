@@ -1,39 +1,22 @@
 use super::Arguments;
-use anyhow::{Result, bail};
 use std::collections::BTreeMap;
-pub fn parse() -> Result<Arguments> {
-    let mut input = std::env::args().skip(1);
-    let Some(group) = input.next() else {
-        bail!("usage: skrynia-tools <app|object|log|admin> <action> [--key value]");
-    };
-    let Some(action) = input.next() else {
-        bail!("missing action after {group}");
-    };
+pub fn parse() -> anyhow::Result<Arguments> {
+    let matches = super::super::command::root().get_matches();
+    let (group, parent) = matches.subcommand().expect("clap requires command");
+    let (action, matches) = parent.subcommand().expect("clap requires action");
     let mut flags = BTreeMap::new();
-    while let Some(key) = input.next() {
-        if !key.starts_with("--") || key.len() <= 2 {
-            bail!("invalid option {key}");
+    for name in super::super::command::flag_names() {
+        if let Ok(Some(value)) = matches.try_get_one::<String>(name) {
+            flags.insert(format!("--{name}"), value.clone());
+        } else if let Ok(Some(enabled)) = matches.try_get_one::<bool>(name)
+            && *enabled
+        {
+            flags.insert(format!("--{name}"), "true".into());
         }
-        let value = if key == "--parent-grant-is-root" {
-            "true".into()
-        } else {
-            input
-                .next()
-                .ok_or_else(|| anyhow::anyhow!("missing value for {key}"))?
-        };
-        if flags.insert(key, value).is_some() {
-            bail!("duplicate option");
-        }
-    }
-    if !flags.contains_key("--url")
-        && let Ok(url) = std::env::var("SKRYNIA_URL")
-        && !url.is_empty()
-    {
-        flags.insert("--url".into(), url);
     }
     Ok(Arguments {
-        group,
-        action,
+        group: group.into(),
+        action: action.into(),
         flags,
     })
 }

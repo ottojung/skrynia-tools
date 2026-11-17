@@ -41,6 +41,6 @@ pub fn run(args: &Arguments) -> Result<()> {
         "verify" => http_app::verify(&client, args.required("name")?, args.required("release")?),
         "current" | "inspect" | "show" | "versions" | "history" | "releases" | "list" | "ls"
         | "compare" | "diff" | "verify-all" => inspect::run(args, &client),
-        _ => bail!("unknown HTTP app command: {}", args.action),
+        _ => bail!("unknown app command: {}", args.action),
     }
 }

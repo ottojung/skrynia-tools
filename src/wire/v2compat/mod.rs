@@ -8,7 +8,8 @@ mod route;
 mod types;
 
 pub use backend::{
-    CompatBackend, CompatError, CompatResult, Meta, Object, ObjectRead, Store, Unavailable,
+    CompatBackend, CompatError, CompatResult, Meta, Mutation, MutationKind, Object, ObjectRead,
+    Store, Unavailable,
 };
 pub use route::handle;
 pub use types::{Request, Response};

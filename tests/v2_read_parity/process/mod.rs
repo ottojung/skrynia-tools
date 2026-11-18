@@ -6,3 +6,4 @@ pub struct Server {
     pub(super) child: Child,
     pub(super) dir: PathBuf,
 }
+mod credentials;

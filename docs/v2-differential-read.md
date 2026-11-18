@@ -33,3 +33,18 @@ grant authority, SHA-256 preconditions and quotas. A real v3-backed
 implementation of that capability is not yet present; the default returns
 `not_implemented`. Do not treat the passing negative-path differential test
 as proof of positive mutation compatibility.
+
+## Disposable root-grant mutation differential
+
+The same opt-in differential command also creates a **new root user token in
+the disposable v2 server** by reading only that test server's root grant
+record and calling the v2 token-issuance endpoint. It never reads real
+production credentials. It then compares positive POST/PUT/DELETE mutations
+and read-after-write against a synchronized, root-unlimited in-memory
+compatibility model, including conflict, correct and incorrect SHA-256 CAS,
+and missing-object deletion. Bodies, status codes and selected HTTP headers
+must match the pinned native server.
+
+The in-memory backend is a test oracle, **not** the implemented v3 persistent
+grant/quota engine. Child delegation, quotas, revocation, simultaneous writes,
+Web Push, and durable migration are still unqualified release gates.

@@ -1,4 +1,4 @@
-pub use self::store::{ObjectRead, Store};
+pub use self::store::{Object, ObjectRead, Store};
 use super::types::Response;
 mod store;
 

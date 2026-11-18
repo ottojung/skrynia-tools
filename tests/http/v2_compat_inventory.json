@@ -1,0 +1,64 @@
+{
+  "schema": "skrynia-tools.v2-compat-inventory",
+  "version": 1,
+  "pinned": {
+    "skrynia_tools_commit": "aba366b",
+    "skrynia_tools_remote": "https://github.com/ottojung/skrynia-tools.git",
+    "v2_server_baseline": "source-needed"
+  },
+  "notes": [
+    "Inventory derived from pinned skrynia-tools client/tests and v3-spec v2 API docs; fields marked source-needed require confirmation against authoritative pinned v2 server behavior.",
+    "Harness must not mutate production data; differential runs require isolated disposable state."
+  ],
+  "reference_corpus": [
+    "tests/http/protocols_live.sh",
+    "tests/http/deploy_live.sh",
+    "tests/http/revoke_live.py",
+    "src/client/request/status.rs",
+    "src/client/errors/mod.rs",
+    "src/client/store.rs",
+    "src/client/cas.rs",
+    "src/client/grants.rs",
+    "src/client/revoke.rs",
+    "src/client/read.rs",
+    "docs/security.md",
+    "docs/protocols.md"
+  ],
+  "endpoints": [
+    {"id":"health","method":"GET","path":"/health","auth":"public","success":[200],"negative":[503],"notes":"503 on recovery latch (ops). body source-needed."},
+    {"id":"version","method":"GET","path":"/version","auth":"public","success":[200],"negative":[],"notes":"body source-needed."},
+    {"id":"push_vapid","method":"GET","path":"/push/vapid","auth":"public","success":[200],"negative":[],"notes":"returns public VAPID key; shape source-needed."},
+    {"id":"store_get","method":"GET","path":"/store/{key}","auth":"public","success":[200,206,304],"negative":[404,416,400],"headers_out":["ETag","Cache-Control","X-Content-Type-Options","Content-Type","Content-Range"],"headers_in":["If-None-Match","If-Range","Range"],"notes":"Strong ETag sha256 of bytes; single-range/suffix; stale If-Range returns full object."},
+    {"id":"store_head","method":"HEAD","path":"/store/{key}","auth":"public","success":[200,304],"negative":[404],"notes":"Metadata parity with GET; conditional details source-needed."},
+    {"id":"store_list","method":"GET","path":"/store?locations={matcher}&limit={n}&after={cursor}","auth":"bearer_user_list","success":[200],"negative":[400,401,403],"response":["keys","next"],"notes":"Matcher grammar exact/prefix*/dir/*/*/empty; sorted keys; max/default page 1000; scope subset required."},
+    {"id":"store_create","method":"POST","path":"/store/{key}","auth":"bearer_user_create","success":[201],"negative":[400,403,409,503,507],"forbidden_headers":["If-Match","If-None-Match","If-Modified-Since","If-Unmodified-Since","If-Range","X-Skrynia-If-SHA256"],"error_codes":["invalid_precondition","path_conflict"],"notes":"409 exists collision and/or path_conflict; body differs source-needed."},
+    {"id":"store_replace","method":"PUT","path":"/store/{key}","auth":"bearer_user_modify","success":[200],"negative":[400,403,404,412,503,507],"headers_in":["X-Skrynia-If-SHA256"],"error_codes":["content_mismatch","invalid_precondition"],"notes":"CAS header 64 lowercase hex; HTTP conditionals rejected with 400 invalid_precondition."},
+    {"id":"store_delete","method":"DELETE","path":"/store/{key}","auth":"bearer_user_delete","success":[200],"negative":[400,403,404,412],"headers_in":["X-Skrynia-If-SHA256"],"error_codes":["content_mismatch","invalid_precondition"],"notes":"DELETE needs no quota headroom."},
+    {"id":"grant_create","method":"POST","path":"/grants","auth":"bearer_parent_user_delegate","success":[200],"negative":[400,403],"request_fields":["locations","operations","maxBytes","maxObjects"],"response_fields":["id","issuerToken"],"notes":"No user token issued; strict field validation; child narrowing only."},
+    {"id":"grant_get","method":"GET","path":"/grants/{id}","auth":"bearer_exact_grant_user","success":[200],"negative":[401,403,404],"notes":"Inspect grant and usage; exact semantics source-needed."},
+    {"id":"grant_issue_user","method":"POST","path":"/grants/{id}/users","auth":"bearer_exact_issuer","success":[200],"negative":[403,404],"response_fields":["grantId","userId","userToken"],"error_codes":["grant_not_found"],"notes":"Issuer cannot write objects; user cannot issue users."},
+    {"id":"grant_revoke_user","method":"DELETE","path":"/grants/{id}/users/{userId}","auth":"bearer_exact_issuer","success":[200],"negative":[403,404],"error_codes":["user_not_found","grant_not_found"],"notes":"404 confirmed absent only with expected error code per client."},
+    {"id":"grant_revoke","method":"DELETE","path":"/grants/{id}","auth":"bearer_exact_issuer","success":[200],"negative":[403,404],"error_codes":["grant_not_found"],"notes":"Revokes subtree/tokens/subscriptions, never deletes object values."},
+    {"id":"push_subscribe","method":"POST","path":"/push/subscriptions","auth":"bearer_user_subscribe","success":[200,201],"negative":[400,403,507],"request_fields":["locations","events","endpoint","keys"],"response_fields":["id","capability","deduped"],"notes":"events default create/replace/delete; HTTPS endpoint; exact success status source-needed."},
+    {"id":"push_update","method":"PUT","path":"/push/subscriptions/{id}","auth":"x_skrynia_capability","success":[200],"negative":[400,403,404],"notes":"Endpoint/keys mutable; locations/events immutable."},
+    {"id":"push_delete","method":"DELETE","path":"/push/subscriptions/{id}","auth":"x_skrynia_capability","success":[200],"negative":[403,404],"notes":"Removes subscription."}
+  ],
+  "operations": ["create","modify","delete","list","delegate","subscribe"],
+  "quota": {
+    "bytesUsed": "sum(payloadBytes+512 for matching objects)+2048*descendant_grants+128*extra_user_tokens_beyond_first+4096*sponsored_push_subscriptions",
+    "objectsUsed": "count(matching stored objects)+count(sponsored push subscriptions in descendant tree)",
+    "notes": ["Acting grant and ancestors checked; PUT charges full resulting value; DELETE no quota headroom; quota error observed grant_quota_exceeded."]
+  },
+  "negative_matrix_categories": [
+    "invalid_key_or_matcher",
+    "missing_or_wrong_auth",
+    "issuer_user_capability_separation",
+    "scope_narrowing_and_outside_authority",
+    "conditional_precondition_mismatch_or_invalid",
+    "absent_vs_conflict_vs_path_conflict",
+    "quota_exceeded",
+    "upload_limits_and_backpressure",
+    "push_capability_and_subscription_validation",
+    "revocation_and_post_revocation_denial"
+  ]
+}

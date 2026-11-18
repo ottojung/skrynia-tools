@@ -9,13 +9,16 @@ The VM loads a module from `SKRYNIA_ROOT_WASM` on every initialization or
 restart. The module exports:
 
 ```text
-skrynia_main(input_fd: i32, out_ptr: u32, out_cap: u32) -> i32
+skrynia_main(input_fd: i32, output_fd: i32) -> i32
 ```
 
-The first argument is a read-only, forward-only HTTP body descriptor, **not**
-a WASM memory address. The module reads with the privileged
-`skrynia.read(input_fd, dst_private_ptr, len)` host import until EOF and may
-close the input descriptor. Attempted write/seek/truncate/sync fails. Program
+Both arguments are opaque, forward-only stream descriptors, **not** WASM
+memory addresses. The module reads the first using the privileged
+`skrynia.read(input_fd, dst_private_ptr, len)` import until EOF, then
+writes its output with `skrynia.write(output_fd, src_private_ptr, len)`
+in a loop to handle short writes. It may close either descriptor. The
+input forbids writes; the output forbids reads. Neither can seek, truncate
+or sync. Program
 0 has its own private linear memory, wholly separate from global RAM.
 Evaluated child programs do **not** inherit Program 0 privileges.
 

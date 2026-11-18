@@ -1,6 +1,7 @@
 mod backend;
 mod key;
 mod mime;
+mod mutate;
 mod read;
 mod reply;
 mod route;
@@ -13,6 +14,4 @@ pub use route::handle;
 pub use types::{Request, Response};
 
 #[cfg(test)]
-mod tests_route;
-#[cfg(test)]
-mod tests_store;
+mod tests;

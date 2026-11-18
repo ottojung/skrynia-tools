@@ -4,7 +4,7 @@ use super::{
     types::{Request, Response},
 };
 use sha2::{Digest, Sha256};
-mod cache;
+pub(super) mod cache;
 mod range;
 mod response;
 mod select;

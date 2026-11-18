@@ -23,3 +23,13 @@ grant tree, tokens, delegated authority, mutation CAS/quota accounting,
 subscription delivery, Web Push, concurrent writes or migration. Those
 operations are still release blockers; no production cutover is authorized
 on the strength of this read-only suite.
+
+The pinned baseline suite also exercises *negative* object-mutation requests
+(POST/PUT/DELETE without a valid bearer credential, malformed keys, and
+forbidden/malformed conditional headers). Those are verified against actual
+v2 HTTP behavior. Positive mutation handling is wired through an injected
+`Store::mutate_object` capability, which **must atomically** enforce
+grant authority, SHA-256 preconditions and quotas. A real v3-backed
+implementation of that capability is not yet present; the default returns
+`not_implemented`. Do not treat the passing negative-path differential test
+as proof of positive mutation compatibility.

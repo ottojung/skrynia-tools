@@ -33,8 +33,8 @@ fn unknown_and_method_errors() {
 #[test]
 fn recognized_mutations_route_as_not_implemented() {
     let c = handle(&Unavailable, &req("POST", "/store/a.txt"));
-    assert_eq!(c.status, 501);
-    assert_eq!(c.body, br#"{"error":"not_implemented"}"#);
+    assert_eq!(c.status, 401);
+    assert_eq!(c.body, br#"{"error":"grant_user_token_required"}"#);
     let g = handle(&Unavailable, &req("POST", "/grants"));
     assert_eq!(g.status, 501);
 }

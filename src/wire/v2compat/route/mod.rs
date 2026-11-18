@@ -19,7 +19,7 @@ pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
             with_cors(super::read::handle(backend, &method, &p[7..], req))
         }
         ("POST" | "PUT" | "DELETE", p) if p.starts_with("/store/") => {
-            with_cors(reply::error(501, "not_implemented"))
+            with_cors(super::mutate::handle(backend, &method, &p[7..], req))
         }
         ("GET", "/store") => with_cors(reply::error(501, "not_implemented")),
         _ if paths::stub(method.as_str(), path) => with_cors(reply::error(501, "not_implemented")),

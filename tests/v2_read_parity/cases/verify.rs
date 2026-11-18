@@ -16,5 +16,6 @@ pub fn verify(url: &str) -> Result<(), String> {
         super::compare::one(&client, &obj, url, method, path, header, value)?;
     }
     super::validators::verify(&client, &obj, url)?;
+    super::negative_write::verify(url)?;
     Ok(())
 }

@@ -41,3 +41,22 @@ register/set/invoke/lookup/revoke protocol in WASM. It is **not yet a complete
 implementation of the historical v2 grant-based wire protocol**. That parity
 belongs to this repository's compatibility facade and is a release gate.
 No CLI is required or supported for Program 0.
+
+
+## Executable cross-repository integration
+
+With both repositories built independently, verify the actual HTTP behavior
+using the explicitly ignored test (it never touches production data):
+
+```sh
+SKRYNIA_V3_SERVER_BIN=/absolute/path/to/skrynia-server \
+SKRYNIA_V3_PROGRAM0_WASM=/absolute/path/to/skrynia_program0.wasm \
+cargo test --locked -p skrynia-tools --test v3_live -- --ignored --nocapture
+```
+
+The harness creates a fresh temporary storage directory, launches and
+restarts the external server process, then verifies register/invoke/set/
+restart/invoke/revoke through real `POST /` requests. Missing env variables
+fail explicitly when this opt-in test is run; ordinary unit test executions
+report it as ignored, not as a false parity pass. This tests the small
+example registry only, not the complete historical grant protocol.

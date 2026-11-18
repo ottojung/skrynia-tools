@@ -33,3 +33,11 @@ web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "He
 [workspace]
 members = [".", "program0"]
 resolver = "2"
+
+[dev-dependencies]
+skrynia-program0 = { path = "program0" }
+wat = "1"
+
+[[test]]
+name = "v3_live"
+path = "tests/v3_live/mod.rs"

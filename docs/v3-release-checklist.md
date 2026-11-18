@@ -114,3 +114,31 @@ Migration is a separate explicit validated export/import process. No automatic i
 - Migration/rollback rehearsal (disposable v2, no v3 import): `python3 tests/http/migration_rehearsal.py live-rehearsal --v2-binary <path-to-pinned-skrynia-server> [--evidence-dir <dir>]`
 - Future v2-vs-v3 differential (when disposable candidate exists): `python3 tests/http/differential_parity.py --inventory tests/http/v2_compat_inventory.json --differential-scenarios --v2-binary <pinned-v2> --candidate <http://disposable-v3-facade> [--candidate-root-id ... --candidate-root-issuer ...]`
 
+
+## Continuation (2026-11-18, agent-mvAwg4Z28px41EsZMm9THD-honored, host marceline-dev)
+
+**Scope:** Fresh disposable verification on pinned v2 baseline only (no candidate v3+facade). No code changes to harness; evidence gathered from existing PR #11 branch state (`c69d127` at run start) and recorded for board/review. **No production data mutated. No v2-vs-v3 parity claimed.**
+
+**Pinned baseline used:** Skrynia `10cbf0d5ad00224e1375a4f2482965f8d3513559` debug binary `skrynia/target/debug/skrynia-server` (rustc/cargo 1.93.0) in isolated clone `/tmp/opencode/skrynia-parity-jcsZAxSeTC0x4SsKXOKohF-screwed-2ntGmTZ0qiM98ky9Q7vA43/skrynia`.
+
+**Executable disposable results (all PASS, rc=0):**
+- `python3 -m py_compile tests/http/differential_parity.py tests/http/migration_rehearsal.py` OK.
+- `python3 tests/http/differential_parity.py --self-test` => `self_test_ok generated_cases=43`.
+- `./tests/http/v2_compat_harness.sh check` => `inventory_ok endpoints=17 corpus=12`.
+- `--baseline-self-consistency --v2-binary <v2bin> --json-out .../self_consistency.json` => **pass**, scenarios=5, observations=50, failures=0: `public_meta`(3), `store_reads_writes_conditionals_ranges_auth`(28), `grants`(9), `quota`(4), `push_validation`(6). (v2-vs-v2 same pinned build on fresh disposable data dirs; not parity proof.)
+- `--concurrency --v2-binary <v2bin>` => **ok:true**, 7 checks: concurrent creates 3 rounds each 1x201/7x409, concurrent CAS replace 1x200/7x412, concurrent issue/revoke users consistent, post-concurrency health 200.
+- `--crash-restart --v2-binary <v2bin>` => **ok:true**, 5 checks: committed write durable after kill+restart, continued writes after restart, 20/20 acknowledged burst writes readable after restart, post-crash health 200.
+- `--security --v2-binary <v2bin>` => **ok:true**, 16 checks: traversal/encoded traversal denied without leak (400), malformed/missing auth denied (401), malformed grant bodies rejected (400), issuer cannot write store/user cannot issue users/out-of-scope write denied (403), auth errors do not echo bearer token.
+- `--latency-writes --v2-binary <v2bin> --latency-warmup 20 --latency-count 200 --latency-payload-bytes 128` => **ok:true** (v2 baseline only). Methodology: POST create-if-absent unique keys, payload 128 bytes, warmup 20, count 200, concurrency 1, localhost HTTP, disposable local fs, includes request/response overhead. Results (ms): p50=11.046648, p95=12.219709, p99=16.315418, min=10.462156, max=17.459923, mean=11.227682. **No candidate v3+facade comparison.**
+- `migration_rehearsal.py live-rehearsal --v2-binary <v2bin> --evidence-dir .../migration` => **ok:true**, `production_mutation:false`: populated 3 objects (incl. nested key) + 1 child grant, snapshot/manifests matched source==rollback==import-candidate (sha256 `8a71b7a7a36e979c04447b479e56b376e6b17f3c0d63c1f885e4c508fc0deaea`), original restarted and reads verified, rollback copy untouched; `v3_import_and_post_import_parity` **not_run** (no integrated candidate).
+
+**Exact pass/fail summary (disposable v2-side executable suites this run):** self-test 1/1 pass (43 generated cases); inventory/harness check 1/1 pass (17 endpoints, corpus 12); baseline scenario observations 50/50 pass across 5 scenarios (0 failures); concurrency checks 7/7 pass; crash/restart checks 5/5 pass; security probes 16/16 pass; latency baseline measurement 1/1 pass (200 samples, 0 write errors); migration rehearsal 4/4 executed steps pass + 1 step explicitly not_run (v3 import). **v2-vs-candidate differential executed: 0 scenarios (blocked).**
+
+**Blocked cases / not yet proven (precise):**
+- No complete integrated v3 kernel + Program 0 + skrynia-tools compatibility facade candidate runnable on host for end-to-end differential (`--differential-scenarios` harness mode available but not executed). Observed partial components insufficient for full parity: kernel workdirs/binaries exist but no proven integrated Program0+facade serving full v2 wire protocol; no Program 0 `.wasm` artifact identified in searched `/tmp/opencode` program0 paths; uTJ facade scaffold limited to health/version/push_vapid/preflight.
+- v2-vs-v3 warm write p50/p95/p99 comparison not executed (candidate unavailable).
+- Actual v2→v3 import/export into candidate and post-import parity/rollback against v3 not executed (v3 import step not_run).
+- Not executed: real HTTPS push delivery/ack/end-to-end subscription lifecycle, reverse-proxy/browser/TLS compatibility, full exhaustive error-status matrix beyond implemented scenarios/probes, Skrynia/skrynia-tools full `cargo test`/clippy/CI in this run, independent review, reproducible deploy/cutover, production rollback drill.
+- No evidence supports release/cutover or removal of v2 Rust business logic; PR #11 must remain draft until full proven gate.
+
+**Local evidence artifacts (outside repo):** `/tmp/opencode/parity-evidence-mvAwg4Z28px41EsZMm9THD-2ntGmTZ0qiM98ky9Q7vA43/{self_test.txt,v2_compat_harness_check.txt,self_consistency.{log,json},concurrency.{log,json},crash_restart.{log,json},security.{log,json},latency_v2.{log,json},migration.log,migration/*}`.

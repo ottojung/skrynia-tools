@@ -1,7 +1,7 @@
 mod backend;
 mod key;
 mod mime;
-mod read_store;
+mod read;
 mod reply;
 mod route;
 mod types;

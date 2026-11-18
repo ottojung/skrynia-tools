@@ -6,7 +6,7 @@ use super::{
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-pub fn handle<B: CompatBackend>(b: &B, method: &str, raw: &str, _req: &Request) -> Response {
+pub fn handle<B: CompatBackend>(b: &B, method: &str, raw: &str, req: &Request) -> Response {
     let key = match key::decode(raw) {
         Ok(v) => v,
         Err(e) => return reply::error(400, e),
@@ -17,6 +17,15 @@ pub fn handle<B: CompatBackend>(b: &B, method: &str, raw: &str, _req: &Request) 
         Err(e) => return reply::error(e.status, &e.code),
     };
     let tag = format!("\"{}\"", hex::encode(Sha256::digest(&obj.bytes)));
+    if req.headers.get("if-none-match").map(|v| v.trim()) == Some(tag.as_str()) {
+        let mut h = BTreeMap::new();
+        h.insert("etag".into(), tag);
+        return Response {
+            status: 304,
+            headers: h,
+            body: Vec::new(),
+        };
+    }
     let mut h = BTreeMap::new();
     h.insert("content-type".into(), mime::for_key(&obj.key).into());
     h.insert("etag".into(), tag);

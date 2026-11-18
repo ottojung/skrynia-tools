@@ -547,19 +547,19 @@ def run_grant_scenarios(server: DisposableV2) -> list[Observation]:
     obs.append(normalize_obs("grant_create.narrowing.denied", r, keep_headers=["content-type"]))
     # revoke user
     r = server.request("DELETE", f"/grants/{child_id}/users/{child_uid}", headers=auth_headers(child_issuer))
-    obs.append(normalize_obs("grant_revoke_user.success.200", r, keep_headers=["content-type"]))
+    obs.append(normalize_obs("grant_revoke_user.success.200", r, keep_headers=["content-type"], normalize_json_paths={"$.grantId", "$.userId"}))
     # use revoked user token should fail
     r = server.request("GET", f"/grants/{child_id}", headers=auth_headers(child_user))
     obs.append(normalize_obs("grant_revoked_user.denied", r, keep_headers=["content-type"]))
     # revoke absent user
     r = server.request("DELETE", f"/grants/{child_id}/users/not-a-real-user", headers=auth_headers(child_issuer))
-    obs.append(normalize_obs("grant_revoke_user.absent.404", r, keep_headers=["content-type"]))
+    obs.append(normalize_obs("grant_revoke_user.absent.404", r, keep_headers=["content-type"], normalize_json_paths={"$.grantId", "$.userId"}))
     # revoke grant
     r = server.request("DELETE", f"/grants/{child_id}", headers=auth_headers(child_issuer))
-    obs.append(normalize_obs("grant_revoke.success.200", r, keep_headers=["content-type"]))
+    obs.append(normalize_obs("grant_revoke.success.200", r, keep_headers=["content-type"], normalize_json_paths={"$.grantId"}))
     # revoke absent grant
     r = server.request("DELETE", f"/grants/{child_id}", headers=auth_headers(child_issuer))
-    obs.append(normalize_obs("grant_revoke.absent.404", r, keep_headers=["content-type"]))
+    obs.append(normalize_obs("grant_revoke.absent.404", r, keep_headers=["content-type"], normalize_json_paths={"$.grantId"}))
     return obs
 
 

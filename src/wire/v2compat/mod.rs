@@ -16,4 +16,5 @@ pub use types::{Request, Response};
 
 #[cfg(test)]
 mod tests;
+pub use backend::grants;
 pub use key::{credentials, scope};

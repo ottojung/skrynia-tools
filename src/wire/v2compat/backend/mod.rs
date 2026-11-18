@@ -1,4 +1,6 @@
+pub mod grants;
 pub use self::store::{Mutation, MutationKind, Object, ObjectRead, Store};
+pub(super) use super::scope;
 use super::types::Response;
 mod store;
 

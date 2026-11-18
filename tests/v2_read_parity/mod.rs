@@ -1,4 +1,5 @@
 mod cases;
+mod child;
 mod fixture;
 mod positive;
 mod process;
@@ -9,4 +10,5 @@ fn pinned_v2_http_reads_match_tools_facade() {
     let server = process::Server::start(&bin).unwrap();
     cases::verify(&server.url).unwrap();
     positive::verify(&server).unwrap();
+    child::verify(&server).unwrap();
 }

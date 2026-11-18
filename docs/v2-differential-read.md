@@ -56,3 +56,23 @@ lowercase hexadecimal credential grammar. These are pure helpers reused by
 future v3-backed grant authority code, validated with unit cases against the
 pinned native v2 definitions. They do **not** yet constitute a complete grant
 tree, quota or revocation implementation.
+
+## Reusable grant-core implementation
+
+The library now contains `wire::v2compat::grants::Authority` for
+grant/user-token authority. It parses v2 JSON grant/user record structures,
+hashes presented credentials, differentiates issuer from user authority,
+checks operation and location matchers, and rejects duplicate IDs/tokens,
+orphaned grants, cycles, widened child scopes, and widened operations before
+accepting the graph. The child-spec validator exactly follows v2's field,
+operation, delegation and safe-integer limits. Its quota calculator accounts
+for matching object payloads plus 512 bytes, 2048 per descendant grant,
+128 for each additional user credential, and 4096 bytes/one object per
+sponsored push subscription. Capacity checks apply to the acting grant and
+its ancestors; unrelated overlapping grants do not veto mutations.
+
+The disposable positive-mutation parity model uses this authority graph.
+**It is not yet a durable production engine**: it does not persist grant
+creation, revocations, mutations, concurrent transactions, or subscriptions
+through the root WASM. Those are release-blocking implementations, not
+satisfied by the validated pure rules and synthetic oracle.

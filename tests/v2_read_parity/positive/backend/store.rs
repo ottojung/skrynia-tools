@@ -12,9 +12,12 @@ impl Store for RootStore {
     }
     fn mutate_object(&self, req: Mutation<'_>) -> CompatResult<bool> {
         let fail = |status, code| CompatError::new(status, code);
-        if req.token != self.token {
-            return Err(fail(403, "forbidden"));
-        }
+        let operation = match req.kind {
+            MutationKind::Create => "create",
+            MutationKind::Replace => "modify",
+            MutationKind::Delete => "delete",
+        };
+        self.authority.grant_for(req.token, operation, req.key)?;
         let mut map = self.data.lock().unwrap();
         let old = map.get(req.key);
         if req.kind == MutationKind::Create && old.is_some() {

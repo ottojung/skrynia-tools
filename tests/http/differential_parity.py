@@ -566,7 +566,7 @@ def run_grant_scenarios(server: DisposableV2) -> list[Observation]:
 def run_quota_scenarios(server: DisposableV2) -> list[Observation]:
     obs: list[Observation] = []
     _, root_user = issue_user(server, server.root_id, server.root_issuer)
-    # very small object quota
+    # object quota: allow one stored object in scope
     gid, issuer = create_child_grant(server, root_user, "q/*", ["create", "modify", "delete", "list"], 100_000, 1)
     _, user = issue_user(server, gid, issuer)
     h = auth_headers(user)
@@ -574,13 +574,13 @@ def run_quota_scenarios(server: DisposableV2) -> list[Observation]:
     obs.append(normalize_obs("quota.objects.first_ok", r))
     r = server.request("POST", "/store/q/b.txt", headers=h, body=b"b")
     obs.append(normalize_obs("quota.objects.exceeded", r, keep_headers=["content-type"]))
-    # small byte quota: payload+512 accounted per api; choose tight quota
-    gid2, issuer2 = create_child_grant(server, root_user, "qb/*", ["create", "modify", "delete", "list"], 600, 10)
+    # byte quota: minimum valid maxBytes is 2048; object accounting includes payload+512 overhead.
+    gid2, issuer2 = create_child_grant(server, root_user, "qb/*", ["create", "modify", "delete", "list"], 2048, 10)
     _, user2 = issue_user(server, gid2, issuer2)
     h2 = auth_headers(user2)
-    r = server.request("POST", "/store/qb/small.txt", headers=h2, body=b"x" * 10)  # ~522 used
+    r = server.request("POST", "/store/qb/small.txt", headers=h2, body=b"x" * 100)  # ~612 accounted
     obs.append(normalize_obs("quota.bytes.first_ok", r))
-    r = server.request("POST", "/store/qb/big.txt", headers=h2, body=b"y" * 200)  # would exceed ~600
+    r = server.request("POST", "/store/qb/big.txt", headers=h2, body=b"y" * 1600)  # ~2112 accounted > 2048
     obs.append(normalize_obs("quota.bytes.exceeded", r, keep_headers=["content-type"]))
     return obs
 

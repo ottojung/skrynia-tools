@@ -1,3 +1,4 @@
+mod paths;
 use super::{
     backend::CompatBackend,
     reply,
@@ -17,16 +18,14 @@ pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
         ("GET" | "HEAD", p) if p.starts_with("/store/") => {
             with_cors(super::read_store::handle(backend, &method, &p[7..], req))
         }
+        ("POST" | "PUT" | "DELETE", p) if p.starts_with("/store/") => {
+            with_cors(reply::error(501, "not_implemented"))
+        }
         ("GET", "/store") => with_cors(reply::error(501, "not_implemented")),
-        _ if known_path(path) => with_cors(reply::error(405, "method_not_allowed")),
+        _ if paths::stub(method.as_str(), path) => with_cors(reply::error(501, "not_implemented")),
+        _ if paths::known(path) => with_cors(reply::error(405, "method_not_allowed")),
         _ => with_cors(reply::error(404, "not_found")),
     }
-}
-fn known_path(path: &str) -> bool {
-    matches!(path, "/health" | "/version" | "/push/vapid" | "/store")
-        || path.starts_with("/store/")
-        || path.starts_with("/grants")
-        || path.starts_with("/push")
 }
 fn with_cors(mut r: Response) -> Response {
     reply::cors(&mut r.headers);

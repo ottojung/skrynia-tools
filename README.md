@@ -65,3 +65,7 @@ application data model.
 [Contributor rules](AGENTS.md).
 
 Free Software under GNU AGPLv3 or later.
+
+## Optional user-supplied Program 0
+
+The `program0/` crate builds an optional privileged WASM application for the Skrynia v3 kernel. Skrynia server does **not** embed, depend on, distribute, or select this implementation. Operators supply their own Program 0 module via `SKRYNIA_ROOT_WASM`. This package is an application, not part of the native VM.

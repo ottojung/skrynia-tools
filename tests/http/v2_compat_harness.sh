@@ -23,7 +23,9 @@ import json,sys
 inv=json.load(open(sys.argv[1],encoding='utf8'))
 doc=open(sys.argv[2],encoding='utf8').read()
 assert inv.get('schema')=='skrynia-tools.v2-compat-inventory'
-assert inv.get('pinned',{}).get('skrynia_tools_commit')
+p=inv.get('pinned',{})
+assert p.get('skrynia_tools_commit'), 'missing skrynia_tools_commit'
+assert p.get('v2_server_commit'), 'missing pinned v2_server_commit'
 eps=inv.get('endpoints',[])
 assert eps, 'no endpoints'
 ids=set()
@@ -35,7 +37,7 @@ for e in eps:
 need={'health','version','push_vapid','store_get','store_head','store_list','store_create','store_replace','store_delete','grant_create','grant_get','grant_issue_user','grant_revoke_user','grant_revoke','push_subscribe','push_update','push_delete'}
 missing=sorted(need-ids)
 assert not missing, f'missing endpoint ids: {missing}'
-assert 'source-needed' in doc
+assert 'a33336e29c8781115489a3b4adc270573bc458fc' in doc
 print(f'inventory_ok endpoints={len(eps)} corpus={len(inv.get("reference_corpus",[]))}')
 PY
 }
@@ -48,7 +50,6 @@ probe_public() {
     code="$(curl -sS -o /tmp/v2-probe-body.$$ -w '%{http_code}' "$base$path" || true)"
     printf 'GET %s -> %s\n' "$path" "$code"
   done
-  # Known-missing object should be 404 (public read path).
   miss="$base/store/__v2_compat_probe_missing__$(date +%s)"
   code="$(curl -sS -o /dev/null -w '%{http_code}' "$miss" || true)"
   printf 'GET missing store object -> %s (expected 404)\n' "$code"

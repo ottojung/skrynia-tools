@@ -48,3 +48,11 @@ must match the pinned native server.
 The in-memory backend is a test oracle, **not** the implemented v3 persistent
 grant/quota engine. Child delegation, quotas, revocation, simultaneous writes,
 Web Push, and durable migration are still unqualified release gates.
+
+The compatibility library also implements the exact v2 location matcher
+grammar (wildcard, exact key, prefix ending in `*`, directory subtree ending
+in `/*`, and the empty matcher), strict subset logic and the 32/64-digit
+lowercase hexadecimal credential grammar. These are pure helpers reused by
+future v3-backed grant authority code, validated with unit cases against the
+pinned native v2 definitions. They do **not** yet constitute a complete grant
+tree, quota or revocation implementation.

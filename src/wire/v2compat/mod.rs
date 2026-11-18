@@ -16,3 +16,4 @@ pub use types::{Request, Response};
 
 #[cfg(test)]
 mod tests;
+pub use key::{credentials, scope};

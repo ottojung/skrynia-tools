@@ -1,3 +1,5 @@
+pub mod credentials;
+pub mod scope;
 pub fn decode(value: &str) -> Result<String, &'static str> {
     let bytes = value.as_bytes();
     let mut i = 0;
@@ -43,3 +45,5 @@ pub fn valid_key(key: &str) -> bool {
                 })
         })
 }
+#[cfg(test)]
+mod tests;

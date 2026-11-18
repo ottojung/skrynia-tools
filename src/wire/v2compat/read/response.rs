@@ -10,6 +10,7 @@ pub fn build(method: &str, key: &str, tag: &str, bytes: Vec<u8>, sel: Selection)
     headers.insert("x-content-type-options".into(), "nosniff".into());
     if sel.status == 416 {
         headers.insert("content-range".into(), format!("bytes */{size}"));
+        headers.insert("content-length".into(), "0".into());
     } else if sel.status != 304 {
         if sel.status == 206 {
             headers.insert(

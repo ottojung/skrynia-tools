@@ -1,5 +1,5 @@
 use super::*;
-pub(super) fn compare(url: &str, store: &RootStore, req: Request) -> Result<(), String> {
+pub(crate) fn compare(url: &str, store: &RootStore, req: Request) -> Result<(), String> {
     let expected = handle(store, &req);
     let client = reqwest::blocking::Client::new();
     let mut http = client

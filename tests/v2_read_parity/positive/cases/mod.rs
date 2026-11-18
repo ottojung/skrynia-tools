@@ -1,4 +1,4 @@
-mod compare;
+pub mod compare;
 mod run;
 pub(super) use super::RootStore;
 pub use run::run;

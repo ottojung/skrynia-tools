@@ -30,8 +30,11 @@ impl RootStore {
                 hash: hex::encode(Sha256::digest(token.as_bytes())),
             }],
         };
+        Self::with_authority(Authority::from_grants([root]).unwrap())
+    }
+    pub fn with_authority(authority: Authority) -> Self {
         Self {
-            authority: Authority::from_grants([root]).unwrap(),
+            authority,
             data: Mutex::new(HashMap::new()),
         }
     }

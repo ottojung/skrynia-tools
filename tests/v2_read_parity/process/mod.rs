@@ -7,3 +7,4 @@ pub struct Server {
     pub(super) dir: PathBuf,
 }
 mod credentials;
+mod root_file;

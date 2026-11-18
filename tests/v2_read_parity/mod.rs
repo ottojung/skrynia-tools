@@ -3,6 +3,7 @@ mod child;
 mod fixture;
 mod positive;
 mod process;
+mod quota;
 #[test]
 #[ignore = "requires pinned, separately built Skrynia v2 binary"]
 fn pinned_v2_http_reads_match_tools_facade() {
@@ -11,4 +12,6 @@ fn pinned_v2_http_reads_match_tools_facade() {
     cases::verify(&server.url).unwrap();
     positive::verify(&server).unwrap();
     child::verify(&server).unwrap();
+    quota::verify(&server).unwrap();
 }
+use positive::{RootStore, compare};

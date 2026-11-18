@@ -76,3 +76,19 @@ The disposable positive-mutation parity model uses this authority graph.
 creation, revocations, mutations, concurrent transactions, or subscriptions
 through the root WASM. Those are release-blocking implementations, not
 satisfied by the validated pure rules and synthetic oracle.
+
+## Restricted-grant quota differential
+
+The isolated v2 differential fixture also creates a delegated child grant
+whose location is `team/*`, grants create/modify/delete, and limits quota to
+3,000 bytes and one object. It compares the actual v2 HTTP results against the
+pure authority/quota-backed compatibility model for successful creation,
+quota-boundary rejection, replacement/shrinking, object-count exhaustion,
+deletion and reuse, and a write outside the grant scope. Negative SHA-256
+precondition failures take precedence over quota failures exactly as v2 does.
+
+The fixture identifies the unique root grant by the explicit `parent: null`
+field rather than relying on directory iteration order. All data and newly
+issued credentials exist only in the short-lived test directory. These tests
+validate **selected** cases, not durable v3-backed quota enforcement or
+complete concurrency/metadata/subscription parity.

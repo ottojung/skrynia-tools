@@ -1,6 +1,9 @@
 use super::types::Response;
 use std::collections::BTreeMap;
 
+pub fn error(status: u16, code: &str) -> Response {
+    json(status, format!("{{\"error\":\"{code}\"}}").into_bytes())
+}
 pub fn json(status: u16, body: Vec<u8>) -> Response {
     let mut headers = BTreeMap::new();
     headers.insert("content-type".into(), "application/json".into());
@@ -12,10 +15,7 @@ pub fn json(status: u16, body: Vec<u8>) -> Response {
         body,
     }
 }
-
 pub fn cors(headers: &mut BTreeMap<String, String>) {
     headers.insert("access-control-allow-origin".into(), "*".into());
-    headers
-        .entry("access-control-expose-headers".into())
-        .or_insert_with(|| "ETag".into());
+    headers.insert("access-control-expose-headers".into(), "ETag".into());
 }

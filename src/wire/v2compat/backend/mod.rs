@@ -1,30 +1,34 @@
+mod store;
 use super::types::Response;
+pub use store::{ObjectRead, Store};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompatError {
     pub status: u16,
     pub code: String,
 }
-
+impl CompatError {
+    pub fn new(status: u16, code: impl Into<String>) -> Self {
+        Self {
+            status,
+            code: code.into(),
+        }
+    }
+}
 pub type CompatResult<T> = Result<T, CompatError>;
 
-/// Injected capability for v2-compatible operations over Program 0.
-pub trait CompatBackend {
+pub trait Meta {
     fn health(&self) -> Response;
     fn version(&self) -> Response;
     fn push_vapid(&self) -> Response;
 }
+pub trait CompatBackend: Meta + Store {}
 
 #[derive(Clone, Debug, Default)]
 pub struct Unavailable;
-
-impl CompatBackend for Unavailable {
+impl Meta for Unavailable {
     fn health(&self) -> Response {
-        Response {
-            status: 503,
-            headers: Default::default(),
-            body: br#"{"error":"unavailable"}"#.to_vec(),
-        }
+        crate::wire::v2compat::reply::error(503, "unavailable")
     }
     fn version(&self) -> Response {
         self.health()
@@ -33,3 +37,5 @@ impl CompatBackend for Unavailable {
         self.health()
     }
 }
+impl Store for Unavailable {}
+impl CompatBackend for Unavailable {}

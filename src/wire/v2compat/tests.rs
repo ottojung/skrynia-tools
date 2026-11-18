@@ -1,8 +1,12 @@
-use super::{Request, Response, backend::CompatBackend, handle};
+use super::{
+    Request, Response,
+    backend::{CompatBackend, Meta, Store},
+    handle,
+};
 use std::collections::BTreeMap;
 #[derive(Clone)]
 struct Fixed;
-impl CompatBackend for Fixed {
+impl Meta for Fixed {
     fn health(&self) -> Response {
         j(200, br#"{"ok":true}"#)
     }
@@ -13,6 +17,8 @@ impl CompatBackend for Fixed {
         j(200, br#"{"publicKey":"k"}"#)
     }
 }
+impl Store for Fixed {}
+impl CompatBackend for Fixed {}
 fn j(status: u16, body: &[u8]) -> Response {
     let mut h = BTreeMap::new();
     h.insert("content-type".into(), "application/json".into());

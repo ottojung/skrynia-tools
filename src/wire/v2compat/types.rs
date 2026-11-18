@@ -15,3 +15,9 @@ pub struct Response {
     pub headers: BTreeMap<String, String>,
     pub body: Vec<u8>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Object {
+    pub key: String,
+    pub bytes: Vec<u8>,
+}

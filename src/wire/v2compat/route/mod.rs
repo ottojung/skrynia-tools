@@ -1,26 +1,41 @@
+mod headers;
+mod key;
+mod mime;
+mod range;
+mod read;
 use super::{
     backend::CompatBackend,
     reply,
     types::{Request, Response},
 };
-
 pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
     if req.method.eq_ignore_ascii_case("OPTIONS") {
         return preflight();
     }
-    match (req.method.as_str(), req.path.as_str()) {
+    let method = req.method.to_ascii_uppercase();
+    let path = req.path.as_str();
+    match (method.as_str(), path) {
         ("GET", "/health") => with_cors(backend.health()),
         ("GET", "/version") => with_cors(backend.version()),
         ("GET", "/push/vapid") => with_cors(backend.push_vapid()),
-        _ => reply::json(404, br#"{"error":"not_found"}"#.to_vec()),
+        ("GET" | "HEAD", p) if p.starts_with("/store/") => {
+            with_cors(read::store(backend, &method, &p[7..], req))
+        }
+        ("GET", "/store") => with_cors(reply::error(501, "not_implemented")),
+        _ if path.starts_with("/store/")
+            || path == "/store"
+            || path.starts_with("/grants")
+            || path.starts_with("/push") =>
+        {
+            with_cors(reply::error(405, "method_not_allowed"))
+        }
+        _ => with_cors(reply::error(404, "not_found")),
     }
 }
-
-fn with_cors(mut response: Response) -> Response {
-    reply::cors(&mut response.headers);
-    response
+fn with_cors(mut r: Response) -> Response {
+    reply::cors(&mut r.headers);
+    r
 }
-
 fn preflight() -> Response {
     let mut h = std::collections::BTreeMap::new();
     reply::cors(&mut h);

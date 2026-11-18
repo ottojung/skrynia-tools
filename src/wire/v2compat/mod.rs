@@ -11,3 +11,9 @@ pub use types::{Request, Response};
 mod tests;
 #[cfg(test)]
 mod tests2;
+#[cfg(test)]
+mod tests3;
+#[cfg(test)]
+mod tests4;
+#[cfg(test)]
+mod tests5;

@@ -29,7 +29,6 @@ impl Registry {
             store_io::remove_active(disk, &self.dir, &iid).map_err(RegErr::Store)?;
             Ok(())
         })?;
-        self.code.write().unwrap().remove(&iid);
         Ok(())
     }
 }

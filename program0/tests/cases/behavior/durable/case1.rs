@@ -33,7 +33,10 @@ fn durable_concurrent_invoke_during_replace() {
         h.join().unwrap();
     }
     assert_eq!(
-        Registry::open(&*disk, "reg").unwrap().lookup(&id).unwrap(),
+        Registry::open(&*disk, "reg")
+            .unwrap()
+            .lookup(&*disk, &id)
+            .unwrap(),
         b"v2"
     );
     let _ = fs::remove_dir_all(dir);

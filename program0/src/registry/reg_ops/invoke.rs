@@ -1,14 +1,17 @@
 use super::appdata;
 use super::{Disk, Eval, MutLock, RegErr, Registry};
+use crate::store_io::{self, StoreErr};
 
 impl Registry {
-    pub fn lookup(&self, invoke_id: &[u8]) -> Result<Vec<u8>, RegErr<(), (), (), ()>> {
-        self.code
-            .read()
-            .unwrap()
-            .get(invoke_id)
-            .cloned()
-            .ok_or(RegErr::Missing)
+    pub fn lookup<D: Disk>(
+        &self,
+        disk: &D,
+        invoke_id: &[u8],
+    ) -> Result<Vec<u8>, RegErr<D::Err, (), (), ()>> {
+        store_io::read_code(disk, &self.dir, invoke_id).map_err(|e| match e {
+            StoreErr::Disk(d) => RegErr::Store(StoreErr::Disk(d)),
+            _ => RegErr::Missing,
+        })
     }
 
     pub fn invoke<D: Disk, L: MutLock, E: Eval>(
@@ -19,13 +22,10 @@ impl Registry {
         invoke_id: &[u8],
         input: &[u8],
     ) -> Result<Vec<u8>, RegErr<D::Err, E::Err, (), L::Err>> {
-        let code = self
-            .code
-            .read()
-            .unwrap()
-            .get(invoke_id)
-            .cloned()
-            .ok_or(RegErr::Missing)?;
+        let code = store_io::read_code(disk, &self.dir, invoke_id).map_err(|e| match e {
+            StoreErr::Disk(d) => RegErr::Store(StoreErr::Disk(d)),
+            _ => RegErr::Missing,
+        })?;
         let dir = self.dir.clone();
         let iid = invoke_id.to_vec();
         #[cfg(target_arch = "wasm32")]

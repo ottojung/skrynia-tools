@@ -14,6 +14,6 @@ fn wrong_secret_cannot_revoke_or_lookup() {
         reg.revoke(&disk, &lock, &bad_admin, &AppPrecond::Present(h1))
             .is_err()
     );
-    assert!(reg.lookup(&bad_iid).is_err());
+    assert!(reg.lookup(&disk, &bad_iid).is_err());
     assert!(reg.invoke(&disk, &lock, &GuardEval, &bad_iid, b"").is_err());
 }

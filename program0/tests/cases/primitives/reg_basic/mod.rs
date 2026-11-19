@@ -26,7 +26,7 @@ fn register_set_invoke_and_recover() {
         b"v2".to_vec(),
     )
     .unwrap();
-    assert_eq!(reg.lookup(&iid).unwrap(), b"v2");
+    assert_eq!(reg.lookup(&disk, &iid).unwrap(), b"v2");
     assert_eq!(
         reg.invoke(&disk, &lock, &EchoEval, &iid, b"x").unwrap(),
         b"v2x"
@@ -39,7 +39,7 @@ fn register_set_invoke_and_recover() {
     let h2 = auth::hash_bytes(b"v2").to_vec();
     reg2.revoke(&disk, &lock, &admin, &AppPrecond::Present(h2))
         .unwrap();
-    assert!(reg2.lookup(&iid).is_err());
+    assert!(reg2.lookup(&disk, &iid).is_err());
     assert!(
         reg2.set(&disk, &lock, &admin, &AppPrecond::Absent, b"v3".to_vec())
             .is_err()

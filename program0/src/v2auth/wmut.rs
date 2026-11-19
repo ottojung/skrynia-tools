@@ -1,4 +1,4 @@
-use super::{MutateKind, MutateReq, apply, cap};
+use super::{MutateKind, MutateReq, cap};
 
 pub fn run<D: cap::Disk>(
     disk: &D,
@@ -28,7 +28,7 @@ pub fn run<D: cap::Disk>(
         crate::protocol::wire::V2Kind::Replace => MutateKind::Replace,
         crate::protocol::wire::V2Kind::Delete => MutateKind::Delete,
     };
-    match apply::run(
+    match super::mutate(
         disk,
         MutateReq {
             token,

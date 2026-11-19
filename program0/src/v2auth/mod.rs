@@ -14,5 +14,8 @@ pub use mutate::{MutateErr, MutateKind, MutateReq};
 pub use state::{StateErr, bootstrap_root, ensure_root};
 pub use wire::handle_wire;
 pub fn mutate<D: cap::Disk>(disk: &D, req: MutateReq<'_>) -> Result<bool, MutateErr<D::Err>> {
+    if !paths::valid_key(req.key) {
+        return Err(MutateErr::BadKey);
+    }
     apply::run(disk, req)
 }

@@ -110,3 +110,9 @@ uncertain-state error rather than reporting the object missing; neither
 create nor replace may silently overwrite damaged data. The byte encoding
 of an object is never used as the CAS validator: the actual logical bytes
 are SHA-256 hashed for comparison, as in v2.
+
+For provisional v2 mutation requests, logical keys use the same 255-byte
+ASCII grammar as the native v2 server: nonempty slash-delimited components,
+letters, numbers, underscores and hyphens, with dots permitted only after
+the first character of each component. Invalid, empty or oversized keys
+return invalid_key before any mutation; stored paths remain SHA-256-derived.

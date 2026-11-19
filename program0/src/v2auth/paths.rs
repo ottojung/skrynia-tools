@@ -19,3 +19,16 @@ pub fn ensure<D: Disk>(disk: &D) -> Result<(), D::Err> {
 pub fn obj_path(key: &str) -> String {
     format!("{OBJS}/{}", hex32(&sha256(key.as_bytes())))
 }
+pub fn valid_key(key: &str) -> bool {
+    key.len() <= 255
+        && !key.is_empty()
+        && key.split('/').all(|part| {
+            !part.is_empty()
+                && part.bytes().enumerate().all(|(i, byte)| {
+                    byte.is_ascii_alphanumeric()
+                        || byte == b'_'
+                        || byte == b'-'
+                        || (i > 0 && byte == b'.')
+                })
+        })
+}

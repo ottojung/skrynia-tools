@@ -1,5 +1,3 @@
-use super::state;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MutateKind {
     Create,
@@ -42,7 +40,8 @@ impl<E> MutateErr<E> {
             Self::NotFound => "not_found",
             Self::Exists => "already_exists",
             Self::ContentMismatch => "content_mismatch",
-            Self::AuthorityExists | Self::BadKey => "invalid_state",
+            Self::AuthorityExists => "invalid_state",
+            Self::BadKey => "invalid_key",
         }
     }
 }

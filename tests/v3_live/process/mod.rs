@@ -1,5 +1,6 @@
 mod launch;
 mod lifecycle;
+mod log;
 use std::{path::PathBuf, process::Child};
 pub struct Server {
     pub url: String,

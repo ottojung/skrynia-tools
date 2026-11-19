@@ -14,17 +14,6 @@ pub(super) use super::{
     ObjectRead, Response, Store,
 };
 pub(super) use super::{GrantAdmin, Push, Request, reply};
-
+pub(super) use super::{push, scope};
 pub use core::{DiskRandom, DiskStateStore, DurableBackend};
-pub use data::{RandomSource, StateStore};
-impl<S, R> Push for DurableBackend<S, R> {
-    fn push_subscribe(&self, _: &Request) -> Response {
-        reply::error(501, "not_implemented")
-    }
-    fn push_update(&self, _: &str, _: &Request) -> Response {
-        reply::error(501, "not_implemented")
-    }
-    fn push_delete(&self, _: &str, _: &Request) -> Response {
-        reply::error(501, "not_implemented")
-    }
-}
+pub use data::{RandomSource, State, StateStore, sub_counts};

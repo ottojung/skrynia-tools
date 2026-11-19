@@ -18,7 +18,12 @@ pub trait Ram {
 /// Program evaluation capability used to invoke stored WASM.
 pub trait Eval {
     type Err;
-    fn eval(&self, wasm: &[u8], input: &[u8]) -> Result<Vec<u8>, Self::Err>;
+    fn eval(
+        &self,
+        wasm: &[u8],
+        input: &[u8],
+        cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, Self::Err>;
 }
 
 /// Secure random bytes for secret ID minting.

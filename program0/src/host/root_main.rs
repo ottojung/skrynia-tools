@@ -6,6 +6,9 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
     if root_disk_ls::ensure("programs").is_err() {
         return -5;
     }
+    if root_disk_ls::ensure("programs/appdata").is_err() {
+        return -5;
+    }
     let disk = HostDisk;
     let registry = match Registry::open(&disk, "programs") {
         Ok(v) => v,

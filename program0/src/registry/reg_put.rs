@@ -1,3 +1,4 @@
+use super::appdata;
 use super::cap::{Disk, Random};
 use crate::id::ID_LEN;
 use crate::reg::{RegErr, Registry};
@@ -29,5 +30,22 @@ impl Registry {
         store_io::put(disk, &self.dir, pid, &code).map_err(RegErr::Store)?;
         map.insert(pid.to_vec(), code);
         Ok(())
+    }
+    pub fn app_put<D: Disk>(
+        &self,
+        disk: &D,
+        app: &[u8],
+        key: &[u8],
+        value: &[u8],
+    ) -> Result<(), RegErr<D::Err, (), ()>> {
+        appdata::ops::put(disk, &self.dir, app, key, value).map_err(RegErr::Store)
+    }
+    pub fn app_get<D: Disk>(
+        &self,
+        disk: &D,
+        app: &[u8],
+        key: &[u8],
+    ) -> Result<Vec<u8>, RegErr<D::Err, (), ()>> {
+        appdata::ops::get(disk, &self.dir, app, key).map_err(RegErr::Store)
     }
 }

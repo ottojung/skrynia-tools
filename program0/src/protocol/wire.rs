@@ -4,16 +4,39 @@ pub const OP_SET: u8 = 2;
 pub const OP_INVOKE: u8 = 3;
 pub const OP_LOOKUP: u8 = 4;
 pub const OP_REVOKE: u8 = 5;
+pub const OP_APP_PUT: u8 = 6;
+pub const OP_APP_GET: u8 = 7;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    Register { code: Vec<u8> },
-    Set { id: Vec<u8>, code: Vec<u8> },
-    Invoke { id: Vec<u8>, input: Vec<u8> },
-    Lookup { id: Vec<u8> },
-    Revoke { id: Vec<u8> },
+    Register {
+        code: Vec<u8>,
+    },
+    Set {
+        id: Vec<u8>,
+        code: Vec<u8>,
+    },
+    Invoke {
+        id: Vec<u8>,
+        input: Vec<u8>,
+    },
+    Lookup {
+        id: Vec<u8>,
+    },
+    Revoke {
+        id: Vec<u8>,
+    },
+    AppPut {
+        app: Vec<u8>,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    AppGet {
+        app: Vec<u8>,
+        key: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

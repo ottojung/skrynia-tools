@@ -6,7 +6,12 @@ pub(super) struct SelfEval {
 }
 impl Eval for SelfEval {
     type Err = ();
-    fn eval(&self, w: &[u8], i: &[u8]) -> Result<Vec<u8>, ()> {
+    fn eval(
+        &self,
+        w: &[u8],
+        i: &[u8],
+        _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, ()> {
         if w == b"self" && !i.is_empty() {
             self.reg
                 .invoke(&*self.disk, self, &self.me, &i[1..])
@@ -25,7 +30,12 @@ pub(super) struct CycleEval {
 }
 impl Eval for CycleEval {
     type Err = ();
-    fn eval(&self, w: &[u8], i: &[u8]) -> Result<Vec<u8>, ()> {
+    fn eval(
+        &self,
+        w: &[u8],
+        i: &[u8],
+        _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, ()> {
         match w {
             b"A" => self
                 .reg

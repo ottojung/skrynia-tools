@@ -5,7 +5,12 @@ use skrynia_program0::reg::Registry;
 struct EchoEval;
 impl Eval for EchoEval {
     type Err = ();
-    fn eval(&self, wasm: &[u8], input: &[u8]) -> Result<Vec<u8>, ()> {
+    fn eval(
+        &self,
+        wasm: &[u8],
+        input: &[u8],
+        _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, ()> {
         Ok([wasm, input].concat())
     }
 }

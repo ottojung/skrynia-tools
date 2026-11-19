@@ -1,3 +1,4 @@
+pub mod appdata;
 pub mod id;
 pub mod rcache;
 pub mod reg;

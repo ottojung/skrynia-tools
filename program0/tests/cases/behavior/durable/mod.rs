@@ -21,7 +21,12 @@ fn tmp(name: &str) -> PathBuf {
 struct Tag;
 impl Eval for Tag {
     type Err = ();
-    fn eval(&self, wasm: &[u8], _: &[u8]) -> Result<Vec<u8>, ()> {
+    fn eval(
+        &self,
+        wasm: &[u8],
+        _: &[u8],
+        _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, ()> {
         Ok(wasm.to_vec())
     }
 }

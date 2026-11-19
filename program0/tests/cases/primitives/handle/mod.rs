@@ -9,7 +9,12 @@ use skrynia_program0::wire::{Request, STATUS_ERR, STATUS_OK};
 struct CatEval;
 impl Eval for CatEval {
     type Err = ();
-    fn eval(&self, w: &[u8], i: &[u8]) -> Result<Vec<u8>, ()> {
+    fn eval(
+        &self,
+        w: &[u8],
+        i: &[u8],
+        _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
+    ) -> Result<Vec<u8>, ()> {
         Ok([w, b":", i].concat())
     }
 }

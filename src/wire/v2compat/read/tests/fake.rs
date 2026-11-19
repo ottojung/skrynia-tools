@@ -1,5 +1,6 @@
 use super::{
-    CompatBackend, CompatResult, Meta, Object, ObjectRead, Request, Response, Store, Unavailable,
+    CompatBackend, CompatResult, Meta, Object, ObjectRead, Push, Request, Response, Store,
+    Unavailable,
 };
 use std::collections::BTreeMap;
 pub struct Stub(pub Vec<u8>);
@@ -22,6 +23,19 @@ impl Meta for Stub {
         Unavailable.health()
     }
 }
+
+impl Push for Stub {
+    fn push_subscribe(&self, _req: &Request) -> Response {
+        Unavailable.health()
+    }
+    fn push_update(&self, _id: &str, _req: &Request) -> Response {
+        Unavailable.health()
+    }
+    fn push_delete(&self, _id: &str, _req: &Request) -> Response {
+        Unavailable.health()
+    }
+}
+
 impl CompatBackend for Stub {}
 pub fn fake() -> Stub {
     Stub(b"abcdef".to_vec())

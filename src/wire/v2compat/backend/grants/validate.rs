@@ -8,15 +8,10 @@ pub fn validate(grants: &HashMap<String, Grant>) -> Result<(), &'static str> {
     if roots != 1 {
         return Err("invalid_roots");
     }
-    let mut tokens = HashSet::new();
+    super::validate_tokens::check(grants)?;
     for g in grants.values() {
         if !scope::valid_scope(&g.locations) {
             return Err("invalid_scope");
-        }
-        for user in &g.users {
-            if !tokens.insert(user.hash.as_str()) {
-                return Err("duplicate_user_token");
-            }
         }
         if let Some(parent) = &g.parent {
             let p = grants.get(parent).ok_or("orphan_grant")?;

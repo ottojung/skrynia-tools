@@ -45,3 +45,7 @@ path = "tests/v3_live/mod.rs"
 [[test]]
 name = "v2_read_parity"
 path = "tests/v2_read_parity/mod.rs"
+
+[[test]]
+name = "v2_durable"
+path = "tests/v2_durable/mod.rs"

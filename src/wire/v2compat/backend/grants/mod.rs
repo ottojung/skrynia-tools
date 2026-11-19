@@ -6,6 +6,7 @@ pub mod quota;
 #[cfg(test)]
 mod tests;
 mod validate;
+mod validate_tokens;
 pub(super) use super::CompatError;
 pub(super) use super::scope;
 pub use graph::Authority;

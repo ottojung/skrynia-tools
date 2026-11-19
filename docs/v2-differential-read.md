@@ -92,3 +92,26 @@ field rather than relying on directory iteration order. All data and newly
 issued credentials exist only in the short-lived test directory. These tests
 validate **selected** cases, not durable v3-backed quota enforcement or
 complete concurrency/metadata/subscription parity.
+
+## Injected durable-backend prototype and uncertainty
+
+The DurableBackend prototype stores grant/user records and object contents
+behind injected StateStore and RandomSource capabilities. State changes are
+calculated on a private clone, validated, and submitted to StateStore::save
+while the authority lock is held. Only a confirmed save updates the
+in-process committed snapshot. Since a failed save might still have
+committed externally, any save error permanently latches that backend
+instance into state_uncertain (503) for BOTH reads and writes until
+restarted and reloaded. It never silently retries an ambiguous mutation.
+Tests cover failure before persistence and lost acknowledgment after save.
+
+The grant graph validator rejects duplicate user/issuer credentials and
+collisions between user and issuer roles; token issuance cannot persist
+such a collision. Loaded nonempty grant graphs are validated before use.
+
+IMPORTANT: this is not a production v3-backed implementation. StateStore
+is injected, not yet a real Program 0 kernel-file adapter. The prototype
+serializes the entire authority/object map for each mutation, so memory
+and work scale with total stored data. The tests do not establish a full
+v2 HTTP facade, push, concurrent cross-process CAS, filesystem-level
+recovery after ambiguous writes or production migration.

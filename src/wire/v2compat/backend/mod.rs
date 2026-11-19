@@ -4,7 +4,7 @@ mod grant_admin;
 pub mod grants;
 pub use grant_admin::GrantAdmin;
 pub mod push;
-pub use self::store::{Mutation, MutationKind, Object, ObjectRead, Store};
+pub use self::store::{ListPage, Mutation, MutationKind, Object, ObjectRead, Store};
 pub(crate) use super::reply;
 pub(crate) use super::scope;
 use super::types::Response as MetaResponse;

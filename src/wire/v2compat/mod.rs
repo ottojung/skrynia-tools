@@ -8,8 +8,8 @@ mod route;
 mod types;
 
 pub use backend::{
-    CompatBackend, CompatError, CompatResult, GrantAdmin, Meta, Mutation, MutationKind, Object,
-    ObjectRead, Push, Store, Unavailable,
+    CompatBackend, CompatError, CompatResult, GrantAdmin, ListPage, Meta, Mutation, MutationKind,
+    Object, ObjectRead, Push, Store, Unavailable,
 };
 pub use route::handle;
 pub use types::{Request, Response};

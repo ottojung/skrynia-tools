@@ -27,6 +27,7 @@ pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
         ("GET", "/health") => backend.health(),
         ("GET", "/version") => backend.version(),
         ("GET", "/push/vapid") => backend.push_vapid(),
+        ("GET", "/store") => super::read::list(backend, req),
         ("GET" | "HEAD", p) if p.starts_with("/store/") => {
             super::read::handle(backend, &method, &p[7..], req)
         }

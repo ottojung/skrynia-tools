@@ -23,6 +23,7 @@ pub fn finish(server: &mut process::Server, token: [u8; 32]) {
         wire::err(&server.url, wrong).unwrap(),
         "invalid_grant_user_token"
     );
+    super::corrupt::verify(server, token);
     wire::mark_uncertain(server.data_dir());
     let after = req(
         token,

@@ -16,6 +16,7 @@ pub use api::{delete, subscribe, update};
 pub use mem::Mem;
 pub use model::{Events, Keys, Record, SubReq, SubView, UpdateReq};
 pub use ops::{GrantAuth, Ids};
+pub use parse::{sub as parse_sub, update as parse_update};
 pub use store::Store;
 #[allow(unused_imports)]
 pub use validate::{validate_sub, validate_update};

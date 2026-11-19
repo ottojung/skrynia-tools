@@ -36,5 +36,6 @@ pub fn handle<D: Disk, R: Random, E: Eval>(
             Ok(()) => ok(Vec::new()),
             Err(_) => err(6),
         },
+        Request::V2Bootstrap { .. } | Request::V2Mutate { .. } => err(7),
     }
 }

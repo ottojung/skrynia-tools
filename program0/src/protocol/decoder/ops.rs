@@ -1,5 +1,7 @@
 use super::take::{DecodeErr, blob, id};
-use crate::wire::{OP_INVOKE, OP_LOOKUP, OP_REGISTER, OP_REVOKE, OP_SET, Request};
+use crate::wire::{
+    OP_INVOKE, OP_LOOKUP, OP_REGISTER, OP_REVOKE, OP_SET, OP_V2_BOOTSTRAP, OP_V2_MUTATE, Request,
+};
 pub fn parse(op: u8, src: &mut &[u8]) -> Result<Request, DecodeErr> {
     match op {
         OP_REGISTER => Ok(Request::Register { code: blob(src)? }),
@@ -13,6 +15,8 @@ pub fn parse(op: u8, src: &mut &[u8]) -> Result<Request, DecodeErr> {
         }),
         OP_LOOKUP => Ok(Request::Lookup { id: id(src)? }),
         OP_REVOKE => Ok(Request::Revoke { id: id(src)? }),
+        OP_V2_BOOTSTRAP => super::v2ops::bootstrap(src),
+        OP_V2_MUTATE => super::v2ops::mutate(src),
         _ => Err(DecodeErr::Op),
     }
 }

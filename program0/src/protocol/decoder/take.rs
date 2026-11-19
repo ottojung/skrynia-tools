@@ -20,3 +20,6 @@ pub fn blob(src: &mut &[u8]) -> Result<Vec<u8>, DecodeErr> {
     let n = u32::from_le_bytes(take(src, 4)?.try_into().unwrap()) as usize;
     Ok(take(src, n)?.to_vec())
 }
+pub fn fixed32(src: &mut &[u8]) -> Result<[u8; 32], DecodeErr> {
+    Ok(take(src, 32)?.try_into().unwrap())
+}

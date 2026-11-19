@@ -30,7 +30,7 @@ impl Eval for HostEval {
         input: &[u8],
         cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
     ) -> Result<Vec<u8>, i32> {
-        let cb_idx = if cb.is_some() { 0 } else { -1 };
+        let cb_idx = if cb.is_some() { 5 } else { -1 };
         let mut out = vec![0u8; 1024 * 1024];
         let n = unsafe {
             host::eval(

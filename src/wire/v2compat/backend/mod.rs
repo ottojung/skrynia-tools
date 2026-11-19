@@ -1,3 +1,4 @@
+pub mod delivery;
 pub mod grants;
 pub mod push;
 pub use self::store::{Mutation, MutationKind, Object, ObjectRead, Store};

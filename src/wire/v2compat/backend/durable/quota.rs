@@ -22,11 +22,12 @@ fn check_delta(authority: &Authority, start: &str, state: &State, delta: u64) ->
         .iter()
         .map(|(k, v)| (k.clone(), v.len() as u64))
         .collect();
+    let subs = super::data::sub_counts(state);
     let mut cursor = Some(start);
     let mut steps = 0;
     while let Some(id) = cursor {
         let grant = authority.grant(id).ok_or_else(err)?;
-        let usage = authority.usage(id, &sizes, &[]).ok_or_else(err)?;
+        let usage = authority.usage(id, &sizes, &subs).ok_or_else(err)?;
         if grant
             .max_bytes
             .is_some_and(|m| usage.bytes.saturating_add(delta) > m)

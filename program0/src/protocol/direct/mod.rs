@@ -7,6 +7,7 @@ use super::{
     res::{err, ok},
 };
 use super::{wdec::decode_req, wire::Request};
+#[allow(unused_imports)]
 use crate::store_io;
 
 pub fn handle<D: Disk, R: Random, E: Eval>(disk: &D, rng: &R, eval: &E, req: &[u8]) -> Vec<u8> {
@@ -20,5 +21,6 @@ pub fn handle<D: Disk, R: Random, E: Eval>(disk: &D, rng: &R, eval: &E, req: &[u
         Request::Revoke { id } => change::revoke(disk, &id),
         Request::Lookup { id } => read::lookup(disk, &id),
         Request::Invoke { id, input } => exec::invoke(disk, eval, &id, &input),
+        Request::V2Bootstrap { .. } | Request::V2Mutate { .. } => err(7),
     }
 }

@@ -2,6 +2,7 @@ pub mod cap;
 pub mod host;
 pub mod protocol;
 pub mod registry;
+pub mod v2auth;
 pub use host::{
     root_abi, root_disk, root_disk_atom, root_disk_io, root_disk_ls, root_eval, root_main,
     root_random,

@@ -12,7 +12,14 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         Err(code) => return code,
     };
     let _ = unsafe { super::root_abi::close(input_fd) };
-    let res = crate::protocol::direct::handle(&disk, &HostRandom, &HostEval, &req);
+    let res = match crate::protocol::wdec::decode_req(&req) {
+        Ok(
+            r @ (crate::protocol::wire::Request::V2Bootstrap { .. }
+            | crate::protocol::wire::Request::V2Mutate { .. }),
+        ) => crate::v2auth::handle_wire(&disk, r),
+        Ok(_) => crate::protocol::direct::handle(&disk, &HostRandom, &HostEval, &req),
+        Err(_) => crate::protocol::res::err(1),
+    };
     let result = super::root_stream::write_all(output_fd, &res);
     let _ = unsafe { super::root_abi::close(output_fd) };
     match result {

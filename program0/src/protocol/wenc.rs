@@ -34,6 +34,9 @@ pub fn encode_req(req: &Request) -> Vec<u8> {
             out.extend_from_slice(&(id.len() as u16).to_le_bytes());
             out.extend_from_slice(id);
         }
+        Request::V2Bootstrap { .. } | Request::V2Mutate { .. } => {
+            super::wenc_v2::push(&mut out, req);
+        }
     }
     out
 }

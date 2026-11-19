@@ -63,3 +63,21 @@ restart/invoke/revoke through real `POST /` requests. Missing env variables
 fail explicitly when this opt-in test is run; ordinary unit test executions
 report it as ignored, not as a false parity pass. This tests the small
 example registry only, not the complete historical grant protocol.
+
+## Targeted program-record operations
+
+The optional Program 0 handles its binary registry requests directly
+against the injected disk capability. Each register operation probes the
+new random candidate ID and refuses a collision; lookup, invoke, set and
+revoke read the record for exactly the requested ID. The root no longer
+lists every program and loads every module on every HTTP request. Its
+request-time program lookup work scales with the selected code record,
+not with the total number of registered programs. A memory-backed test
+capability deliberately fails if directory enumeration is attempted.
+
+This improvement does not solve concurrent writers to a program ID:
+the kernel disk API guarantees atomic same-filesystem rename, not an
+atomic check-and-rename of a stored program record. Authorization and
+cross-request transaction isolation remain application-protocol duties.
+Likewise, the current optional root still materializes the selected
+module and its result in private WASM memory before emitting output.

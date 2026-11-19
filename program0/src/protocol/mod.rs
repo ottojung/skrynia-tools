@@ -1,4 +1,5 @@
 pub mod decoder;
+pub mod direct;
 pub mod handle;
 pub use decoder as wdec;
 pub mod res;

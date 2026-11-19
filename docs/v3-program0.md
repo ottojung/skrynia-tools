@@ -43,8 +43,22 @@ The current example Program 0 implements a native, application-defined
 binary POST protocol: code registration/invocation and scoped app data
 read/write with separate capability secrets and conditional CAS. It does not
 emulate the withdrawn older HTTP GET/store/grants/Web Push surface. Operator
-code activation authorization, issuance, bounded registration and crash-safe
-global lock recovery require separate release qualification. There is no CLI.
+code activation authorization, issuance and bounded registration require
+separate release qualification. This Program 0 now uses a kernel-owned
+request-scoped mutation lock instead of a non-expiring shared-RAM CAS bit. There is no CLI.
+
+### Native mutation lock ABI
+
+This optional Program 0 requires native host imports
+try_mutation_lock() -> i32 (1 acquired, 0 busy) and
+release_mutation_lock() -> i32 (0 released, -4 nonowner).
+It holds this kernel-owned lock for code registry and appdata mutations.
+The kernel automatically releases the lock when the root VM terminates,
+including fuel exhaustion and WASM traps. This import addition requires
+upgrading the kernel and Program 0 together. General cas_ram_u64 remains
+available for shared RAM but is no longer used for this transaction lock.
+Program 0 still must sync/rename staged disk writes before publishing and
+reconcile ambiguous client responses after a crash.
 
 Appdata object keys are nonempty byte strings of at most 256 bytes, scoped
 under a 32-byte read capability. The disk stores a fixed 64-hex SHA-256 digest

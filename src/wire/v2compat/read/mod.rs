@@ -6,6 +6,8 @@ use super::{
 };
 use sha2::{Digest, Sha256};
 pub(super) mod cache;
+mod list;
+mod list_query;
 mod range;
 mod response;
 mod select;
@@ -25,6 +27,10 @@ pub fn handle<B: CompatBackend>(backend: &B, method: &str, raw: &str, req: &Requ
     let tag = format!("\"{}\"", hex::encode(Sha256::digest(&obj.bytes)));
     let selected = select::choose(&req.headers, &tag, obj.bytes.len());
     response::build(method, &obj.key, &tag, obj.bytes, selected)
+}
+
+pub fn list<B: CompatBackend>(backend: &B, req: &Request) -> Response {
+    list::handle(backend, req)
 }
 
 #[cfg(test)]

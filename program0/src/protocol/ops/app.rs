@@ -31,7 +31,7 @@ pub fn handle<D: super::Disk, L: MutLock, E: super::Eval>(
                 .map(resp_ok),
             4,
         ),
-        Request::Lookup { invoke_id } => map_res(reg.lookup(&invoke_id).map(resp_ok), 5),
+        Request::Lookup { invoke_id } => map_res(reg.lookup(disk, &invoke_id).map(resp_ok), 5),
         _ => return None,
     })
 }

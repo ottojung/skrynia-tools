@@ -18,12 +18,12 @@ fn durable_replace_and_recover() {
     )
     .unwrap();
     let reg2 = Registry::open(&*disk, "reg").unwrap();
-    assert_eq!(reg2.lookup(&id).unwrap(), b"v2");
+    assert_eq!(reg2.lookup(&*disk, &id).unwrap(), b"v2");
     assert_eq!(reg2.invoke(&*disk, &lock, &Tag, &id, b"").unwrap(), b"v2");
     let h2 = auth::hash_bytes(b"v2").to_vec();
     reg2.revoke(&*disk, &lock, &admin, &AppPrecond::Present(h2))
         .unwrap();
     let reg3 = Registry::open(&*disk, "reg").unwrap();
-    assert!(reg3.lookup(&id).is_err());
+    assert!(reg3.lookup(&*disk, &id).is_err());
     let _ = fs::remove_dir_all(dir);
 }

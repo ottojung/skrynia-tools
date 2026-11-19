@@ -5,26 +5,28 @@ use crate::root_abi as host;
 const LOCK_OFF: u64 = 0;
 
 #[cfg(target_arch = "wasm32")]
-pub fn try_acquire() -> Result<bool, i32> {
-    // attempt to claim lock at shared RAM offset 0 using CAS (expect 0 -> 1)
+fn cas(exp: u64, des: u64) -> Result<u64, i32> {
+    let fd = unsafe { host::open_ram() };
+    if fd < 0 {
+        return Err(fd);
+    }
     let mut cur: u64 = 0;
-    let rc = unsafe { host::cas_ram_u64(LOCK_OFF, 0, 1, &mut cur as *mut u64) };
+    let rc = unsafe { host::cas_ram_u64(fd, LOCK_OFF, exp, des, &mut cur as *mut u64 as u32) };
+    let _ = unsafe { host::close(fd) };
     if rc != 0 {
         return Err(rc);
     }
-    Ok(cur == 0)
+    Ok(cur)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn try_acquire() -> Result<bool, i32> {
+    Ok(cas(0, 1)? == 0)
 }
 
 #[cfg(target_arch = "wasm32")]
 pub fn release() -> Result<(), i32> {
-    // best-effort release: if we hold it (value 1) set to 0; if someone else clobbered, signal error
-    let mut cur: u64 = 0;
-    let rc = unsafe { host::cas_ram_u64(LOCK_OFF, 1, 0, &mut cur as *mut u64) };
-    if rc != 0 {
-        return Err(rc);
-    }
-    if cur != 1 {
-        // unexpected state - treat as error to fail closed
+    if cas(1, 0)? != 1 {
         return Err(-9);
     }
     Ok(())

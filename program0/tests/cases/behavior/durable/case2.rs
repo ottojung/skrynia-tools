@@ -13,6 +13,6 @@ fn open_skips_corrupt_records() {
     fs::write(active.join("not-a-record.txt"), b"junk").unwrap();
     fs::write(active.join("00.bin"), b"bad").unwrap();
     let reg2 = Registry::open(&disk, "reg").unwrap();
-    assert_eq!(reg2.lookup(&id).unwrap(), b"ok");
+    assert_eq!(reg2.lookup(&disk, &id).unwrap(), b"ok");
     let _ = fs::remove_dir_all(dir);
 }

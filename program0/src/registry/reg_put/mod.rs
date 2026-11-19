@@ -28,7 +28,7 @@ impl Registry {
             store_io::write_active(disk, &self.dir, &iid, &code_hash).map_err(RegErr::Store)?;
             Ok(())
         })?;
-        self.code.write().unwrap().insert(iid.clone(), code);
+        let _ = code;
         Ok(iid)
     }
 }

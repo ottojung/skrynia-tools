@@ -1,3 +1,4 @@
+pub(super) use super::Push;
 use super::{
     backend::{CompatBackend, ObjectRead},
     key, mime, reply,

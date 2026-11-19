@@ -1,9 +1,12 @@
 use super::backend::{CompatBackend, CompatResult, Meta, Object, ObjectRead, Store};
+pub(super) use super::backend::{Meta as PMeta, Push};
+pub(super) use super::{Request as Req, Response as Resp, Unavailable as Un};
 use super::{Request, Response, Unavailable, handle};
-use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+mod case;
+mod push;
 #[derive(Clone)]
-struct R(Option<Vec<u8>>);
+pub(super) struct R(pub(super) Option<Vec<u8>>);
 impl Meta for R {
     fn health(&self) -> Response {
         Unavailable.health()
@@ -27,7 +30,7 @@ impl Store for R {
     }
 }
 impl CompatBackend for R {}
-fn req(m: &str, p: &str) -> Request {
+pub(super) fn req(m: &str, p: &str) -> Request {
     Request {
         method: m.into(),
         path: p.into(),
@@ -35,16 +38,4 @@ fn req(m: &str, p: &str) -> Request {
         headers: BTreeMap::new(),
         body: vec![],
     }
-}
-#[test]
-fn store_get_head_and_missing() {
-    let b = b"hello".to_vec();
-    let tag = format!("\"{}\"", hex::encode(Sha256::digest(&b)));
-    let r = handle(&R(Some(b.clone())), &req("GET", "/store/a.txt"));
-    assert_eq!(r.status, 200);
-    assert_eq!(r.headers.get("etag"), Some(&tag));
-    assert_eq!(r.body, b"hello");
-    let h = handle(&R(Some(b)), &req("HEAD", "/store/a.txt"));
-    assert!(h.status == 200 && h.body.is_empty());
-    assert_eq!(handle(&R(None), &req("GET", "/store/a.txt")).status, 404);
 }

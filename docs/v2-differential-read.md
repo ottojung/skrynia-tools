@@ -135,3 +135,13 @@ the transport, encryption, durable filesystem adapter, subscription
 quota integration and externally exact v2 response semantics remain
 separate verification gates. The queue reserializes its full pending list
 on each state change and is not yet suitable for a high-volume service.
+
+## Combined backend and subscription integration boundary
+
+The combined draft wires the v2 HTTP routing traits together and exercises
+injected authority, mutation and subscription components in one Rust workspace.
+Until the subscription store and outbound transport are actually bound to
+the kernel-backed authority, DurableBackend deliberately returns a visible
+501 not_implemented for push routes. It must never claim compatibility by
+falling back to a test-memory subscription implementation. Both injected
+state machines retain their fail-closed persistence uncertainty behavior.

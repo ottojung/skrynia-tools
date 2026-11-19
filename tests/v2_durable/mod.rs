@@ -1,3 +1,4 @@
+mod bridge;
 mod failure;
 mod fakes;
 mod faultstore;

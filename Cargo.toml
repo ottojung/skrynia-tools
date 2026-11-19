@@ -54,3 +54,7 @@ path = "tests/v2_durable/mod.rs"
 [[test]]
 name = "v2_p0_bridge"
 path = "tests/v2_p0_bridge/mod.rs"
+
+[[test]]
+name = "v3_facade"
+path = "tests/v3_facade/mod.rs"

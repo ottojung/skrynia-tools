@@ -1,3 +1,4 @@
+mod admin;
 mod app;
 mod res;
 use super::cap::{Disk, Eval, Random};
@@ -15,6 +16,9 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
     req: Request,
 ) -> Vec<u8> {
     if let Some(out) = app::handle(reg, disk, lock, eval, req.clone()) {
+        return out;
+    }
+    if let Some(out) = admin::handle(reg, disk, lock, req.clone()) {
         return out;
     }
     match req {

@@ -33,6 +33,12 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
             put_id(out, admin_cap);
             put_precond(out, expect);
         }
+        Request::StageCode { .. }
+        | Request::SealCode { .. }
+        | Request::ActivateCode { .. }
+        | Request::GetActive { .. }
+        | Request::ListVersions { .. }
+        | Request::ListPrograms { .. } => super::encode_admin::encode_admin(out, req),
         _ => encode_app(out, req),
     }
 }

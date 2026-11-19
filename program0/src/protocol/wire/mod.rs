@@ -10,6 +10,12 @@ pub const OP_REVOKE: u8 = 5;
 pub const OP_APP_PUT: u8 = 6;
 pub const OP_APP_GET: u8 = 7;
 pub const OP_APP_DELETE: u8 = 8;
+pub const OP_STAGE_CODE: u8 = 9;
+pub const OP_SEAL_CODE: u8 = 10;
+pub const OP_ACTIVATE_CODE: u8 = 11;
+pub const OP_GET_ACTIVE: u8 = 12;
+pub const OP_LIST_VERSIONS: u8 = 13;
+pub const OP_LIST_PROGRAMS: u8 = 14;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 

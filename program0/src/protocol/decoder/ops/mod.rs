@@ -1,3 +1,4 @@
+mod admin;
 mod precond;
 use super::take::{DecodeErr, blob, id};
 use crate::wire::{
@@ -38,6 +39,12 @@ pub fn parse(op: u8, src: &mut &[u8]) -> Result<Request, DecodeErr> {
             expect: parse_precond(src)?,
             value: blob(src)?,
         }),
+        crate::wire::OP_STAGE_CODE
+        | crate::wire::OP_SEAL_CODE
+        | crate::wire::OP_ACTIVATE_CODE
+        | crate::wire::OP_GET_ACTIVE
+        | crate::wire::OP_LIST_VERSIONS
+        | crate::wire::OP_LIST_PROGRAMS => admin::parse(op, src),
         OP_APP_DELETE => Ok(Request::AppDelete {
             write_cap: id(src)?,
             key: blob(src)?,

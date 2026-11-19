@@ -1,4 +1,5 @@
 mod encode;
+mod encode_admin;
 mod encode_app;
 mod helpers;
 use crate::wire::{Request, VERSION};

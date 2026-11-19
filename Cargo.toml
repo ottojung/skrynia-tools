@@ -11,6 +11,7 @@ description = "Skrynia client protocols and web application administration"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
+skrynia-program0 = { path = "program0" }
 anyhow = "1"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }

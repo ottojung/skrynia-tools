@@ -4,7 +4,7 @@ use super::cb;
 #[cfg(target_arch = "wasm32")]
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_guest_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
-    let iid = match unsafe { cb::CB_INVOKE.as_ref() } {
+    let iid = match unsafe { (&*core::ptr::addr_of!(cb::CB_INVOKE)).as_ref() } {
         Some(a) => a.clone(),
         None => return -13,
     };

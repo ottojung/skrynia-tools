@@ -9,14 +9,15 @@ fn removed_after_max_failures_and_gone() {
             base_ms: 1,
             max_ms: 10,
         },
-    );
-    q.enqueue("s1".into(), "https://e".into());
+    )
+    .unwrap();
+    q.enqueue("s1".into(), "https://e".into()).unwrap();
     let mut tx = Tx(vec![Outcome::Retry, Outcome::Retry]);
-    q.run(&C(0), &mut tx);
-    q.run(&C(10), &mut tx);
-    assert!(q.items.is_empty());
-    q.enqueue("s2".into(), "https://e".into());
+    q.run(&C(0), &mut tx).unwrap();
+    q.run(&C(10), &mut tx).unwrap();
+    assert!(q.pending().unwrap().is_empty());
+    q.enqueue("s2".into(), "https://e".into()).unwrap();
     let mut tx2 = Tx(vec![Outcome::Gone]);
-    q.run(&C(20), &mut tx2);
-    assert!(q.items.is_empty());
+    q.run(&C(20), &mut tx2).unwrap();
+    assert!(q.pending().unwrap().is_empty());
 }

@@ -92,3 +92,23 @@ field rather than relying on directory iteration order. All data and newly
 issued credentials exist only in the short-lived test directory. These tests
 validate **selected** cases, not durable v3-backed quota enforcement or
 complete concurrency/metadata/subscription parity.
+
+## Subscription delivery queue failure semantics
+
+The experimental v2 Web Push compatibility queue has an injectable
+Transport and Durable capability. Durable::load and Durable::save report
+errors; a failed initial load prevents opening the queue. Enqueue/removal,
+acknowledgment, Gone, and retry transitions persist a candidate snapshot
+BEFORE publishing it in the local queue. An ambiguous save error latches
+the queue as state_uncertain, refusing both further deliveries and reads
+until a new instance reloads the underlying store. A lost acknowledgment
+can still produce a duplicate delivery after restart (at-least-once
+semantics); it must never cause immediate retries against an uncertain
+state. Deterministic failure injection tests cover failures before saving,
+after saving but before acknowledgment, and initial load failure.
+
+This is a protocol component, NOT a complete Web Push implementation:
+the transport, encryption, durable filesystem adapter, subscription
+quota integration and externally exact v2 response semantics remain
+separate verification gates. The queue reserializes its full pending list
+on each state change and is not yet suitable for a high-volume service.

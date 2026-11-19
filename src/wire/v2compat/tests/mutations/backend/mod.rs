@@ -1,9 +1,11 @@
+#[allow(unused_imports)]
+pub(super) use super::Request as Req;
 use super::api_backend::{
     CompatBackend, CompatResult, Meta, Mutation, MutationKind, Object, ObjectRead, Store,
 };
 pub(super) use super::api_backend::{Meta as PMeta, Push};
-use super::{Request, Response, Unavailable};
-pub(super) use super::{Request as Req, Response as Resp, Unavailable as Un};
+use super::{Response, Unavailable};
+pub(super) use super::{Response as Resp, Unavailable as Un};
 use sha2::Digest;
 use std::sync::Mutex;
 mod push;

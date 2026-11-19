@@ -8,9 +8,11 @@ pub fn ensure_blob<D: Disk>(
 ) -> Result<[u8; 32], StoreErr<D::Err>> {
     let hash = store::code_hash(code);
     let path = store::blob_path(dir, &hash).ok_or(StoreErr::BadId)?;
-    if disk.read_all(&path).map_err(StoreErr::Disk)?.is_none() {
-        disk.write_atomic(&path, &store::encode_blob(code))
-            .map_err(StoreErr::Disk)?;
+    let encoded = store::encode_blob(code);
+    match disk.read_all(&path).map_err(StoreErr::Disk)? {
+        None => disk.write_atomic(&path, &encoded).map_err(StoreErr::Disk)?,
+        Some(existing) if existing == encoded => {}
+        Some(_) => return Err(StoreErr::BadRecord),
     }
     Ok(hash)
 }
@@ -25,5 +27,9 @@ pub fn read_blob<D: Disk>(
         .read_all(&path)
         .map_err(StoreErr::Disk)?
         .ok_or(StoreErr::Missing)?;
-    store::decode_blob(&bytes).ok_or(StoreErr::BadRecord)
+    let code = store::decode_blob(&bytes).ok_or(StoreErr::BadRecord)?;
+    if store::code_hash(&code) != *code_hash {
+        return Err(StoreErr::BadRecord);
+    }
+    Ok(code)
 }

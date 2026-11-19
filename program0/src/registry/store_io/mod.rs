@@ -1,10 +1,12 @@
 mod active;
 mod blob;
+mod ready;
 use super::cap::Disk;
 use crate::id;
 
-pub use active::{read_active, remove_active, write_active};
+pub use active::{read_active, read_record, remove_active, write_active, write_record};
 pub use blob::{ensure_blob, read_blob};
+pub use ready::{is_ready, list as list_ready, seal as seal_ready};
 
 #[derive(Debug, Clone)]
 pub enum StoreErr<E> {

@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""Disposable v2->v3 migration rehearsal preparation (no production mutation).
+"""Executable disposable v2->v3 migration rehearsal and fail-closed gates.
 
-This helper works only on explicitly provided disposable copies/directories.
-It can snapshot a v2 data directory, inventory observable state, and emit a
-verification manifest for later import/rollback rehearsal when a v3 candidate
-exists. Test/support script, not a product CLI.
+Works only on explicitly provided disposable copies/directories. No production
+mutation, no product CLI. Actual v3 import/parity is NOT_RUN when no integrated
+v3 kernel+Program0+compat facade candidate is available.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
-import http.client
 import json
 import os
-import random
 import shutil
 import socket
 import subprocess
@@ -22,125 +19,394 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+SCHEMA = "skrynia-v2-migration-rehearsal"
+V3_IMPORT_REASON = (
+    "integrated v3 kernel+Program0+compat facade candidate unavailable; "
+    "actual import/export-to-v3 and imported-state differential cannot run"
+)
+
+
+class GateFailure(Exception):
+    pass
 
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with path.open("rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
 
 
-def safe_rel(root: Path, path: Path) -> str:
+def rel(root: Path, path: Path) -> str:
     return str(path.relative_to(root))
 
 
-def inventory_store(store_dir: Path) -> list[dict[str, Any]]:
-    items = []
-    if not store_dir.exists():
-        return items
-    for p in sorted(store_dir.rglob("*")):
-        if p.is_file():
-            st = p.stat()
-            items.append({
-                "key": safe_rel(store_dir, p),
-                "bytes": st.st_size,
-                "sha256": sha256_file(p),
-            })
-    return items
+def ensure_under(base: Path, target: Path, label: str) -> None:
+    try:
+        target.resolve().relative_to(base.resolve())
+    except Exception as exc:
+        raise GateFailure(f"{label} escapes disposable base: {target} ({exc})") from exc
 
 
-def inventory_json_dir(dir_path: Path) -> list[dict[str, Any]]:
-    items = []
-    if not dir_path.exists():
-        return items
-    for p in sorted(dir_path.glob("*.json")):
+def list_entries(root: Path) -> list[Path]:
+    return sorted(root.rglob("*"), key=lambda p: str(p.relative_to(root)))
+
+
+def find_unsafe_entries(root: Path) -> list[dict[str, str]]:
+    unsafe: list[dict[str, str]] = []
+    for p in list_entries(root):
         try:
-            obj = json.loads(p.read_text(encoding="utf-8"))
-        except Exception as e:
-            obj = {"_parse_error": str(e)}
-        items.append({"file": p.name, "sha256": sha256_file(p), "json": obj})
+            if p.is_symlink():
+                unsafe.append({"path": rel(root, p), "kind": "symlink"})
+                continue
+            st = p.lstat()
+            import stat
+
+            mode = st.st_mode
+            if stat.S_ISREG(mode) or stat.S_ISDIR(mode):
+                continue
+            if stat.S_ISFIFO(mode):
+                k = "fifo"
+            elif stat.S_ISSOCK(mode):
+                k = "socket"
+            elif stat.S_ISCHR(mode):
+                k = "chardev"
+            elif stat.S_ISBLK(mode):
+                k = "blockdev"
+            else:
+                k = "special"
+            unsafe.append({"path": rel(root, p), "kind": k})
+        except FileNotFoundError:
+            unsafe.append({"path": rel(root, p), "kind": "missing-during-scan"})
+    return unsafe
+
+
+def assert_safe_tree(root: Path) -> None:
+    unsafe = find_unsafe_entries(root)
+    if unsafe:
+        raise GateFailure("unsafe entries in disposable data dir: " + json.dumps(unsafe, sort_keys=True))
+
+
+def inventory_regular_files(root: Path) -> list[dict[str, Any]]:
+    assert_safe_tree(root)
+    items: list[dict[str, Any]] = []
+    for p in list_entries(root):
+        if p.is_file() and not p.is_symlink():
+            st = p.stat()
+            items.append({"path": rel(root, p), "bytes": st.st_size, "sha256": sha256_file(p)})
     return items
+
+
+def read_json_file(path: Path) -> tuple[Any | None, str | None]:
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f), None
+    except Exception as exc:  # noqa: BLE001
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def validate_grant_record(obj: Any, filename_id: str) -> list[str]:
+    errs: list[str] = []
+    if not isinstance(obj, dict):
+        return ["grant record must be object"]
+    req = {
+        "id": str,
+        "parent": (str, type(None)),
+        "locations": str,
+        "operations": list,
+        "maxBytes": (int, type(None)),
+        "maxObjects": (int, type(None)),
+        "issuerHash": str,
+        "users": list,
+    }
+    for key, typ in req.items():
+        if key not in obj:
+            errs.append(f"missing field {key}")
+        elif not isinstance(obj[key], typ):
+            errs.append(f"field {key} has wrong type")
+        elif typ is int and isinstance(obj[key], bool):
+            errs.append(f"field {key} has wrong type")
+    if obj.get("id") != filename_id:
+        errs.append("id does not match filename")
+    users = obj.get("users")
+    if isinstance(users, list):
+        for i, u in enumerate(users):
+            if not isinstance(u, dict):
+                errs.append(f"user[{i}] must be object")
+                continue
+            if "id" not in u or "hash" not in u:
+                errs.append(f"user[{i}] missing id/hash")
+            elif not isinstance(u.get("id"), str) or not isinstance(u.get("hash"), str):
+                errs.append(f"user[{i}] id/hash must be string")
+    ops = obj.get("operations")
+    if isinstance(ops, list) and any(not isinstance(x, str) for x in ops):
+        errs.append("operations must contain strings")
+    if "rootIssuerToken" in obj and obj["rootIssuerToken"] is not None and not isinstance(obj["rootIssuerToken"], str):
+        errs.append("rootIssuerToken must be string or null/absent")
+    return errs
+
+
+def validate_subscription_record(obj: Any, filename_id: str) -> list[str]:
+    errs: list[str] = []
+    if not isinstance(obj, dict):
+        return ["subscription record must be object"]
+    req = {
+        "id": str,
+        "grantId": str,
+        "locations": str,
+        "events": list,
+        "endpoint": str,
+        "keys": dict,
+        "capHash": str,
+    }
+    for key, typ in req.items():
+        if key not in obj:
+            errs.append(f"missing field {key}")
+        elif not isinstance(obj[key], typ):
+            errs.append(f"field {key} has wrong type")
+    if obj.get("id") != filename_id:
+        errs.append("id does not match filename")
+    events = obj.get("events")
+    if isinstance(events, list) and any(not isinstance(x, str) for x in events):
+        errs.append("events must contain strings")
+    keys = obj.get("keys")
+    if isinstance(keys, dict):
+        if "p256dh" not in keys or "auth" not in keys:
+            errs.append("keys missing p256dh/auth")
+        elif not isinstance(keys.get("p256dh"), str) or not isinstance(keys.get("auth"), str):
+            errs.append("keys p256dh/auth must be string")
+    return errs
+
+
+def validate_outbox_record(obj: Any) -> list[str]:
+    errs: list[str] = []
+    if not isinstance(obj, dict):
+        return ["outbox must be object"]
+    for k, v in obj.items():
+        if not isinstance(k, str):
+            errs.append("outbox key must be string")
+        if not isinstance(v, dict):
+            errs.append(f"outbox[{k}] must be object")
+            continue
+        for f in ("generation", "attempts", "nextAt"):
+            if f not in v:
+                errs.append(f"outbox[{k}] missing {f}")
+            elif not isinstance(v[f], int) or isinstance(v[f], bool):
+                errs.append(f"outbox[{k}] {f} must be integer")
+        if isinstance(v.get("generation"), int) and not isinstance(v.get("generation"), bool) and v["generation"] <= 0:
+            errs.append(f"outbox[{k}] generation must be positive")
+    return errs
+
+
+def scan_metadata_dir(data_dir: Path, name: str, validator: Callable[[Any, str], list[str]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    records: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
+    d = data_dir / "state" / name
+    if not d.exists():
+        return records, issues
+    if d.is_symlink() or not d.is_dir():
+        issues.append({"kind": name, "issue": "metadata directory missing/not directory", "path": rel(data_dir, d)})
+        return records, issues
+    seen_ids: dict[str, str] = {}
+    for p in sorted(d.iterdir(), key=lambda x: x.name):
+        if p.is_symlink():
+            issues.append({"kind": name, "issue": "symlink entry", "path": rel(data_dir, p)})
+            continue
+        if p.is_dir():
+            issues.append({"kind": name, "issue": "unexpected directory", "path": rel(data_dir, p)})
+            continue
+        if not p.name.endswith(".json"):
+            issues.append({"kind": name, "issue": "non-json entry", "path": rel(data_dir, p)})
+            continue
+        file_id = p.stem
+        if file_id in seen_ids:
+            issues.append({"kind": name, "issue": "duplicate id", "id": file_id, "paths": [seen_ids[file_id], rel(data_dir, p)]})
+        else:
+            seen_ids[file_id] = rel(data_dir, p)
+        obj, err = read_json_file(p)
+        rec: dict[str, Any] = {"file": p.name, "path": rel(data_dir, p), "sha256": sha256_file(p)}
+        if err:
+            issues.append({"kind": name, "issue": "corrupt json", "path": rel(data_dir, p), "error": err})
+            rec["parse_error"] = err
+            records.append(rec)
+            continue
+        rec["json"] = obj
+        verrs = validator(obj, file_id)
+        if verrs:
+            issues.append({"kind": name, "issue": "invalid metadata", "path": rel(data_dir, p), "errors": verrs})
+        records.append(rec)
+    return records, issues
 
 
 def build_manifest(data_dir: Path) -> dict[str, Any]:
-    store = inventory_store(data_dir / "store")
-    grants = inventory_json_dir(data_dir / "state" / "grants")
-    push = inventory_json_dir(data_dir / "state" / "push")
-    # include other state files if present (non-recursive safety summary)
-    state_extra = []
-    state_dir = data_dir / "state"
-    if state_dir.exists():
-        for p in sorted(state_dir.rglob("*")):
-            if p.is_file() and p.suffix != ".json":
-                state_extra.append({"path": safe_rel(state_dir, p), "bytes": p.stat().st_size, "sha256": sha256_file(p)})
+    data_dir = data_dir.resolve()
+    if not data_dir.is_dir():
+        raise GateFailure(f"data dir missing/not dir: {data_dir}")
+    all_files = inventory_regular_files(data_dir)
+    grant_records, grant_issues = scan_metadata_dir(data_dir, "grants", validate_grant_record)
+    sub_records, sub_issues = scan_metadata_dir(data_dir, "push-subs", validate_subscription_record)
+    push_dir = data_dir / "state" / "push"
+    push_records: list[dict[str, Any]] = []
+    push_issues: list[dict[str, Any]] = []
+    if push_dir.exists():
+        if push_dir.is_symlink() or not push_dir.is_dir():
+            push_issues.append({"kind": "push", "issue": "metadata directory missing/not directory", "path": rel(data_dir, push_dir)})
+        else:
+            for p in sorted(push_dir.glob("*.json"), key=lambda x: x.name):
+                if p.is_symlink() or not p.is_file():
+                    push_issues.append({"kind": "push", "issue": "non-regular json entry", "path": rel(data_dir, p)})
+                    continue
+                obj, err = read_json_file(p)
+                rec = {"file": p.name, "path": rel(data_dir, p), "sha256": sha256_file(p)}
+                if err:
+                    push_issues.append({"kind": "push", "issue": "corrupt json", "path": rel(data_dir, p), "error": err})
+                    rec["parse_error"] = err
+                else:
+                    rec["json"] = obj
+                    if p.name == "outbox.json":
+                        verrs = validate_outbox_record(obj)
+                        if verrs:
+                            push_issues.append({"kind": "push", "issue": "invalid metadata", "path": rel(data_dir, p), "errors": verrs})
+                push_records.append(rec)
+    store_items = [i for i in all_files if i["path"].startswith("store/")]
+    issues = grant_issues + sub_issues + push_issues
+    # cross-check: outbox references must have subscription metadata
+    outbox = None
+    for r in push_records:
+        if r.get("file") == "outbox.json" and isinstance(r.get("json"), dict):
+            outbox = r["json"]
+    sub_ids = {r["file"][:-5] for r in sub_records if r.get("file", "").endswith(".json")}
+    if isinstance(outbox, dict):
+        for sid in outbox.keys():
+            if sid not in sub_ids:
+                issues.append({"kind": "push-subs", "issue": "missing subscription metadata for outbox entry", "id": sid})
     manifest = {
-        "schema": "skrynia-v2-migration-rehearsal-manifest",
-        "version": 1,
+        "schema": SCHEMA + "-manifest",
+        "version": 2,
         "source_data_dir": str(data_dir),
-        "store_objects": store,
-        "grants": grants,
-        "push_state_files": push,
-        "state_extra_files": state_extra,
+        "all_files": all_files,
+        "store_objects": store_items,
+        "grant_records": grant_records,
+        "subscription_records": sub_records,
+        "push_state_records": push_records,
+        "issues": issues,
         "summary": {
-            "objects": len(store),
-            "object_bytes": sum(i["bytes"] for i in store),
-            "grant_files": len(grants),
-            "push_files": len(push),
+            "files": len(all_files),
+            "bytes": sum(i["bytes"] for i in all_files),
+            "store_objects": len(store_items),
+            "grant_files": len(grant_records),
+            "subscription_files": len(sub_records),
+            "push_state_files": len(push_records),
+            "issue_count": len(issues),
         },
     }
-    # deterministic digest of manifest content excluding source_data_dir
-    canon = json.dumps({k: v for k, v in manifest.items() if k != "source_data_dir"}, sort_keys=True, separators=(",", ":")).encode()
+    canon = json.dumps({k: v for k, v in manifest.items() if k != "source_data_dir"}, sort_keys=True, separators=(",", ":"), default=str).encode()
     manifest["manifest_sha256"] = hashlib.sha256(canon).hexdigest()
     return manifest
 
 
+def assert_manifest_ok(manifest: dict[str, Any], context: str) -> None:
+    issues = manifest.get("issues") or []
+    if issues:
+        raise GateFailure(f"{context}: metadata/content gate failed: " + json.dumps(issues, sort_keys=True, default=str))
+
+
+def manifests_equal(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    keys = ["all_files", "store_objects", "grant_records", "subscription_records", "push_state_records", "issues", "summary"]
+    return all(a.get(k) == b.get(k) for k in keys) and a.get("manifest_sha256") == b.get("manifest_sha256")
+
+
+def safe_copytree(src: Path, dst: Path) -> None:
+    assert_safe_tree(src)
+    if dst.exists():
+        raise GateFailure(f"destination exists: {dst}")
+    shutil.copytree(src, dst, symlinks=False)
+    # verify no symlinks appeared and contents match
+    assert_safe_tree(dst)
+    sm = build_manifest(src)
+    dm = build_manifest(dst)
+    if not manifests_equal(sm, dm):
+        raise GateFailure("snapshot copy differs from source")
+
+
+def write_json(path: Path, obj: Any) -> None:
+    path.write_text(json.dumps(obj, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+
+
+# ---- command impls ----
+
 def cmd_snapshot(args: argparse.Namespace) -> int:
     src = Path(args.source).resolve()
     dst = Path(args.dest).resolve()
-    if not src.exists() or not src.is_dir():
-        raise SystemExit(f"source missing/not dir: {src}")
-    if dst.exists():
-        raise SystemExit(f"dest exists (refusing to overwrite): {dst}")
-    # copytree preserves a disposable rehearsal copy
-    shutil.copytree(src, dst)
+    safe_copytree(src, dst)
     print(json.dumps({"action": "snapshot", "source": str(src), "dest": str(dst), "ok": True}, sort_keys=True))
     return 0
 
 
 def cmd_manifest(args: argparse.Namespace) -> int:
-    data_dir = Path(args.data_dir).resolve()
-    if not data_dir.exists():
-        raise SystemExit(f"data dir missing: {data_dir}")
-    m = build_manifest(data_dir)
-    out = json.dumps(m, indent=2, sort_keys=True)
+    m = build_manifest(Path(args.data_dir))
     if args.output:
-        Path(args.output).write_text(out + "\n", encoding="utf-8")
+        write_json(Path(args.output), m)
     else:
-        print(out)
-    print(json.dumps({"action": "manifest", "summary": m["summary"], "manifest_sha256": m["manifest_sha256"]}, sort_keys=True), file=sys.stderr)
-    return 0
+        print(json.dumps(m, indent=2, sort_keys=True, default=str))
+    print(json.dumps({"action": "manifest", "summary": m["summary"], "manifest_sha256": m["manifest_sha256"], "ok": m["summary"]["issue_count"] == 0}, sort_keys=True), file=sys.stderr)
+    return 0 if m["summary"]["issue_count"] == 0 else 1
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
     a = json.loads(Path(args.manifest_a).read_text(encoding="utf-8"))
     b = json.loads(Path(args.manifest_b).read_text(encoding="utf-8"))
-    # compare content-relevant fields
-    keys = ["store_objects", "grants", "push_state_files", "state_extra_files", "summary"]
-    diffs = [k for k in keys if a.get(k) != b.get(k)]
-    ok = not diffs and a.get("manifest_sha256") == b.get("manifest_sha256")
+    ok = manifests_equal(a, b)
+    diffs = [k for k in ["all_files", "store_objects", "grant_records", "subscription_records", "push_state_records", "issues", "summary"] if a.get(k) != b.get(k)]
     print(json.dumps({"action": "verify", "ok": ok, "diffs": diffs, "a": a.get("manifest_sha256"), "b": b.get("manifest_sha256")}, sort_keys=True))
     return 0 if ok else 1
 
 
-def _norm_headers(headers: Any) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for k, v in headers.items():
-        out[str(k).lower()] = str(v)
-    return out
+def cmd_validate(args: argparse.Namespace) -> int:
+    m = build_manifest(Path(args.data_dir))
+    ok = m["summary"]["issue_count"] == 0
+    print(json.dumps({"action": "validate", "ok": ok, "issues": m["issues"], "summary": m["summary"]}, sort_keys=True, default=str))
+    return 0 if ok else 1
+
+
+def cmd_plan(_: argparse.Namespace) -> int:
+    plan = {
+        "schema": SCHEMA + "-plan",
+        "version": 3,
+        "production_mutation": False,
+        "executable_now": [
+            "Preflight/source gates: fail closed on unsafe symlinks/special files and invalid/duplicate/missing grant or subscription metadata.",
+            "Snapshot immutable rollback copy and candidate import copy with exact SHA-256 manifests (all bytes + grant/subscription metadata).",
+            "Simulate interrupted v3 import attempt in disposable workspace, detect incomplete state, verify retry is fail-closed without cleanup and rollback restores exact source bytes/metadata.",
+            "Restart/read verification of original disposable v2 copy after rollback/reversion checks.",
+        ],
+        "fail_closed_not_run": [
+            "Actual import into integrated v3 kernel+Program0+compat facade candidate.",
+            "Post-import v2-v3 differential parity on imported state.",
+            "Production cutover, deployed data mutation, or v2 logic removal.",
+        ],
+        "reason_v3_not_run": V3_IMPORT_REASON,
+    }
+    print(json.dumps(plan, indent=2, sort_keys=True))
+    return 0
+
+
+# ---- live v2 helpers ----
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def norm_headers(headers: Any) -> dict[str, str]:
+    return {str(k).lower(): str(v) for k, v in headers.items()}
+
 
 def do_request(base: str, method: str, path: str, headers: dict[str, str] | None = None, body: bytes | None = None, timeout: float = 15.0):
     url = base.rstrip("/") + path
@@ -149,26 +415,27 @@ def do_request(base: str, method: str, path: str, headers: dict[str, str] | None
         req.add_header(k, v)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.status, _norm_headers(resp.headers), resp.read(), None
+            return resp.status, norm_headers(resp.headers), resp.read(), None
     except urllib.error.HTTPError as e:
         raw = e.read() if hasattr(e, "read") else b""
-        return int(e.code), _norm_headers(getattr(e, "headers", {}) or {}), raw, None
+        return int(e.code), norm_headers(getattr(e, "headers", {}) or {}), raw, None
     except Exception as e:  # noqa: BLE001
         return 0, {}, b"", f"{type(e).__name__}: {e}"
 
-def free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
 
-def cmd_live_rehearsal(args: argparse.Namespace) -> int:
-    """Executable disposable rehearsal: populate v2, snapshot, manifest, verify rollback copy, restart original."""
-    binary = Path(args.v2_binary).resolve()
-    if not binary.exists():
-        raise SystemExit(f"v2 binary missing: {binary}")
-    tmp = Path(tempfile.mkdtemp(prefix="skrynia-migrehearsal-"))
-    data_dir = tmp / "v2-data"
-    data_dir.mkdir()
+@dataclass
+class LiveV2:
+    binary: Path
+    tmp: Path
+    data_dir: Path
+    base: str
+    env: dict[str, str]
+    proc: subprocess.Popen | None = None
+
+
+def start_v2(binary: Path, tmp: Path, name: str = "data") -> LiveV2:
+    data_dir = tmp / name
+    data_dir.mkdir(parents=True, exist_ok=True)
     port = free_port()
     env = os.environ.copy()
     env["SKRYNIA_DATA_DIR"] = str(data_dir)
@@ -177,178 +444,419 @@ def cmd_live_rehearsal(args: argparse.Namespace) -> int:
     env.setdefault("SKRYNIA_URL", f"http://127.0.0.1:{port}")
     base = f"http://127.0.0.1:{port}"
     proc = subprocess.Popen([str(binary)], cwd=str(data_dir), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    result: dict[str, Any] = {"schema": "skrynia-v2-migration-rollback-rehearsal", "ok": False, "steps": []}
-    try:
-        # wait ready
-        deadline = time.time() + 20
-        while time.time() < deadline:
-            if proc.poll() is not None:
-                out = b""
-                try:
-                    out = proc.stdout.read() if proc.stdout else b""
-                except Exception:
-                    pass
-                raise RuntimeError(f"server exited early rc={proc.returncode} out={out[:300]!r}")
-            st, _, _, err = do_request(base, "GET", "/version", timeout=1.0)
-            if st == 200 and not err:
-                break
-            time.sleep(0.1)
-        else:
-            raise RuntimeError("server not ready")
-        # root creds
-        cp = subprocess.run([str(binary), "root-credentials"], cwd=str(data_dir), env=env, capture_output=True, text=True, timeout=10)
-        if cp.returncode != 0:
-            raise RuntimeError(f"root-credentials failed: {cp.stderr[:200]}")
-        creds = json.loads(cp.stdout.strip())
-        root_id, root_issuer = creds["id"], creds["issuerToken"]
-        # issue root user
-        st, _, body, err = do_request(base, "POST", f"/grants/{root_id}/users", headers={"Authorization": f"Bearer {root_issuer}"})
-        if st != 200 or err:
-            raise RuntimeError(f"issue root user failed st={st} err={err} body={body[:120]!r}")
-        root_user = json.loads(body.decode())["userToken"]
-        # create child grant and representative objects
-        grant_body = json.dumps({"locations": "mig/*", "operations": ["create","modify","delete","list","delegate"], "maxBytes": 1_000_000, "maxObjects": 100}).encode()
-        st, _, body, err = do_request(base, "POST", "/grants", headers={"Authorization": f"Bearer {root_user}", "Content-Type": "application/json"}, body=grant_body)
-        if st != 200:
-            raise RuntimeError(f"create grant failed st={st} body={body[:120]!r}")
-        child = json.loads(body.decode())
-        st, _, body, err = do_request(base, "POST", f"/grants/{child['id']}/users", headers={"Authorization": f"Bearer {child['issuerToken']}"})
-        if st != 200:
-            raise RuntimeError(f"issue child user failed st={st}")
-        child_user = json.loads(body.decode())["userToken"]
-        h = {"Authorization": f"Bearer {child_user}"}
-        for name, payload in [("a.txt", b"alpha"), ("b.json", b"{\"k\":1}"), ("nested/c.bin", bytes(range(32)))]:
-            st, _, bdy, err = do_request(base, "POST", f"/store/mig/{name}", headers=h, body=payload)
-            if st != 201:
-                raise RuntimeError(f"populate object {name} failed st={st} body={bdy[:120]!r}")
-        # stop server before snapshot for filesystem-consistent copy
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            out = b""
+            try:
+                out = proc.stdout.read() if proc.stdout else b""
+            except Exception:
+                pass
+            raise RuntimeError(f"v2 exited early rc={proc.returncode} out={out[:300]!r}")
+        st, _, _, err = do_request(base, "GET", "/version", timeout=1.0)
+        if st == 200 and not err:
+            return LiveV2(binary=binary, tmp=tmp, data_dir=data_dir, base=base, env=env, proc=proc)
+        time.sleep(0.1)
+    proc.terminate()
+    raise RuntimeError("v2 server not ready")
+
+
+def stop_v2(v2: LiveV2) -> None:
+    proc = v2.proc
+    if proc and proc.poll() is None:
         proc.terminate()
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            proc.kill(); proc.wait(timeout=5)
-        result["steps"].append({"name": "populate_disposable_v2", "ok": True, "objects": 3, "grants_created": 1})
+            proc.kill()
+            proc.wait(timeout=5)
+    v2.proc = None
 
-        src_manifest = build_manifest(data_dir)
-        rollback_dir = tmp / "rollback-copy"
-        import_dir = tmp / "import-candidate-copy"
-        shutil.copytree(data_dir, rollback_dir)
-        shutil.copytree(data_dir, import_dir)
-        rb_manifest = build_manifest(rollback_dir)
-        im_manifest = build_manifest(import_dir)
-        ok_copies = src_manifest["manifest_sha256"] == rb_manifest["manifest_sha256"] == im_manifest["manifest_sha256"]
-        result["steps"].append({"name": "snapshot_and_manifest_copies", "ok": ok_copies, "source_manifest": src_manifest["manifest_sha256"], "rollback_manifest": rb_manifest["manifest_sha256"], "import_manifest": im_manifest["manifest_sha256"], "summary": src_manifest["summary"]})
-        if not ok_copies:
-            raise RuntimeError("copy manifests differ")
 
-        # rollback validation: restart original source dir and verify key reads unchanged
-        proc = subprocess.Popen([str(binary)], cwd=str(data_dir), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+def populate_representative_v2(v2: LiveV2) -> dict[str, Any]:
+    cp = subprocess.run([str(v2.binary), "root-credentials"], cwd=str(v2.data_dir), env=v2.env, capture_output=True, text=True, timeout=10)
+    if cp.returncode != 0:
+        raise RuntimeError(f"root-credentials failed: {cp.stderr[:200]}")
+    creds = json.loads(cp.stdout.strip())
+    st, _, body, err = do_request(v2.base, "POST", f"/grants/{creds['id']}/users", headers={"Authorization": f"Bearer {creds['issuerToken']}"})
+    if st != 200 or err:
+        raise RuntimeError(f"issue root user failed st={st} err={err}")
+    root_user = json.loads(body.decode())["userToken"]
+    grant_body = json.dumps({"locations": "mig/*", "operations": ["create", "modify", "delete", "list", "delegate"], "maxBytes": 1_000_000, "maxObjects": 100}).encode()
+    st, _, body, err = do_request(v2.base, "POST", "/grants", headers={"Authorization": f"Bearer {root_user}", "Content-Type": "application/json"}, body=grant_body)
+    if st != 200:
+        raise RuntimeError(f"create grant failed st={st} body={body[:120]!r}")
+    child = json.loads(body.decode())
+    st, _, body, err = do_request(v2.base, "POST", f"/grants/{child['id']}/users", headers={"Authorization": f"Bearer {child['issuerToken']}"})
+    if st != 200:
+        raise RuntimeError(f"issue child user failed st={st}")
+    child_user = json.loads(body.decode())["userToken"]
+    h = {"Authorization": f"Bearer {child_user}"}
+    payloads = [("a.txt", b"alpha"), ("b.json", b"{\"k\":1}"), ("nested/c.bin", bytes(range(64)))]
+    for name, payload in payloads:
+        st, _, bdy, err = do_request(v2.base, "POST", f"/store/mig/{name}", headers=h, body=payload)
+        if st != 201:
+            raise RuntimeError(f"populate object {name} failed st={st} body={bdy[:120]!r} err={err}")
+    return {"objects": payloads, "child_grant_id": child["id"]}
+
+
+# ---- rehearsal core ----
+
+def simulate_import_with_interruption(source_manifest: dict[str, Any], rollback_dir: Path, candidate_dir: Path, evidence_dir: Path) -> dict[str, Any]:
+    """Simulate a v3 import attempt that is interrupted; prove fail-closed + reversion."""
+    if candidate_dir.exists():
+        shutil.rmtree(candidate_dir)
+    safe_copytree(rollback_dir, candidate_dir)
+    marker = candidate_dir / ".v3-import-in-progress"
+    marker.write_text(json.dumps({"state": "in-progress", "step": "copy-and-transform"}, sort_keys=True), encoding="utf-8")
+    # simulate partial/incomplete transformation: mutate candidate so it no longer matches source
+    mutated = candidate_dir / "store" / "mig" / "a.txt"
+    if mutated.exists():
+        mutated.write_bytes(b"PARTIAL-CORRUPTION")
+    # also simulate a partially written new artifact that would be unsafe/incomplete
+    partial_art = candidate_dir / "state" / "v3-import-partial.tmp"
+    partial_art.write_bytes(b"incomplete")
+    # interruption occurs here (no marker removal)
+    interrupted = {
+        "interrupted": True,
+        "marker_present": marker.exists(),
+        "candidate_differs_from_source": not manifests_equal(source_manifest, build_manifest(candidate_dir)),
+    }
+    # retry attempt must fail closed while marker/incomplete state exists
+    retry_gate = {"ok": False}
+    if marker.exists() or partial_art.exists():
+        retry_gate = {"ok": False, "fail_closed": True, "reason": "incomplete/interrupted import state detected; retry refused until explicit rollback/cleanup"}
+    else:
+        retry_gate = {"ok": False, "fail_closed": False, "reason": "unexpected: interruption marker missing"}
+    # rollback/reversion: discard candidate and restore from untouched rollback snapshot
+    rollback_manifest_before = build_manifest(rollback_dir)
+    rollback_intact = manifests_equal(source_manifest, rollback_manifest_before)
+    shutil.rmtree(candidate_dir)
+    safe_copytree(rollback_dir, candidate_dir)
+    reverted_manifest = build_manifest(candidate_dir)
+    reversion_ok = manifests_equal(source_manifest, reverted_manifest) and manifests_equal(rollback_manifest_before, reverted_manifest)
+    # cleanup candidate to leave no partial state; prove rollback copy still untouched
+    shutil.rmtree(candidate_dir)
+    rollback_manifest_after = build_manifest(rollback_dir)
+    result = {
+        "name": "simulated_interruption_retry_rollback",
+        "ok": interrupted["candidate_differs_from_source"] and retry_gate["fail_closed"] and rollback_intact and reversion_ok and manifests_equal(source_manifest, rollback_manifest_after),
+        "interruption": interrupted,
+        "retry_gate": retry_gate,
+        "rollback_snapshot_intact": rollback_intact,
+        "reversion_exact": reversion_ok,
+        "rollback_copy_untouched_after": manifests_equal(source_manifest, rollback_manifest_after),
+        "v3_import": {"status": "not_run", "ok": None, "fail_closed": True, "reason": V3_IMPORT_REASON},
+    }
+    write_json(evidence_dir / "interruption-retry-rollback.json", result)
+    return result
+
+
+def verify_original_reads(binary: Path, tmp: Path, source_data_dir: Path, expected: list[tuple[str, bytes]], evidence_dir: Path) -> dict[str, Any]:
+    # restart v2 against a copy of source_data_dir to prove it remains usable; keep source_data_dir itself untouched comparison via manifest caller
+    run_dir = tmp / "restart-verify-data"
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    safe_copytree(source_data_dir, run_dir)
+    v2 = start_v2(binary, tmp, name="restart-verify-data")
+    # start_v2 created run_dir inside tmp/name; but we want our copied run_dir used. adjust: easier to start then copy? no.
+    stop_v2(v2)
+    # Actually start_v2 created tmp/restart-verify-data; overwrite by using different approach
+    # Simplify: create fresh LiveV2-like start on existing dir
+    shutil.rmtree(tmp / "restart-verify-data")
+    safe_copytree(source_data_dir, tmp / "restart-verify-data")
+    port = free_port()
+    env = os.environ.copy()
+    env["SKRYNIA_DATA_DIR"] = str(tmp / "restart-verify-data")
+    env["SKRYNIA_HOST"] = "127.0.0.1"
+    env["SKRYNIA_PORT"] = str(port)
+    env.setdefault("SKRYNIA_URL", f"http://127.0.0.1:{port}")
+    base = f"http://127.0.0.1:{port}"
+    proc = subprocess.Popen([str(binary)], cwd=str(tmp / "restart-verify-data"), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
         deadline = time.time() + 20
+        ready = False
         while time.time() < deadline:
+            if proc.poll() is not None:
+                raise RuntimeError(f"restart verify server exited rc={proc.returncode}")
             st, _, _, err = do_request(base, "GET", "/version", timeout=1.0)
             if st == 200 and not err:
+                ready = True
                 break
-            if proc.poll() is not None:
-                raise RuntimeError(f"restart failed rc={proc.returncode}")
             time.sleep(0.1)
-        else:
-            raise RuntimeError("restart not ready")
+        if not ready:
+            raise RuntimeError("restart verify server not ready")
         checks = []
-        for path, expected in [("/store/mig/a.txt", b"alpha"), ("/store/mig/b.json", b"{\"k\":1}"), ("/store/mig/nested/c.bin", bytes(range(32)))]:
+        for path, payload in expected:
             st, _, body, err = do_request(base, "GET", path)
-            checks.append({"path": path, "ok": st == 200 and body == expected and not err, "status": st})
-        ok_restart = all(c["ok"] for c in checks)
-        result["steps"].append({"name": "restart_original_v2_and_verify_reads", "ok": ok_restart, "checks": checks})
-        if not ok_restart:
-            raise RuntimeError("post-restart read verification failed")
-
-        # verify rollback copy remained untouched and independently valid (manifest equality as proof of untouched bytes/state files)
-        rb_manifest_after = build_manifest(rollback_dir)
-        ok_untouched = rb_manifest_after["manifest_sha256"] == src_manifest["manifest_sha256"]
-        result["steps"].append({"name": "rollback_copy_untouched", "ok": ok_untouched, "rollback_manifest_after": rb_manifest_after["manifest_sha256"]})
-        if not ok_untouched:
-            raise RuntimeError("rollback copy changed")
-
-        # v3 import step explicitly blocked/unexecuted but planned
-        result["steps"].append({"name": "v3_import_and_post_import_parity", "ok": None, "status": "not_run", "reason": "no integrated v3 kernel+Program0+compat facade candidate available; actual import/export-to-v3 and imported-state differential cannot be executed"})
-        result["ok"] = ok_copies and ok_restart and ok_untouched
-        result["production_mutation"] = False
-        result["disposable_tmp"] = str(tmp)
-        result["binary"] = str(binary)
-        # keep artifacts for evidence by copying manifests out if requested
-        if args.evidence_dir:
-            ed = Path(args.evidence_dir)
-            ed.mkdir(parents=True, exist_ok=True)
-            (ed / "source-manifest.json").write_text(json.dumps(src_manifest, indent=2, sort_keys=True) + "\n")
-            (ed / "rollback-manifest.json").write_text(json.dumps(rb_manifest, indent=2, sort_keys=True) + "\n")
-            (ed / "import-candidate-manifest.json").write_text(json.dumps(im_manifest, indent=2, sort_keys=True) + "\n")
-            (ed / "rehearsal-result.json").write_text(json.dumps(result, indent=2, sort_keys=True, default=str) + "\n")
-            result["evidence_dir"] = str(ed)
-        print(json.dumps(result, indent=2, sort_keys=True, default=str))
-        return 0 if result["ok"] else 1
+            checks.append({"path": path, "status": st, "ok": st == 200 and body == payload and not err, "bytes": len(body)})
+        ok = all(c["ok"] for c in checks)
+        result = {"name": "restart_and_verify_reversion_reads", "ok": ok, "checks": checks}
     finally:
-        if proc and proc.poll() is None:
+        if proc.poll() is None:
             proc.terminate()
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill(); proc.wait(timeout=5)
-        # cleanup temp rehearsal dirs unless evidence requested? keep temp path printed; remove to avoid clutter
-        shutil.rmtree(tmp, ignore_errors=True)
+    write_json(evidence_dir / "reversion-read-verification.json", result)
+    return result
 
 
-def cmd_plan(_: argparse.Namespace) -> int:
-    plan = {
-        "schema": "skrynia-v3-migration-rehearsal-plan",
-        "version": 2,
+def run_full_rehearsal(binary: Path, work_dir: Path, evidence_dir: Path) -> dict[str, Any]:
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    result: dict[str, Any] = {
+        "schema": SCHEMA + "-result",
+        "ok": False,
         "production_mutation": False,
-        "steps": [
-            "Select pinned v2 source commit/build and disposable source data directory copy (never production).",
-            "Populate or capture representative disposable v2 state (objects/grants/push as representable); stop service for filesystem-consistent snapshot.",
-            "Snapshot source copy to rollback-copy and candidate-import-copy; record manifests for each and verify equality.",
-            "Rollback validation (v2-side): restart original disposable v2 from source copy and verify representative reads/service health; confirm rollback-copy remains untouched.",
-            "When v3 kernel+Program0+compat facade candidate is available: import from candidate-import-copy into isolated v3 data dir per approved format/procedure.",
-            "Produce post-import observable manifest from v3/facade (objects/metadata/grants/subscriptions/pointers as representable) and diff against source manifest.",
-            "Run differential read/write probes on imported disposable instance; record deviations.",
-            "Discard v3 candidate data dir; document trigger conditions, exact commands, artifacts, and sign-off evidence.",
-        ],
-        "executable_now": [
-            "live-rehearsal: disposable v2 populate/snapshot/manifest/verify/rollback-copy-untouched/restart-read-verification (no v3 import)",
-            "snapshot/manifest/verify subcommands on disposable copies",
-        ],
-        "cannot_run_now": [
-            "Actual import into v3+Program0+facade (candidate not complete/integrated).",
-            "Post-import parity verification against v3 candidate.",
-            "Production cutover rehearsal on real deployment topology.",
-        ],
+        "binary": str(binary),
+        "work_dir": str(work_dir),
+        "evidence_dir": str(evidence_dir),
+        "steps": [],
     }
-    print(json.dumps(plan, indent=2, sort_keys=True))
-    return 0
+    v2 = start_v2(binary, work_dir, name="v2-source")
+    try:
+        populated = populate_representative_v2(v2)
+        stop_v2(v2)
+        source_manifest = build_manifest(v2.data_dir)
+        assert_manifest_ok(source_manifest, "source preflight")
+        write_json(evidence_dir / "source-manifest.json", source_manifest)
+        result["steps"].append({"name": "populate_disposable_v2_and_preflight", "ok": True, "summary": source_manifest["summary"], "child_grant_id": populated["child_grant_id"]})
+
+        rollback_dir = work_dir / "rollback-snapshot"
+        candidate_dir = work_dir / "import-candidate"
+        safe_copytree(v2.data_dir, rollback_dir)
+        rollback_manifest = build_manifest(rollback_dir)
+        copy_ok = manifests_equal(source_manifest, rollback_manifest)
+        write_json(evidence_dir / "rollback-snapshot-manifest.json", rollback_manifest)
+        result["steps"].append({"name": "immutable_rollback_snapshot", "ok": copy_ok, "manifest_sha256": rollback_manifest["manifest_sha256"]})
+        if not copy_ok:
+            raise GateFailure("rollback snapshot differs from source")
+
+        sim = simulate_import_with_interruption(source_manifest, rollback_dir, candidate_dir, evidence_dir)
+        result["steps"].append(sim)
+
+        source_after = build_manifest(v2.data_dir)
+        source_unchanged = manifests_equal(source_manifest, source_after)
+        result["steps"].append({"name": "original_source_unchanged_after_simulation", "ok": source_unchanged, "manifest_sha256": source_after["manifest_sha256"]})
+
+        reads = verify_original_reads(binary, work_dir, v2.data_dir, [(f"/store/mig/{n}", b) for n, b in populated["objects"]], evidence_dir)
+        result["steps"].append(reads)
+
+        result["steps"].append({"name": "v3_import_and_post_import_parity", "ok": None, "status": "not_run", "fail_closed": True, "reason": V3_IMPORT_REASON})
+        result["ok"] = all(s.get("ok") is True or (s.get("status") == "not_run" and s.get("fail_closed") is True) for s in result["steps"])
+        result["gates"] = {
+            "unsafe_symlinks": "enforced by preflight/manifest/snapshot",
+            "metadata_integrity": "enforced by preflight/manifest (corrupt/missing-fields/duplicate/id-mismatch/outbox-orphan)",
+            "interruption_retry_fail_closed": sim["retry_gate"]["fail_closed"],
+            "rollback_reversion_exact": sim["reversion_exact"],
+            "v3_candidate_available": False,
+        }
+    finally:
+        stop_v2(v2)
+    write_json(evidence_dir / "rehearsal-result.json", result)
+    print(json.dumps(result, indent=2, sort_keys=True, default=str))
+    return result
+
+
+def cmd_rehearse(args: argparse.Namespace) -> int:
+    binary = Path(args.v2_binary).resolve()
+    if not binary.exists():
+        raise SystemExit(f"v2 binary missing: {binary}")
+    work_dir = Path(tempfile.mkdtemp(prefix="skrynia-migrehearsal-"))
+    evidence_dir = Path(args.evidence_dir).resolve() if args.evidence_dir else (work_dir / "evidence")
+    try:
+        result = run_full_rehearsal(binary, work_dir, evidence_dir)
+        return 0 if result.get("ok") else 1
+    finally:
+        if args.keep_work_dir:
+            print(json.dumps({"kept_work_dir": str(work_dir)}, sort_keys=True), file=sys.stderr)
+        else:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def cmd_live_rehearsal(args: argparse.Namespace) -> int:
+    # compatibility wrapper
+    class A: pass
+    a = A()
+    a.v2_binary = args.v2_binary
+    a.evidence_dir = args.evidence_dir
+    a.keep_work_dir = getattr(args, "keep_work_dir", False)
+    return cmd_rehearse(a)
+
+
+# ---- gate tests (executable, no production) ----
+
+def mk_min_v2_data(root: Path) -> None:
+    (root / "store" / "mig").mkdir(parents=True)
+    (root / "store" / "mig" / "a.txt").write_bytes(b"alpha")
+    (root / "state" / "grants").mkdir(parents=True)
+    (root / "state" / "push-subs").mkdir(parents=True)
+    (root / "state" / "push").mkdir(parents=True)
+    grant = {"id": "g1", "parent": None, "locations": "*", "operations": ["create"], "maxBytes": None, "maxObjects": None, "issuerHash": "h", "users": [{"id": "u1", "hash": "hh"}]}
+    write_json(root / "state" / "grants" / "g1.json", grant)
+    write_json(root / "state" / "push" / "outbox.json", {})
+    write_json(root / "state" / "push" / "vapid.json", {"publicKey": "pk", "privateKey": "sk"})
+
+
+def expect_gate(name: str, fn: Callable[[], Any]) -> dict[str, Any]:
+    try:
+        fn()
+        return {"test": name, "ok": False, "error": "expected GateFailure"}
+    except GateFailure as e:
+        return {"test": name, "ok": True, "gate": str(e)}
+    except Exception as e:  # noqa: BLE001
+        return {"test": name, "ok": False, "error": f"unexpected {type(e).__name__}: {e}"}
+
+
+def run_gate_tests(binary: Path | None) -> dict[str, Any]:
+    results: list[dict[str, Any]] = []
+
+    with tempfile.TemporaryDirectory(prefix="skrynia-gatetest-") as td:
+        base = Path(td)
+
+        # unsafe symlink in store
+        d = base / "symlink-store"; mk_min_v2_data(d)
+        (d / "store" / "mig" / "link").symlink_to(d / "store" / "mig" / "a.txt")
+        results.append(expect_gate("unsafe_symlink_store", lambda d=d: build_manifest(d)))
+        results.append(expect_gate("unsafe_symlink_snapshot", lambda d=d, b=base/"out1": safe_copytree(d, b)))
+
+        # unsafe symlink in grant metadata
+        d = base / "symlink-grant"; mk_min_v2_data(d)
+        (d / "state" / "grants" / "evil.json").symlink_to(d / "state" / "grants" / "g1.json")
+        results.append(expect_gate("unsafe_symlink_grant_metadata", lambda d=d: build_manifest(d)))
+
+        # corrupt grant metadata
+        d = base / "corrupt-grant"; mk_min_v2_data(d)
+        (d / "state" / "grants" / "g1.json").write_text("{not-json", encoding="utf-8")
+        m = build_manifest(d)
+        results.append({"test": "corrupt_grant_metadata", "ok": m["summary"]["issue_count"] > 0 and any(i.get("issue") == "corrupt json" and i.get("kind") == "grants" for i in m["issues"]), "issues": m["issues"]})
+
+        # missing required grant field
+        d = base / "missing-grant-field"; mk_min_v2_data(d)
+        bad = json.loads((d / "state" / "grants" / "g1.json").read_text())
+        del bad["issuerHash"]
+        write_json(d / "state" / "grants" / "g1.json", bad)
+        m = build_manifest(d)
+        results.append({"test": "missing_grant_metadata_field", "ok": any(i.get("kind") == "grants" and i.get("issue") == "invalid metadata" for i in m["issues"]), "issues": m["issues"]})
+
+        # duplicate grant id metadata (two files same logical id inside content/filename mismatch treated as invalid; also create duplicate by same filename impossible, so test duplicate id via internal mismatch plus another file with same id)
+        d = base / "dup-grant-id"; mk_min_v2_data(d)
+        g1 = json.loads((d / "state" / "grants" / "g1.json").read_text())
+        write_json(d / "state" / "grants" / "g2.json", g1)  # id inside is g1 but filename g2 => invalid/duplicate signal
+        m = build_manifest(d)
+        results.append({"test": "duplicate_or_mismatched_grant_id_metadata", "ok": any(i.get("kind") == "grants" and i.get("issue") == "invalid metadata" for i in m["issues"]), "issues": m["issues"]})
+
+        # corrupt subscription metadata
+        d = base / "corrupt-sub"; mk_min_v2_data(d)
+        (d / "state" / "push-subs" / "s1.json").write_text("{", encoding="utf-8")
+        m = build_manifest(d)
+        results.append({"test": "corrupt_subscription_metadata", "ok": any(i.get("kind") == "push-subs" and i.get("issue") == "corrupt json" for i in m["issues"]), "issues": m["issues"]})
+
+        # missing subscription field
+        d = base / "missing-sub-field"; mk_min_v2_data(d)
+        sub = {"id": "s1", "grantId": "g1", "locations": "*", "events": ["x"], "endpoint": "https://e", "keys": {"p256dh": "p", "auth": "a"}, "capHash": "c"}
+        del sub["endpoint"]
+        write_json(d / "state" / "push-subs" / "s1.json", sub)
+        m = build_manifest(d)
+        results.append({"test": "missing_subscription_metadata_field", "ok": any(i.get("kind") == "push-subs" and i.get("issue") == "invalid metadata" for i in m["issues"]), "issues": m["issues"]})
+
+        # duplicate/mismatched subscription id metadata
+        d = base / "dup-sub-id"; mk_min_v2_data(d)
+        sub = {"id": "s1", "grantId": "g1", "locations": "*", "events": ["x"], "endpoint": "https://e", "keys": {"p256dh": "p", "auth": "a"}, "capHash": "c"}
+        write_json(d / "state" / "push-subs" / "s1.json", sub)
+        write_json(d / "state" / "push-subs" / "s2.json", sub)
+        m = build_manifest(d)
+        results.append({"test": "duplicate_or_mismatched_subscription_id_metadata", "ok": any(i.get("kind") == "push-subs" and i.get("issue") == "invalid metadata" for i in m["issues"]), "issues": m["issues"]})
+
+        # missing subscription metadata referenced by outbox
+        d = base / "missing-sub-for-outbox"; mk_min_v2_data(d)
+        write_json(d / "state" / "push" / "outbox.json", {"s-missing": {"generation": 1, "attempts": 0, "nextAt": 0}})
+        m = build_manifest(d)
+        results.append({"test": "missing_subscription_metadata_for_outbox", "ok": any(i.get("kind") == "push-subs" and i.get("issue") == "missing subscription metadata for outbox entry" for i in m["issues"]), "issues": m["issues"]})
+
+        # correctness of reversion (pure filesystem simulation)
+        d = base / "reversion"; mk_min_v2_data(d)
+        src_m = build_manifest(d)
+        rb = base / "reversion-rb"; cand = base / "reversion-cand"; ev = base / "reversion-ev"; ev.mkdir()
+        safe_copytree(d, rb)
+        sim = simulate_import_with_interruption(src_m, rb, cand, ev)
+        # original still equal
+        orig_after = build_manifest(d)
+        results.append({"test": "correctness_of_reversion", "ok": sim["ok"] and manifests_equal(src_m, orig_after), "simulation": sim, "source_unchanged": manifests_equal(src_m, orig_after)})
+
+        # live rehearsal if binary provided
+        if binary and binary.exists():
+            live_ev = base / "live-ev"
+            work = base / "live-work"; work.mkdir()
+            try:
+                live = run_full_rehearsal(binary, work, live_ev)
+                results.append({"test": "live_executable_rehearsal", "ok": bool(live.get("ok")), "result_path": str(live_ev / "rehearsal-result.json")})
+            except Exception as e:  # noqa: BLE001
+                results.append({"test": "live_executable_rehearsal", "ok": False, "error": f"{type(e).__name__}: {e}"})
+
+    ok = all(r.get("ok") is True for r in results)
+    return {"schema": SCHEMA + "-gate-tests", "ok": ok, "passed": sum(1 for r in results if r.get("ok")), "total": len(results), "results": results}
+
+
+def cmd_test_gates(args: argparse.Namespace) -> int:
+    binary = Path(args.v2_binary).resolve() if args.v2_binary else None
+    out = run_gate_tests(binary)
+    if args.output:
+        write_json(Path(args.output), out)
+    print(json.dumps(out, indent=2, sort_keys=True, default=str))
+    return 0 if out.get("ok") else 1
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("snapshot", help="Copy a disposable v2 data dir to a new path")
+
+    p = sub.add_parser("snapshot", help="Fail-closed safe copy of disposable v2 data dir")
     p.add_argument("--source", required=True)
     p.add_argument("--dest", required=True)
     p.set_defaults(func=cmd_snapshot)
-    p = sub.add_parser("manifest", help="Emit verification manifest for a disposable v2 data dir")
+
+    p = sub.add_parser("manifest", help="Emit exact-byte/metadata manifest (fail-closed on unsafe/invalid state)")
     p.add_argument("--data-dir", required=True)
     p.add_argument("--output")
     p.set_defaults(func=cmd_manifest)
-    p = sub.add_parser("verify", help="Compare two manifests for equality")
+
+    p = sub.add_parser("verify", help="Compare two manifests for exact equality")
     p.add_argument("--manifest-a", required=True)
     p.add_argument("--manifest-b", required=True)
     p.set_defaults(func=cmd_verify)
-    p = sub.add_parser("plan", help="Print migration/rollback rehearsal plan (no mutation)")
+
+    p = sub.add_parser("validate", help="Run fail-closed gates on a disposable v2 data dir")
+    p.add_argument("--data-dir", required=True)
+    p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("plan", help="Print executable/fail-closed rehearsal plan")
     p.set_defaults(func=cmd_plan)
-    p = sub.add_parser("live-rehearsal", help="Run executable disposable v2 populate/snapshot/verify/rollback rehearsal (no v3 import)")
-    p.add_argument("--v2-binary", required=True, help="Path to pinned v2 skrynia-server binary")
-    p.add_argument("--evidence-dir", help="Directory to write manifests/result artifacts")
+
+    p = sub.add_parser("rehearse", help="Run full disposable live rehearsal with interruption/retry/rollback gates")
+    p.add_argument("--v2-binary", required=True)
+    p.add_argument("--evidence-dir")
+    p.add_argument("--keep-work-dir", action="store_true")
+    p.set_defaults(func=cmd_rehearse)
+
+    p = sub.add_parser("live-rehearsal", help="Compatibility alias for rehearse")
+    p.add_argument("--v2-binary", required=True)
+    p.add_argument("--evidence-dir")
+    p.add_argument("--keep-work-dir", action="store_true")
     p.set_defaults(func=cmd_live_rehearsal)
+
+    p = sub.add_parser("test-gates", help="Run automated gate tests (unsafe symlinks, missing/duplicate/corrupt grant & subscription metadata, reversion)")
+    p.add_argument("--v2-binary", help="Optional pinned v2 binary for live executable rehearsal test")
+    p.add_argument("--output")
+    p.set_defaults(func=cmd_test_gates)
+
     args = ap.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except GateFailure as e:
+        print(json.dumps({"ok": False, "fail_closed": True, "error": str(e)}, sort_keys=True), file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -4,3 +4,4 @@ mod behavior_eval;
 mod durable;
 mod lock_safety;
 mod recursive;
+mod releases;

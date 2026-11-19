@@ -88,3 +88,63 @@ restart/invoke/revoke through real `POST /` requests. Missing env variables
 fail explicitly when this opt-in test is run; ordinary unit test executions
 report it as ignored, not as a false parity pass. This tests the small
 example registry only, not the complete historical grant protocol.
+
+## Native immutable code releases and activation (draft, v3 ABI version 1)
+
+Program 0 defines new **binary POST** operations for version management.
+They are NOT HTTP GET/PUT/store/grants compatibility operations. All
+identifiers and code digests are 32 raw bytes; an id field carries a little
+endian 16-bit length followed by those bytes, and a blob field carries a
+little endian 32-bit length followed by the bytes.
+
+- Opcode 9, StageCode: admin_cap id, WASM code blob. Stores an immutable
+  content-hash blob and returns its 32-byte SHA-256. Requires a live app
+  already owned by that private admin capability. Unsealed blobs cannot
+  be activated.
+- Opcode 10, SealCode: admin_cap id, 32-byte code hash. Re-reads and
+  verifies the complete staged blob and fsyncs a per-app immutable
+  readiness marker. This operation costs O(code bytes) only at release
+  preparation; readiness is an explicit operator assertion, **not** proof
+  of kernel execution safety, test coverage, or authorization of child
+  operations. Use a disposable native VM to validate before sealing.
+- Opcode 11, ActivateCode: admin_cap id, expected_revision u64 LE,
+  target_ready_hash 32 bytes. Under the exclusive native mutation lock,
+  checks an exact revision and the fixed-size ready marker, then atomically
+  writes a fixed **42-byte** code pointer and advances its revision.
+  Returns the new 42-byte active pointer. No historical list scan, code
+  read, rehash, copy or migration on activation/rollback. Repeating a
+  successful but acknowledgement-lost activation with the stale revision
+  returns a conflict. Read current state to reconcile.
+- Opcode 12, GetActive: invoke_id id, returns the 42-byte current
+  pointer. The pointer format is v3: [3, live_byte, 32-byte hash,
+  u64_le_revision]; tombstones remain durable with advanced revisions.
+  A re-register after revoke **never** resets the revision, so a stale
+  A->B->A request cannot become valid after a revoke/recreate.
+- Opcode 13, ListVersions: invoke_id id, cursor (one byte 0/1 plus
+  optional 32-byte last returned hash), limit u16 LE (1..256). Returns
+  u16 LE count followed by that many ascending 32-byte ready hashes.
+  List and paging may cost O(number of historical releases) in this
+  implementation; the **activation** operation never pays this cost.
+- Opcode 14, ListPrograms: cursor and limit in the same format;
+  returns sorted public 32-byte invoke IDs in pages of 256 or fewer.
+  These APIs expose public IDs and version hashes but never grant
+  mutation authority. Mutations require the operator's private
+  32-byte admin_cap, not its SHA-256 public invocation identifier.
+
+The root's active record is an **incompatible new native v3 format**.
+Prior experimental v2-format active files and hex-encoded object basenames
+require explicit trusted export/import; no automatic legacy translation.
+The per-app release marker is written only after its full code blob has
+been durably published and cryptographically verified. Blob reads also
+verify the actual bytes match their content hash; corrupt records fail
+closed. The global historical blob store may retain unused versions;
+garbage collection and quotas are separate security/operational tasks.
+
+Important release blockers: Register remains an unqualified anonymous
+user-secret-based operation. It can allocate unbounded durable code
+storage and must be protected by operator-owned installation authority
+and quotas before enabling public internet access. The current code
+readiness marker represents the trusted admin's preparation, not
+independent WASM compile approval. Production migrations, Web admin
+integration, browser credential issuance, aborted-write recovery and
+security review remain incomplete.

@@ -18,7 +18,7 @@ fn stub501() -> Response {
     }
 }
 fn read_obj<S, R>(backend: &DurableBackend<S, R>, key: &str) -> CompatResult<ObjectRead> {
-    let state = backend.lock();
+    let state = backend.checked()?;
     Ok(match state.objects.get(key) {
         Some(bytes) => ObjectRead::Found(Object {
             key: key.into(),

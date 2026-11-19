@@ -145,3 +145,22 @@ the kernel-backed authority, DurableBackend deliberately returns a visible
 501 not_implemented for push routes. It must never claim compatibility by
 falling back to a test-memory subscription implementation. Both injected
 state machines retain their fail-closed persistence uncertainty behavior.
+
+## v2 grant HTTP parity (injected backend draft)
+
+The v2 compatibility facade now supports POST /grants, GET /grants/:id,
+POST /grants/:id/users, DELETE /grants/:id/users/:userId and
+DELETE /grants/:id via its injected GrantAdmin trait. Issuer-token
+management and user-token scope/inspection are distinct; malformed
+or absent authorization is rejected without leaking sensitive values.
+Creation enforces the v2 JSON size/spec validation, returns a random
+32-hex grant ID and a 64-hex issuer token, and inspection redacts
+issuer/user secret hashes. Unrecognized grant methods and paths return
+404, matching the pinned v2 HTTP router.
+
+An opt-in disposable-server differential suite compares live pinned v2
+responses with the injected durable-backend facade for delegated grants,
+user issuance, inspection, invalid specs and missing authorization.
+Random identifiers and bearer secrets are mapped between the two test
+instances, not compared as equal random bytes. THIS TEST IS NOT A
+production v3 persistence or migration qualification.

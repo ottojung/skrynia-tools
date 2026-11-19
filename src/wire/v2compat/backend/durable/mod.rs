@@ -12,7 +12,8 @@ pub(super) use super::{
     CompatBackend, CompatError, CompatResult, Meta, Mutation, MutationKind, Object, ObjectRead,
     Response, Store,
 };
-use super::{Push, Request, reply};
+use super::{GrantAdmin, Push, Request, reply};
+
 pub use core::DurableBackend;
 pub use data::{RandomSource, StateStore};
 impl<S, R> Push for DurableBackend<S, R> {

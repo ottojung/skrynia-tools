@@ -1,3 +1,4 @@
+mod admin_http;
 mod bridge;
 mod failure;
 mod fakes;

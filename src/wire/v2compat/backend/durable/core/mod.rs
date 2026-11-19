@@ -1,8 +1,9 @@
+mod admin;
 mod lock;
 mod random;
 mod txn;
 use super::data::{RandomSource, State, StateStore, decode, encode};
-pub(super) use super::{Authority, CompatError, CompatResult};
+pub(super) use super::{Authority, CompatError, CompatResult, GrantAdmin};
 use std::sync::{Mutex, atomic::AtomicBool};
 
 pub struct DurableBackend<S, R> {

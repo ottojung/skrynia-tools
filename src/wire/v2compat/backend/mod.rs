@@ -1,6 +1,8 @@
 pub mod delivery;
 pub mod durable;
+mod grant_admin;
 pub mod grants;
+pub use grant_admin::GrantAdmin;
 pub mod push;
 pub use self::store::{Mutation, MutationKind, Object, ObjectRead, Store};
 pub(crate) use super::reply;
@@ -31,7 +33,7 @@ pub trait Meta {
     fn version(&self) -> MetaResponse;
     fn push_vapid(&self) -> MetaResponse;
 }
-pub trait CompatBackend: Meta + Store + Push {}
+pub trait CompatBackend: Meta + Store + Push + GrantAdmin {}
 
 #[derive(Clone, Debug, Default)]
 pub struct Unavailable;
@@ -47,4 +49,5 @@ impl Meta for Unavailable {
     }
 }
 impl Store for Unavailable {}
+impl GrantAdmin for Unavailable {}
 impl CompatBackend for Unavailable {}

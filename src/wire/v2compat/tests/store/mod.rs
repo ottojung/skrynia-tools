@@ -29,6 +29,7 @@ impl Store for R {
         })
     }
 }
+impl super::backend::GrantAdmin for R {}
 impl CompatBackend for R {}
 pub(super) fn req(m: &str, p: &str) -> Request {
     Request {

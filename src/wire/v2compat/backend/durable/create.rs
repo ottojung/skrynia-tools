@@ -15,8 +15,10 @@ impl<S: StateStore, R: RandomSource> DurableBackend<S, R> {
             let valid = authority.child_spec(parent_token, spec)?;
             let parent_id = authority.user(parent_token)?.id.clone();
             super::quota::check_meta_add(&authority, &parent_id, &state)?;
-            state.next_grant = state.next_grant.saturating_add(1);
-            let id = format!("g{}", state.next_grant);
+            let id = self.random_hex(16)?;
+            if state.grants.iter().any(|grant| grant.id == id) {
+                return Err(super::CompatError::new(500, "duplicate_grant_id"));
+            }
             let issuer = self.random_hex(32)?;
             state.grants.push(Grant {
                 id: id.clone(),

@@ -1,3 +1,4 @@
+mod grants;
 mod http;
 mod paths;
 mod push;
@@ -16,6 +17,9 @@ pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
     }
     let method = req.method.to_ascii_uppercase();
     let path = req.path.as_str();
+    if let Some(r) = grants::handle(backend, method.as_str(), path, req) {
+        return http::with_cors(r);
+    }
     if let Some(r) = push::handle(backend, method.as_str(), path, req) {
         return http::with_cors(r);
     }
@@ -29,7 +33,7 @@ pub fn handle<B: CompatBackend>(backend: &B, req: &Request) -> Response {
         ("POST" | "PUT" | "DELETE", p) if p.starts_with("/store/") => {
             super::mutate::handle(backend, &method, &p[7..], req)
         }
-        _ if paths::stub(method.as_str(), path) => reply::error(501, "not_implemented"),
+        _ if path.starts_with("/grants") => reply::error(404, "not_found"),
         _ if paths::known(path) => reply::error(405, "method_not_allowed"),
         _ => reply::error(404, "not_found"),
     };

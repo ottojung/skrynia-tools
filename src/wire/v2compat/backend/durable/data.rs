@@ -18,10 +18,6 @@ pub struct State {
     pub grants: Vec<Grant>,
     #[serde(default)]
     pub objects: BTreeMap<String, Vec<u8>>,
-    #[serde(default)]
-    pub next_grant: u64,
-    #[serde(default)]
-    pub next_user: u64,
 }
 pub fn encode(state: &State) -> Result<Vec<u8>, String> {
     serde_json::to_vec(state).map_err(|e| e.to_string())

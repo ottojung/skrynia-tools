@@ -2,8 +2,8 @@ mod fake;
 mod freshness;
 mod ranges;
 use super::{
-    CompatBackend, CompatResult, Meta, Object, ObjectRead, Push, Request, Response, Store,
-    Unavailable,
+    CompatBackend, CompatResult, GrantAdmin, Meta, Object, ObjectRead, Push, Request, Response,
+    Store, Unavailable,
 };
 use fake::{fake, request};
 fn handle(backend: &impl CompatBackend, req: &Request) -> Response {

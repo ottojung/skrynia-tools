@@ -1,6 +1,6 @@
 use super::{
-    CompatBackend, CompatResult, Meta, Object, ObjectRead, Push, Request, Response, Store,
-    Unavailable,
+    CompatBackend, CompatResult, GrantAdmin, Meta, Object, ObjectRead, Push, Request, Response,
+    Store, Unavailable,
 };
 use std::collections::BTreeMap;
 pub struct Stub(pub Vec<u8>);
@@ -36,6 +36,7 @@ impl Push for Stub {
     }
 }
 
+impl GrantAdmin for Stub {}
 impl CompatBackend for Stub {}
 pub fn fake() -> Stub {
     Stub(b"abcdef".to_vec())

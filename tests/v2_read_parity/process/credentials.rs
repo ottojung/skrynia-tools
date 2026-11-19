@@ -1,6 +1,9 @@
 use super::Server;
 
 impl Server {
+    pub fn root_grant(&self) -> Result<(String, String), String> {
+        super::root_file::credentials(&self.dir.join("state/grants"))
+    }
     pub fn root_user(&self) -> Result<String, String> {
         let (id, issuer) = super::root_file::credentials(&self.dir.join("state/grants"))?;
         let url = format!("{}/grants/{id}/users", self.url);

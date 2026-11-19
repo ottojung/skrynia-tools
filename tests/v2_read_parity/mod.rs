@@ -1,6 +1,7 @@
 mod cases;
 mod child;
 mod fixture;
+mod grants;
 mod positive;
 mod process;
 mod quota;
@@ -13,5 +14,6 @@ fn pinned_v2_http_reads_match_tools_facade() {
     positive::verify(&server).unwrap();
     child::verify(&server).unwrap();
     quota::verify(&server).unwrap();
+    grants::verify(&server).unwrap();
 }
 use positive::{RootStore, compare};

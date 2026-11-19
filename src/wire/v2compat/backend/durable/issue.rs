@@ -21,8 +21,14 @@ impl<S: StateStore, R: RandomSource> DurableBackend<S, R> {
                 .users
                 .len();
             super::quota::check_user_add(&authority, grant_id, users, &state)?;
-            state.next_user = state.next_user.saturating_add(1);
-            let user_id = format!("u{}", state.next_user);
+            let user_id = self.random_hex(16)?;
+            if state
+                .grants
+                .iter()
+                .any(|grant| grant.users.iter().any(|u| u.id == user_id))
+            {
+                return Err(CompatError::new(500, "duplicate_user_id"));
+            }
             let token = self.random_hex(32)?;
             let grant = state
                 .grants

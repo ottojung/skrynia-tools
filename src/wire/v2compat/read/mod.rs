@@ -1,4 +1,4 @@
-pub(super) use super::Push;
+pub(super) use super::{GrantAdmin, Push};
 use super::{
     backend::{CompatBackend, ObjectRead},
     key, mime, reply,

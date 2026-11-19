@@ -46,4 +46,5 @@ impl Store for Memory {
         Ok(matches!(req.kind, MutationKind::Create))
     }
 }
+impl super::api_backend::GrantAdmin for Memory {}
 impl CompatBackend for Memory {}

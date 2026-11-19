@@ -19,8 +19,12 @@ where
             &json!({"locations":"t/*","operations":["create","modify","delete"],"maxBytes":4096,"maxObjects":2}),
         )
         .unwrap();
+    assert_eq!(c["id"].as_str().unwrap().len(), 32);
+    assert_eq!(c["issuerToken"].as_str().unwrap().len(), 64);
     let iss = c["issuerToken"].as_str().unwrap().to_string();
     let u = b.issue_user(c["id"].as_str().unwrap(), &iss).unwrap();
+    assert_eq!(u["userId"].as_str().unwrap().len(), 32);
+    assert_eq!(u["userToken"].as_str().unwrap().len(), 64);
     let t = u["userToken"].as_str().unwrap().to_string();
     b.mutate_object(Mutation {
         key: "t/a",

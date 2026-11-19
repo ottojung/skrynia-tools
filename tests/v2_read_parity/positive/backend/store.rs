@@ -38,4 +38,5 @@ impl skrynia_tools::wire::v2compat::Push for RootStore {
     }
 }
 
+impl skrynia_tools::wire::v2compat::GrantAdmin for RootStore {}
 impl CompatBackend for RootStore {}

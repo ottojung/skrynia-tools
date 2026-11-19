@@ -26,5 +26,6 @@ pub fn run(server: &Server, backend: &Backend, v2root: &str, v3root: &str) -> Re
     let v2issuer = old.1["issuerToken"].as_str().ok_or("missing v2 issuer")?;
     let v3issuer = new.1["issuerToken"].as_str().ok_or("missing v3 issuer")?;
     super::errors::check(server, backend, v2root, v3root)?;
-    super::errors::issue_and_inspect(server, backend, (v2id, v2issuer), (v3id, v3issuer))
+    super::errors::issue_and_inspect(server, backend, (v2id, v2issuer), (v3id, v3issuer))?;
+    super::revoke::run(server, backend, (v2id, v2issuer), (v3id, v3issuer))
 }

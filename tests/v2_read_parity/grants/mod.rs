@@ -2,6 +2,7 @@ mod compare;
 mod errors;
 mod fixture;
 mod lifecycle;
+mod revoke;
 use super::process::Server;
 pub fn verify(server: &Server) -> Result<(), String> {
     let (root_id, issuer) = server.root_grant()?;

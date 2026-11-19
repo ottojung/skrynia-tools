@@ -1,7 +1,9 @@
 mod guest;
 mod process;
+mod startup_diag;
 mod wire;
 use skrynia_program0::wire::Request;
+
 #[test]
 #[ignore = "requires a separately built Skrynia v3 binary and Program 0 WASM"]
 fn external_user_program0_register_set_restart_revoke() {

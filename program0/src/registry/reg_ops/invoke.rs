@@ -14,6 +14,7 @@ impl Registry {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn invoke<D: Disk, L: MutLock, E: Eval>(
         &self,
         disk: &D,

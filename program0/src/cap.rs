@@ -18,6 +18,7 @@ pub trait Ram {
 /// Program evaluation capability used to invoke stored WASM.
 pub trait Eval {
     type Err;
+    #[allow(clippy::type_complexity)]
     fn eval(
         &self,
         wasm: &[u8],

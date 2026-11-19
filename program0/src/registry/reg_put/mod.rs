@@ -7,6 +7,7 @@ use crate::store;
 use crate::store_io;
 
 impl Registry {
+    #[allow(clippy::type_complexity)]
     pub fn register<D: Disk, L: MutLock>(
         &self,
         disk: &D,

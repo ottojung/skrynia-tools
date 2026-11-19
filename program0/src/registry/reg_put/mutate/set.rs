@@ -5,6 +5,7 @@ use crate::store_io;
 use crate::wire::AppPrecond;
 
 impl Registry {
+    #[allow(clippy::type_complexity)]
     pub fn set<D: Disk, L: MutLock>(
         &self,
         disk: &D,

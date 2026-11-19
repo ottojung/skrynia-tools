@@ -14,10 +14,10 @@ pub fn put<D: Disk, L: MutLock>(
     if !valid_key(key) {
         return Err(AppErr::BadKey);
     }
-    if let AppPrecond::Present(h) = expect {
-        if h.len() != CAP_LEN {
-            return Err(AppErr::BadKey);
-        }
+    if let AppPrecond::Present(h) = expect
+        && h.len() != CAP_LEN
+    {
+        return Err(AppErr::BadKey);
     }
     let ns = authz.namespace().map_err(|_| AppErr::BadAuth)?;
     with_lock(lock, || {

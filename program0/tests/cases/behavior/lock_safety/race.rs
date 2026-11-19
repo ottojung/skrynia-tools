@@ -18,9 +18,8 @@ fn slow_disk_mutation_does_not_steal_lock() {
     let wc = [7u8; 32];
     let rc = skrynia_program0::auth::read_cap_vec(&wc);
     let (r1, d1, l1) = (reg.clone(), disk.clone(), lock.clone());
-    let t = std::thread::spawn(move || {
-        r1.app_put(&*d1, &*l1, &wc, b"k", &AppPrecond::Absent, b"a")
-    });
+    let t =
+        std::thread::spawn(move || r1.app_put(&*d1, &*l1, &wc, b"k", &AppPrecond::Absent, b"a"));
     gate.wait();
     let busy = reg.app_put(&*disk, &*lock, &wc, b"k", &AppPrecond::Absent, b"b");
     assert!(matches!(busy, Err(skrynia_program0::reg::RegErr::Busy)));

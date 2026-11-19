@@ -14,13 +14,13 @@ impl<D: Disk> Disk for SlowDisk<D> {
         self.inner.read_all(p)
     }
     fn write_atomic(&self, p: &str, b: &[u8]) -> Result<(), Self::Err> {
-        let r = self.inner.write_atomic(p, b)?;
+        self.inner.write_atomic(p, b)?;
         if self.armed.swap(false, Ordering::SeqCst) {
             self.gate.wait();
             std::thread::sleep(Duration::from_millis(120));
             self.gate.wait();
         }
-        Ok(r)
+        Ok(())
     }
     fn remove(&self, p: &str) -> Result<(), Self::Err> {
         self.inner.remove(p)

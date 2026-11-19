@@ -15,10 +15,10 @@ impl Registry {
         if admin_cap.len() != 32 {
             return Err(RegErr::BadAuth);
         }
-        if let AppPrecond::Present(h) = expect {
-            if h.len() != 32 {
-                return Err(RegErr::BadAuth);
-            }
+        if let AppPrecond::Present(h) = expect
+            && h.len() != 32
+        {
+            return Err(RegErr::BadAuth);
         }
         let iid = store::invoke_id(admin_cap).to_vec();
         with_prog_lock(lock, || {

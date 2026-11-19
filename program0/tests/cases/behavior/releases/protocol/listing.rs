@@ -1,4 +1,5 @@
 use super::*;
+use skrynia_program0::wire::AdminRequest;
 
 #[test]
 fn version_list_pages_without_admin_secret() {
@@ -7,10 +8,10 @@ fn version_list_pages_without_admin_secret() {
         &r,
         &d,
         &l,
-        Request::ListPrograms {
+        Request::Admin(AdminRequest::ListPrograms {
             after: None,
             limit: 1,
-        },
+        }),
     );
     assert_eq!(programs.status, STATUS_OK);
     let iid: [u8; 32] = id.clone().try_into().unwrap();
@@ -19,11 +20,11 @@ fn version_list_pages_without_admin_secret() {
         &r,
         &d,
         &l,
-        Request::ListVersions {
+        Request::Admin(AdminRequest::ListVersions {
             invoke_id: id.clone(),
             after: None,
             limit: 1,
-        },
+        }),
     );
     assert_eq!(hashes(&first.body).len(), 1);
     let initial = hashes(&first.body)[0];
@@ -33,11 +34,11 @@ fn version_list_pages_without_admin_secret() {
         &r,
         &d,
         &l,
-        Request::ListVersions {
+        Request::Admin(AdminRequest::ListVersions {
             invoke_id: id,
             after: None,
             limit: 256,
-        },
+        }),
     );
     assert_eq!(later.status, STATUS_OK);
     assert_eq!(hashes(&later.body).len(), 2);

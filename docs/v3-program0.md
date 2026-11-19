@@ -89,6 +89,52 @@ fail explicitly when this opt-in test is run; ordinary unit test executions
 report it as ignored, not as a false parity pass. This tests the small
 example registry only, not the complete historical grant protocol.
 
+## Operator-controlled application registration
+
+The optional native Program 0 requires a separate 256-bit operator
+installation capability for new applications. It never generates a
+publicly retrievable installer secret and never lets the first untrusted
+client nominate the operator. The operator must pre-provision exactly
+32 cryptographically random raw bytes at the private path
+$SKRYNIA_DATA_DIR/programs/operator.cap, with file mode 0600 and
+private parent-directory permissions, before starting the v3 server.
+
+Example one-time operator setup on the trusted server:
+
+~~~sh
+umask 077
+mkdir -p "$SKRYNIA_DATA_DIR/programs"
+test ! -e "$SKRYNIA_DATA_DIR/programs/operator.cap" || exit 1
+head -c 32 /dev/urandom > "$SKRYNIA_DATA_DIR/programs/operator.cap"
+chmod 600 "$SKRYNIA_DATA_DIR/programs/operator.cap"
+~~~
+
+This is installation/bootstrap, not an administration CLI. Never
+regenerate or replace the operator capability as part of normal
+service restarts. Do not expose it through public objects, static
+browser bundles, source control, query parameters, access logs or
+deployment output. Browser admin needs a separate secure
+operator-authenticated provisioning path and an encrypted,
+user-unlocked credential vault before production use.
+
+The previous unauthenticated binary registration opcode 1 is
+retired and rejected. Authenticated opcode 15 instead requires:
+operator_cap (length-prefixed 32-byte secret), then independent
+per-application admin_cap (32-byte secret), then WASM code blob.
+A missing or invalid installer file fails closed; an incorrect
+operator capability gets an unauthorized response with no durable
+application registration. Validation happens before any code
+publishing. The registration/update code limit is 8 MiB, and the
+operator's separate per-app admin_cap remains required to modify,
+stage, seal, activate or revoke that application's code. General
+application data operations never require revealing the installer
+secret. Tests run with a disposable fixture capability only.
+
+Provisioning control does not itself guarantee total storage
+quotas or rate limits for an operator who intentionally creates
+many applications. The trusted operator and web administration
+must enforce release count/storage policies separately.
+
 ## Native immutable code releases and activation (draft, v3 ABI version 1)
 
 Program 0 defines new **binary POST** operations for version management.

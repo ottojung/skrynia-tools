@@ -13,7 +13,15 @@ impl Server {
         if dir.exists() {
             return Err("live fixture already exists".into());
         }
-        fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        fs::create_dir_all(dir.join("programs")).map_err(|e| e.to_string())?;
+        let private = dir.join("programs/operator.cap");
+        fs::write(&private, [85u8; 32]).map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&private, fs::Permissions::from_mode(0o600))
+                .map_err(|e| e.to_string())?;
+        }
         let mut server = Self {
             url: format!("http://127.0.0.1:{}/", addr.port()),
             child: Command::new(&bin)

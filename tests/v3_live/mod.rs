@@ -1,6 +1,7 @@
 mod appdata;
 mod guest;
 mod process;
+mod versions;
 mod wire;
 use skrynia_program0::auth;
 use skrynia_program0::wire::{AppPrecond, Request};
@@ -14,6 +15,7 @@ fn external_user_program0_register_set_restart_revoke() {
     let iid = wire::call(
         &server.url,
         Request::Register {
+            operator_cap: vec![85; 32],
             admin_cap: admin.clone(),
             code: guest::byte(65),
         },

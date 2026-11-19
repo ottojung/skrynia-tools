@@ -5,10 +5,13 @@ use skrynia_program0::wire::{AppPrecond, Request, STATUS_OK};
 #[test]
 fn wire_register_set_invoke() {
     let (d, l) = (MemDisk::default(), NoLock);
+    use skrynia_program0::cap::Disk;
+    d.write_atomic("reg/operator.cap", &[85u8; 32]).unwrap();
     let r = Registry::open(&d, "reg").unwrap();
     let a = vec![7u8; 32];
     let iid = auth::read_cap_vec(&a);
     let reg_req = Request::Register {
+        operator_cap: vec![85; 32],
         admin_cap: a.clone(),
         code: b"a".to_vec(),
     };

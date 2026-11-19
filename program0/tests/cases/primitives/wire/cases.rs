@@ -3,6 +3,7 @@ use skrynia_program0::wire::{AppPrecond, Request};
 pub fn req_cases() -> Vec<Request> {
     vec![
         Request::Register {
+            operator_cap: vec![85; 32],
             admin_cap: vec![1; 32],
             code: vec![1, 2, 3],
         },

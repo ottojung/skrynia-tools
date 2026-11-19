@@ -30,6 +30,7 @@ fn external_user_program0_app_data_and_guest_callback_isolation() {
     let iid = wire::call(
         &s.url,
         Request::Register {
+            operator_cap: vec![85; 32],
             admin_cap: admin.clone(),
             code: guest::callback_isolation_probe(),
         },

@@ -1,4 +1,5 @@
 use super::*;
+use skrynia_program0::wire::AdminRequest;
 
 #[test]
 fn activation_requires_unchanged_pointer_revision() {
@@ -9,11 +10,11 @@ fn activation_requires_unchanged_pointer_revision() {
         &r,
         &d,
         &l,
-        Request::ActivateCode {
+        Request::Admin(AdminRequest::ActivateCode {
             admin_cap: a.clone(),
             expected_revision: 1,
             target: hash.to_vec(),
-        },
+        }),
     );
     assert_eq!(changed.status, STATUS_OK);
     assert_eq!(store::decode_active(&changed.body).unwrap().revision, 2);
@@ -22,11 +23,11 @@ fn activation_requires_unchanged_pointer_revision() {
         &r,
         &d,
         &l,
-        Request::ActivateCode {
+        Request::Admin(AdminRequest::ActivateCode {
             admin_cap: a,
             expected_revision: 1,
             target: hash.to_vec(),
-        },
+        }),
     );
     assert_eq!(stale.status, STATUS_ERR);
     assert_eq!(stale.body.first(), Some(&10));

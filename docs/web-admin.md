@@ -57,9 +57,34 @@ the access secret, ciphertext plaintext, or any grant authority.
 
 Grant and user actions in the browser require unlocking the vault.
 The client then sends normal bearer authorization headers directly to the
-same-origin `/_skrynia/` API; Skrynia enforces scope, operations and quota.
-Nothing about the password is enforced by Skrynia itself: **this is client-side
-credential encryption, not server-side login**.
+same-origin `/_skrynia/` API; the serving facade enforces scope, operations and
+quota on behalf of Skrynia. Nothing about the password is enforced by Skrynia
+itself: **this is client-side credential encryption, not server-side login**.
+
+## Skrynia v3: explicit userland facade required
+
+The Skrynia v3 native kernel exposes **only `POST /`** with an operator-supplied
+Program 0 WASM and does **not** serve native `/store`, `/grants`, `/health`, or
+other v2 HTTP routes. The admin app must not depend on native kernel routes.
+For v3, `/_skrynia/` on the admin origin must be provided by an explicit
+userland v2-compatible HTTP facade (for example, the skrynia-tools
+compatibility facade translating v2 HTTP requests to Program 0 `POST /`
+operations). The facade is the only HTTP surface the browser app may use.
+
+Required origin and TLS configuration for the admin host (e.g.
+`https://tools.a.vau.place`):
+- Use a separate browser origin from the raw object/API host, with working
+  wildcard/SAN TLS for the app hostname.
+- Route `https://<app-origin>/` to the app's stable entrypoint
+  (`apps/<app>/*`) and reverse-proxy `https://<app-origin>/_skrynia/` to the
+  explicit userland facade (not to native v3 kernel routes).
+- Serve executable content only on trusted app origins; keep raw object URLs
+  non-executable for untrusted content as appropriate.
+- Configure the gateway to avoid logging capability-bearing paths or
+  `Authorization` headers, and set `Referrer-Policy: no-referrer`.
+- Restrict the facade and admin code deployment grants carefully: anyone who can
+  replace admin JavaScript on the trusted origin can attempt to steal the access
+  secret when unlocked.
 
 The admin app exposes grant creation, imported issuer credentials,
 user-token issuance, grant inspection (when the matching user token is held),

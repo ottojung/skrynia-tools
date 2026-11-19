@@ -17,6 +17,9 @@ impl Registry {
         if admin_cap.len() != 32 {
             return Err(RegErr::BadAuth);
         }
+        if code.is_empty() || code.len() > 8 * 1024 * 1024 {
+            return Err(RegErr::BadId);
+        }
         let AppPrecond::Present(h) = expect else {
             return Err(RegErr::BadAuth);
         };

@@ -1,19 +1,19 @@
 use super::*;
-use crate::{store, wire::Request};
+use crate::store;
 
 pub fn handle<D: Disk, L: MutLock>(
     reg: &Registry,
     disk: &D,
     lock: &L,
-    req: &Request,
+    req: &AdminRequest,
 ) -> Option<Vec<u8>> {
     Some(match req {
-        Request::StageCode { admin_cap, code } => res::map_res(
+        AdminRequest::StageCode { admin_cap, code } => res::map_res(
             reg.stage_release(disk, lock, admin_cap, code)
                 .map(|h| res::ok(h.to_vec())),
             7,
         ),
-        Request::SealCode { admin_cap, hash } => {
+        AdminRequest::SealCode { admin_cap, hash } => {
             let Ok(hash): Result<[u8; 32], _> = hash.as_slice().try_into() else {
                 return Some(res::mk_err(1));
             };
@@ -23,7 +23,7 @@ pub fn handle<D: Disk, L: MutLock>(
                 7,
             )
         }
-        Request::ActivateCode {
+        AdminRequest::ActivateCode {
             admin_cap,
             expected_revision,
             target,

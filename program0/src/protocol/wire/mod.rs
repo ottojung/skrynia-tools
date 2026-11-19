@@ -1,8 +1,14 @@
+mod admin;
 mod req;
-pub use req::{AppPrecond, Request, Response};
+mod types;
+pub use admin::AdminRequest;
+pub use req::Request;
+pub use types::{AppPrecond, Response};
 
 pub const VERSION: u8 = 1;
+// The unauthenticated opcode 1 is permanently retired.
 pub const OP_REGISTER: u8 = 1;
+pub const OP_REGISTER_AUTH: u8 = 15;
 pub const OP_SET: u8 = 2;
 pub const OP_INVOKE: u8 = 3;
 pub const OP_LOOKUP: u8 = 4;

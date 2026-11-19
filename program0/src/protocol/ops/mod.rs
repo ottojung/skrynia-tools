@@ -1,5 +1,6 @@
 mod admin;
 mod app;
+mod operator;
 mod res;
 use super::cap::{Disk, Eval, Random};
 use crate::MutLock;
@@ -22,9 +23,15 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
         return out;
     }
     match req {
-        Request::Register { admin_cap, code } => {
-            map_res(reg.register(disk, lock, &admin_cap, code).map(resp_ok), 2)
-        }
+        Request::Register {
+            operator_cap,
+            admin_cap,
+            code,
+        } => match operator::check(disk, &reg.dir, &operator_cap) {
+            Ok(true) => map_res(reg.register(disk, lock, &admin_cap, code).map(resp_ok), 2),
+            Ok(false) => res::mk_err(9),
+            Err(_) => res::mk_err(7),
+        },
         Request::Set {
             admin_cap,
             expect,

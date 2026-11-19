@@ -1,11 +1,16 @@
 use super::encode_app::encode_app;
 use super::helpers::{put_blob, put_id, put_precond};
-use crate::wire::{OP_INVOKE, OP_LOOKUP, OP_REGISTER, OP_REVOKE, OP_SET, Request};
+use crate::wire::{OP_INVOKE, OP_LOOKUP, OP_REGISTER_AUTH, OP_REVOKE, OP_SET, Request};
 
 pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
     match req {
-        Request::Register { admin_cap, code } => {
-            out.push(OP_REGISTER);
+        Request::Register {
+            operator_cap,
+            admin_cap,
+            code,
+        } => {
+            out.push(OP_REGISTER_AUTH);
+            put_id(out, operator_cap);
             put_id(out, admin_cap);
             put_blob(out, code);
         }
@@ -33,12 +38,7 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
             put_id(out, admin_cap);
             put_precond(out, expect);
         }
-        Request::StageCode { .. }
-        | Request::SealCode { .. }
-        | Request::ActivateCode { .. }
-        | Request::GetActive { .. }
-        | Request::ListVersions { .. }
-        | Request::ListPrograms { .. } => super::encode_admin::encode_admin(out, req),
+        Request::Admin(admin) => super::encode_admin::encode_admin(out, admin),
         _ => encode_app(out, req),
     }
 }

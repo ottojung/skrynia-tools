@@ -21,10 +21,10 @@ export async function inspectManifest(capabilities, app, releaseId) {
   return capabilities.getReleaseManifest(app, releaseId);
 }
 
-export async function activateOrRollback(capabilities, app, releaseId, expectedActive) {
+export async function activateOrRollback(capabilities, app, releaseId, expectedActive, expectedPointerVersion) {
   assertAppName(app);
   assertReleaseId(releaseId);
-  return capabilities.activateRelease(app, releaseId, {expectedActive});
+  return capabilities.activateRelease(app, releaseId, {expectedActive, expectedPointerVersion});
 }
 
 export function activationPrecondition(state) {
@@ -46,5 +46,6 @@ export function activationPlan(appState, targetId) {
     target: targetId,
     direction,
     expectedActive: current,
+    expectedPointerVersion: appState.pointerVersion,
   };
 }

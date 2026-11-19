@@ -114,6 +114,7 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
               'Current active: ' + (plan.current || 'none'),
               'Target release: ' + plan.target,
               'Expected current pointer: ' + (plan.expectedActive || 'none'),
+              'Expected pointer revision: ' + plan.expectedPointerVersion,
               '',
               'Continue?',
             ].join('\n');
@@ -121,6 +122,7 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
             status('Activating ' + plan.app + ' → ' + plan.target + '…');
             await capabilities.activateRelease(plan.app, plan.target, {
               expectedActive: plan.expectedActive,
+              expectedPointerVersion: plan.expectedPointerVersion,
             });
             status('Activated ' + plan.app + ' → ' + plan.target);
             await render();

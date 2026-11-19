@@ -36,7 +36,7 @@ returning a semantic capability adapter:
 - `listApps(): Promise<string[]>`
 - `getAppState(app): Promise<{name, active, pointerVersion, versions:[{id, ready, usable, error, commit, repo, files}]}>`
 - `getReleaseManifest(app, releaseId): Promise<normalized manifest>`
-- `activateRelease(app, releaseId, {expectedActive}): Promise<{app, active, pointerVersion}>`
+- `activateRelease(app, releaseId, {expectedActive, expectedPointerVersion}): Promise<{app, active, pointerVersion}>`
 
 A future native adapter will translate these operations to the frozen,
 authorized binary POST protocol for the operator-supplied Program 0. Until then
@@ -51,3 +51,17 @@ node tests/web-admin-v3/crypto_vault.mjs
 node tests/web-admin-v3/app_history_activation.mjs
 node tests/web-admin-v3/fail_closed.mjs
 ```
+
+## Native release identity and ABA safety
+
+Version identifiers are 64 lowercase hexadecimal digits (SHA-256), matching
+the separate static-release packager and 32-byte native program identifiers.
+Release manifests use the native schema skrynia-native-static-v1 with app,
+release and files fields, not the withdrawn legacy application format.
+
+Every activation must include both the expected active release and the
+expected pointer revision. An A->B->A switch must invalidate an older
+request that still expects A; checking only the active release is unsafe.
+The injected/native adapter must preserve a durable revision/nonce-backed
+compare-and-swap token. The in-memory fake validates this contract, but does
+not establish durable native Program 0 execution or authorization.

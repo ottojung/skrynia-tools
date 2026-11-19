@@ -35,14 +35,14 @@ export function assertAppName(name) {
 }
 
 export function assertReleaseId(id) {
-  if (typeof id !== 'string' || !/^[0-9a-f]{32}$/.test(id)) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{64}$/.test(id)) {
     throw Object.assign(Error('Invalid release identifier'), {code: 'invalid_input'});
   }
   return id;
 }
 
 export function normalizeManifest(app, id, manifest) {
-  if (!manifest || manifest.schema !== 1 || manifest.name !== app || manifest.id !== id) {
+  if (!manifest || manifest.schema !== 'skrynia-native-static-v1' || manifest.app !== app || manifest.release !== id) {
     throw Object.assign(Error('Invalid release manifest'), {code: 'invalid_data'});
   }
   if (!Array.isArray(manifest.files)) {
@@ -59,11 +59,22 @@ export function normalizeManifest(app, id, manifest) {
   };
 }
 
-export function compareAndSwap(state, app, targetId, expectedActive) {
+export function compareAndSwap(state, app, targetId, expectedActive, expectedPointerVersion) {
   assertAppName(app);
   assertReleaseId(targetId);
   const record = state.apps.get(app);
   if (!record) throw Object.assign(Error('Unknown application'), {code: 'not_found'});
+  if (!Number.isSafeInteger(expectedPointerVersion) || expectedPointerVersion < 0) {
+    throw Object.assign(Error('A bounded pointer version is required'), {code: 'invalid_input'});
+  }
+  if (record.pointerVersion !== expectedPointerVersion) {
+    throw Object.assign(Error('Activation conflict: pointer version changed concurrently'),
+      {code: 'conflict', currentVersion: record.pointerVersion,
+        expectedVersion: expectedPointerVersion});
+  }
+  if (record.pointerVersion === Number.MAX_SAFE_INTEGER) {
+    throw Object.assign(Error('Pointer version exhausted'), {code: 'limit'});
+  }
   const release = record.releases.get(targetId);
   if (!release) throw Object.assign(Error('Selected release does not exist'), {code: 'not_found'});
   if (!release.ready) {
@@ -75,7 +86,7 @@ export function compareAndSwap(state, app, targetId, expectedActive) {
     throw Object.assign(Error('Cannot activate release: invalid manifest'), {code: 'invalid_data'});
   }
   if (expectedActive !== undefined && expectedActive !== null) {
-    if (typeof expectedActive !== 'string' || !/^[0-9a-f]{32}$/.test(expectedActive)) {
+    if (typeof expectedActive !== 'string' || !/^[0-9a-f]{64}$/.test(expectedActive)) {
       throw Object.assign(Error('Invalid expected active release'), {code: 'invalid_input'});
     }
     if (record.active !== expectedActive) {
@@ -110,7 +121,13 @@ export function createFakeCapabilities(seed = {}) {
     apps.set(name, {
       active: spec.active ?? null,
       releases,
-      pointerVersion: spec.pointerVersion || 0,
+      pointerVersion: (() => {
+        const version = spec.pointerVersion ?? 0;
+        if (!Number.isSafeInteger(version) || version < 0) {
+          throw Object.assign(Error('Invalid pointer version'), {code: 'invalid_data'});
+        }
+        return version;
+      })(),
     });
   }
   const state = {apps};
@@ -165,7 +182,7 @@ export function createFakeCapabilities(seed = {}) {
       return normalizeManifest(name, id, release.manifest);
     },
     async activateRelease(name, id, opts = {}) {
-      return compareAndSwap(state, name, id, opts.expectedActive);
+      return compareAndSwap(state, name, id, opts.expectedActive, opts.expectedPointerVersion);
     },
   };
 }

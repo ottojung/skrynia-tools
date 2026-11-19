@@ -15,6 +15,7 @@ pub trait Transport {
     fn send(&mut self, sub: &str, endpoint: &str) -> Outcome;
 }
 pub trait Durable {
-    fn load(&self) -> Vec<Pending>;
-    fn save(&self, items: &[Pending]);
+    type Error: std::fmt::Display;
+    fn load(&self) -> Result<Vec<Pending>, Self::Error>;
+    fn save(&self, items: &[Pending]) -> Result<(), Self::Error>;
 }

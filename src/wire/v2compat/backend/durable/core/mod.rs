@@ -7,8 +7,8 @@ mod txn;
 pub(super) use super::data::{RandomSource, State, StateStore, decode, encode};
 pub(super) use super::scope;
 pub(super) use super::{Authority, CompatError, CompatResult, GrantAdmin, ListPage};
-pub(super) use list::list_objects;
 pub use disk::{DiskRandom, DiskStateStore};
+pub(super) use list::list_objects;
 use std::sync::{Mutex, atomic::AtomicBool};
 
 pub struct DurableBackend<S, R> {

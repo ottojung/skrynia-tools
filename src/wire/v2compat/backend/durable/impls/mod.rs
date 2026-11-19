@@ -8,7 +8,7 @@ mod push_upd;
 mod store;
 
 pub(super) use super::{
-    Authority, ListPage, CompatBackend, CompatError, CompatResult, DurableBackend, Meta, Mutation, Object,
-    ObjectRead, Push, RandomSource, Request, Response, State, StateStore, Store, mutate,
+    Authority, CompatBackend, CompatError, CompatResult, DurableBackend, ListPage, Meta, Mutation,
+    Object, ObjectRead, Push, RandomSource, Request, Response, State, StateStore, Store, mutate,
     push as bpush, reply, scope, sub_counts,
 };

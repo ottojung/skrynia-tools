@@ -164,3 +164,21 @@ user issuance, inspection, invalid specs and missing authorization.
 Random identifiers and bearer secrets are mapped between the two test
 instances, not compared as equal random bytes. THIS TEST IS NOT A
 production v3 persistence or migration qualification.
+
+## Separate reusable v2 userland components (composed draft)
+
+The optional injected v2-compatible grant authority, browser-facing object
+listing/immutable-release CAS protocol, and durable push subscription
+records can coexist in one tools workspace with all existing unit tests.
+Store listing uses the persisted grant auth and returns only object keys,
+not subscription records. Subscription metadata is counted in grant quota
+usage but is NOT considered an application object in the list API.
+This composition preserves one-time issuer/user credential distinction,
+private token handling and the fail-closed uncertain-save latch.
+
+This is **not** an end-to-end v3 HTTP compatibility proof. The native VM
+still exposes only POST /, the injected facade still requires an external
+transport adapter, the actual Program 0 kernel-backed authority path is
+not yet the complete persisted grant tree, and push delivery/acks/VAPID
+remain separate gates. Browser code activation/rollback concerns code
+releases only, never data migrations. Keep production cutover blocked.

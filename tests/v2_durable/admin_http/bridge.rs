@@ -1,4 +1,4 @@
-use super::fakes::{M, R};
+use super::{M, R};
 use skrynia_tools::wire::v2compat::{DurableBackend, Request, handle};
 use std::sync::atomic::AtomicU64;
 #[test]

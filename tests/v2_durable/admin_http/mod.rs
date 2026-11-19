@@ -1,3 +1,4 @@
+mod bridge;
 mod create_inspect;
 mod fixture;
 mod rejects;

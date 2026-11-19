@@ -21,7 +21,7 @@ impl Server {
                 .env("SKRYNIA_ROOT_WASM", &wasm)
                 .env("SKRYNIA_DATA_DIR", &dir)
                 .stdout(Stdio::null())
-                .stderr(Stdio::null())
+                .stderr(super::log::open(&dir)?)
                 .spawn()
                 .map_err(|e| e.to_string())?,
             dir,

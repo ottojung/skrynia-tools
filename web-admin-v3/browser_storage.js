@@ -3,6 +3,10 @@ import {digest} from './crypto.js';
 export function createLocalStorageVaultStorage(key = 'skrynia-v3-admin-vault') {
   const storage = globalThis.localStorage;
   if (!storage) throw Error('Local browser storage is unavailable');
+  const locks = globalThis.navigator?.locks;
+  if (!locks || typeof locks.request !== 'function') {
+    throw Error('Web Locks are required for atomic vault updates');
+  }
   return {
     kind: 'localStorage',
     async load() {
@@ -13,25 +17,28 @@ export function createLocalStorageVaultStorage(key = 'skrynia-v3-admin-vault') {
     },
     async save(bytes, expectedDigest) {
       const next = new Uint8Array(bytes);
-      const existing = storage.getItem(key);
-      if (existing == null) {
-        if (expectedDigest != null) {
-          throw Object.assign(Error('Vault does not exist'), {code: 'conflict'});
+      const nextDigest = await digest(next);
+      return locks.request('skrynia-v3-vault:' + key, {mode: 'exclusive'}, async () => {
+        const existing = storage.getItem(key);
+        if (existing == null) {
+          if (expectedDigest != null) {
+            throw Object.assign(Error('Vault does not exist'), {code: 'conflict'});
+          }
+        } else {
+          const existingBytes = Uint8Array.from(atob(existing), c => c.charCodeAt(0));
+          const current = await digest(existingBytes);
+          if (expectedDigest !== current) {
+            throw Object.assign(Error('Vault was modified elsewhere'), {code: 'conflict'});
+          }
         }
-      } else {
-        const existingBytes = Uint8Array.from(atob(existing), c => c.charCodeAt(0));
-        const current = await digest(existingBytes);
-        if (expectedDigest !== current) {
-          throw Object.assign(Error('Vault was modified elsewhere'), {code: 'conflict'});
+        let raw = '';
+        for (let i = 0; i < next.length; i += 8192) {
+          raw += String.fromCharCode(...next.subarray(i, i + 8192));
         }
-      }
-      let raw = '';
-      for (let i = 0; i < next.length; i += 8192) {
-        raw += String.fromCharCode(...next.subarray(i, i + 8192));
-      }
-      const encoded = btoa(raw);
-      storage.setItem(key, encoded);
-      return {digest: await digest(next)};
+        const encoded = btoa(raw);
+        storage.setItem(key, encoded);
+        return {digest: nextDigest};
+      });
     },
   };
 }

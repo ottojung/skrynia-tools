@@ -42,6 +42,17 @@ A future native adapter will translate these operations to the frozen,
 authorized binary POST protocol for the operator-supplied Program 0. Until then
 the UI remains fail-closed.
 
+## Browser vault concurrency
+
+Encrypted localStorage vault updates require the standard same-origin Web
+Locks API. Every compare-and-swap save holds an exclusive lock across the
+read/compare/write sequence; without Web Locks the UI rejects vault
+initialization/unlock rather than pretending separate tabs are serialized.
+Locking the vault invalidates its active session and clears UI password
+fields, though JavaScript strings cannot be guaranteed to be physically
+zeroized. Automated tests use a deterministic fake lock; actual multi-tab
+browser behavior remains a release qualification gate.
+
 ## Tests
 
 Run from repository root:
@@ -50,6 +61,7 @@ Run from repository root:
 node tests/web-admin-v3/crypto_vault.mjs
 node tests/web-admin-v3/app_history_activation.mjs
 node tests/web-admin-v3/fail_closed.mjs
+node tests/web-admin-v3/browser_vault_lock.mjs
 ```
 
 ## Native release identity and ABA safety

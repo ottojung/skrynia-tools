@@ -39,11 +39,22 @@ Point a **disposable Skrynia v3** instance's `SKRYNIA_ROOT_WASM` at this file,
 and provide a separate, confined data directory. A release must not point at
 an existing v2 data tree until migration and rollback are validated.
 
-The current example program implements a small, application-defined
-register/set/invoke/lookup/revoke protocol in WASM. It is **not yet a complete
-implementation of the historical v2 grant-based wire protocol**. That parity
-belongs to this repository's compatibility facade and is a release gate.
-No CLI is required or supported for Program 0.
+The current example Program 0 implements a native, application-defined
+binary POST protocol: code registration/invocation and scoped app data
+read/write with separate capability secrets and conditional CAS. It does not
+emulate the withdrawn older HTTP GET/store/grants/Web Push surface. Operator
+code activation authorization, issuance, bounded registration and crash-safe
+global lock recovery require separate release qualification. There is no CLI.
+
+Appdata object keys are nonempty byte strings of at most 256 bytes, scoped
+under a 32-byte read capability. The disk stores a fixed 64-hex SHA-256 digest
+of each raw key plus the four-byte .bin extension as a filename (68 bytes),
+rather than hex-encoding raw input bytes into an unbounded path component.
+This avoids filesystem NAME_MAX failures even for valid 256-byte keys.
+Separate read capabilities isolate namespaces. This is a new native layout,
+not a compatibility layer: older developmental appdata snapshots with raw
+hexadecimal filenames must be explicitly exported and migrated by a trusted
+operator before upgrading; no silent rewrite or automatic key discovery.
 
 
 ## Executable cross-repository integration

@@ -18,5 +18,7 @@ pub fn data_path(base: &str, read_cap: &[u8], key: &[u8]) -> Option<String> {
         return None;
     }
     let dir = ns_dir(base, read_cap)?;
-    Some(format!("{dir}/{}.bin", id::to_hex(key)))
+    // Hash opaque object-key bytes before pathname encoding: raw hex could
+    // exceed a filesystem's 255-byte component limit even for valid keys.
+    Some(format!("{dir}/{}.bin", id::to_hex(&crate::hash_bytes(key))))
 }

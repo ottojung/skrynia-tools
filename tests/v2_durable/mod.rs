@@ -3,6 +3,7 @@ mod bridge;
 mod failure;
 mod fakes;
 mod faultstore;
+mod push;
 mod run;
 mod setup;
 mod verify;

@@ -24,7 +24,11 @@ pub fn parse_id_name(name: &str) -> Option<Vec<u8>> {
 }
 
 pub fn list_ids<D: Disk>(disk: &D, dir: &str) -> Result<Vec<Vec<u8>>, StoreErr<D::Err>> {
-    let names = disk.list(dir).map_err(StoreErr::Disk)?;
+    let active_dir = format!("{}/active", dir.trim_end_matches('/'));
+    let names = match disk.list(&active_dir) {
+        Ok(n) => n,
+        Err(_) => return Ok(Vec::new()),
+    };
     Ok(names
         .into_iter()
         .filter_map(|n| parse_id_name(&n))

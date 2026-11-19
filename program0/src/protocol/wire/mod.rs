@@ -1,0 +1,17 @@
+mod req;
+pub use req::{AppPrecond, Request, Response};
+
+pub const VERSION: u8 = 1;
+pub const OP_REGISTER: u8 = 1;
+pub const OP_SET: u8 = 2;
+pub const OP_INVOKE: u8 = 3;
+pub const OP_LOOKUP: u8 = 4;
+pub const OP_REVOKE: u8 = 5;
+pub const OP_APP_PUT: u8 = 6;
+pub const OP_APP_GET: u8 = 7;
+pub const OP_APP_DELETE: u8 = 8;
+pub const STATUS_OK: u8 = 0;
+pub const STATUS_ERR: u8 = 1;
+
+pub const PRECOND_ABSENT: u8 = 0;
+pub const PRECOND_PRESENT: u8 = 1;

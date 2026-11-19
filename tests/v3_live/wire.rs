@@ -23,11 +23,11 @@ pub fn call(url: &str, request: Request) -> Result<Vec<u8>, String> {
     }
     Ok(reply.body)
 }
-pub fn invoke(url: &str, id: &[u8]) -> Result<Vec<u8>, String> {
+pub fn invoke(url: &str, invoke_id: &[u8]) -> Result<Vec<u8>, String> {
     call(
         url,
         Request::Invoke {
-            id: id.to_vec(),
+            invoke_id: invoke_id.to_vec(),
             input: b"test".to_vec(),
         },
     )

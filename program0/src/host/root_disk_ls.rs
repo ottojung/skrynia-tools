@@ -3,8 +3,27 @@ use crate::root_abi as host;
 
 #[cfg(target_arch = "wasm32")]
 pub fn ensure(dir: &str) -> Result<(), i32> {
-    let n = unsafe { host::mkdir(dir.as_ptr() as u32, dir.len() as u32, 4) };
-    if n < 0 { Err(n) } else { Ok(()) }
+    if dir.is_empty() {
+        return Ok(());
+    }
+    let mut cur = String::new();
+    for part in dir.trim_end_matches('/').split('/') {
+        if part.is_empty() {
+            continue;
+        }
+        if !cur.is_empty() {
+            cur.push('/');
+        }
+        cur.push_str(part);
+        let n = unsafe { host::mkdir(cur.as_ptr() as u32, cur.len() as u32, 4) };
+        if n == -3 {
+            continue;
+        }
+        if n < 0 {
+            return Err(n);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_arch = "wasm32")]

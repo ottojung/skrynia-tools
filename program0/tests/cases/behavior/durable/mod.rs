@@ -1,6 +1,8 @@
-use crate::cases::support::{FsDisk, Rng};
+use crate::cases::support::{FsDisk, StdLock};
+use skrynia_program0::auth;
 use skrynia_program0::cap::Eval;
 use skrynia_program0::reg::Registry;
+use skrynia_program0::wire::AppPrecond;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;

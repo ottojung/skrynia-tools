@@ -6,3 +6,4 @@ pub mod codec;
 pub mod io;
 pub mod ops;
 pub mod path;
+pub use ops::{AppErr, WriteAuth};

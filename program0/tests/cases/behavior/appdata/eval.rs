@@ -1,7 +1,7 @@
 use skrynia_program0::cap::Eval;
 use skrynia_program0::wdec::decode_res;
 use skrynia_program0::wenc::encode_req;
-use skrynia_program0::wire::{Request, STATUS_ERR, STATUS_OK};
+use skrynia_program0::wire::{AppPrecond, Request, STATUS_ERR, STATUS_OK};
 
 pub struct GuestEval;
 impl Eval for GuestEval {
@@ -16,26 +16,37 @@ impl Eval for GuestEval {
             return Ok(w.to_vec());
         }
         let cb = cb.ok_or(())?;
-        let me = i.to_vec();
+        let me = i.to_vec(); // invoke_id (self namespace)
+        // read own key (should exist with value "v")
         let get = encode_req(&Request::AppGet {
-            app: me.clone(),
+            read_cap: me.clone(),
             key: b"k".to_vec(),
         });
         let v = decode_res(&cb(&get).map_err(|_| ())?).map_err(|_| ())?;
-        assert_eq!(v.status, STATUS_OK);
+        if v.status != STATUS_OK {
+            return Err(());
+        }
+        // conditional write own key: expect current hash, write v+cb
+        let h = skrynia_program0::auth::hash_bytes(&v.body).to_vec();
         let put = encode_req(&Request::AppPut {
-            app: me.clone(),
+            write_cap: me.clone(),
             key: b"k".to_vec(),
+            expect: AppPrecond::Present(h),
             value: [v.body.as_slice(), b"+cb"].concat(),
         });
         let p = decode_res(&cb(&put).map_err(|_| ())?).map_err(|_| ())?;
-        assert_eq!(p.status, STATUS_OK);
+        if p.status != STATUS_OK {
+            return Err(());
+        }
+        // cross-app authority: try to read a different namespace
         let bad = encode_req(&Request::AppGet {
-            app: vec![9u8; 32],
+            read_cap: vec![9u8; 32],
             key: b"k".to_vec(),
         });
         let b = decode_res(&cb(&bad).map_err(|_| ())?).map_err(|_| ())?;
-        assert_eq!(b.status, STATUS_ERR);
+        if b.status != STATUS_ERR {
+            return Err(());
+        }
         Ok(b"done".to_vec())
     }
 }

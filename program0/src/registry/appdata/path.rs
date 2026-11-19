@@ -1,22 +1,22 @@
 use super::id;
 
-pub fn app_dir(base: &str, app: &[u8]) -> Option<String> {
-    id::validate(app).ok()?;
+pub fn ns_dir(base: &str, read_cap: &[u8]) -> Option<String> {
+    id::validate(read_cap).ok()?;
     Some(format!(
         "{}/appdata/{}",
         base.trim_end_matches('/'),
-        id::to_hex(app)
+        id::to_hex(read_cap)
     ))
 }
 
-pub fn key_hex(key: &[u8]) -> Option<String> {
-    if key.is_empty() || key.len() > 256 {
-        return None;
-    }
-    Some(id::to_hex(key))
+pub fn valid_key(key: &[u8]) -> bool {
+    !key.is_empty() && key.len() <= 256
 }
 
-pub fn data_path(base: &str, app: &[u8], key: &[u8]) -> Option<String> {
-    let dir = app_dir(base, app)?;
-    Some(format!("{dir}/{}.bin", key_hex(key)?))
+pub fn data_path(base: &str, read_cap: &[u8], key: &[u8]) -> Option<String> {
+    if !valid_key(key) {
+        return None;
+    }
+    let dir = ns_dir(base, read_cap)?;
+    Some(format!("{dir}/{}.bin", id::to_hex(key)))
 }

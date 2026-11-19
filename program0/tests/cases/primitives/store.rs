@@ -1,5 +1,6 @@
+use skrynia_program0::auth;
 use skrynia_program0::cap::Disk;
-use skrynia_program0::store_io::{get, put};
+use skrynia_program0::store_io;
 use skrynia_program0::store_ls::list_ids;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
@@ -35,9 +36,9 @@ impl Disk for MemDisk {
 #[test]
 fn store_roundtrip_and_list() {
     let disk = MemDisk::default();
-    let id = vec![7u8; 32];
-    put(&disk, "reg", &id, b"wasm").unwrap();
-    assert_eq!(get(&disk, "reg", &id).unwrap(), b"wasm");
+    let invoke_id = auth::read_cap(&[7u8; 32]);
+    store_io::put_code(&disk, "reg", &invoke_id, b"wasm").unwrap();
+    assert_eq!(store_io::get(&disk, "reg", &invoke_id).unwrap(), b"wasm");
     let ids = list_ids(&disk, "reg").unwrap();
-    assert_eq!(ids, vec![id]);
+    assert_eq!(ids, vec![invoke_id.to_vec()]);
 }

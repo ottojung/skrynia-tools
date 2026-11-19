@@ -1,0 +1,29 @@
+use super::{Disk, StoreErr};
+use crate::store;
+
+pub fn ensure_blob<D: Disk>(
+    disk: &D,
+    dir: &str,
+    code: &[u8],
+) -> Result<[u8; 32], StoreErr<D::Err>> {
+    let hash = store::code_hash(code);
+    let path = store::blob_path(dir, &hash).ok_or(StoreErr::BadId)?;
+    if disk.read_all(&path).map_err(StoreErr::Disk)?.is_none() {
+        disk.write_atomic(&path, &store::encode_blob(code))
+            .map_err(StoreErr::Disk)?;
+    }
+    Ok(hash)
+}
+
+pub fn read_blob<D: Disk>(
+    disk: &D,
+    dir: &str,
+    code_hash: &[u8; 32],
+) -> Result<Vec<u8>, StoreErr<D::Err>> {
+    let path = store::blob_path(dir, code_hash).ok_or(StoreErr::BadId)?;
+    let bytes = disk
+        .read_all(&path)
+        .map_err(StoreErr::Disk)?
+        .ok_or(StoreErr::Missing)?;
+    store::decode_blob(&bytes).ok_or(StoreErr::BadRecord)
+}

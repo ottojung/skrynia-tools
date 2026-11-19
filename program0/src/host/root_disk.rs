@@ -18,7 +18,21 @@ impl Disk for HostDisk {
     }
     fn remove(&self, path: &str) -> Result<(), i32> {
         let n = unsafe { host::delete(path.as_ptr() as u32, path.len() as u32) };
-        if n < 0 { Err(n) } else { Ok(()) }
+        if n < 0 {
+            return Err(n);
+        }
+        if let Some((dir, _)) = path.rsplit_once('/') {
+            let dfd = unsafe { host::open_directory(dir.as_ptr() as u32, dir.len() as u32) };
+            if dfd < 0 {
+                return Err(dfd);
+            }
+            let sync = unsafe { host::sync(dfd) };
+            unsafe { host::close(dfd) };
+            if sync < 0 {
+                return Err(sync);
+            }
+        }
+        Ok(())
     }
     fn list(&self, dir: &str) -> Result<Vec<String>, i32> {
         super::root_disk_ls::list(dir)

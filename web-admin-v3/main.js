@@ -1,7 +1,7 @@
 import {createFailClosedCapabilities} from './capabilities.js';
 import {createAppsController} from './apps_ui.js';
 import {createLocalStorageVaultStorage} from './browser_storage.js';
-import {createVaultSession, initializeVault} from './vault.js';
+import {createVaultSession, initializeVault, lockVaultSession} from './vault.js';
 
 const $ = id => document.getElementById(id);
 const status = msg => { $('status').textContent = msg; };
@@ -44,6 +44,7 @@ const apps = createAppsController({
 });
 
 function lock() {
+  lockVaultSession(session);
   session = null;
   $('workspace').hidden = true;
   $('unlock-section').hidden = false;

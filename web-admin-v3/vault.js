@@ -82,4 +82,5 @@ export function lockVaultSession(session) {
   session.password = '';
   session.data = null;
   session.hash = null;
+  session.unresolved = true;
 }

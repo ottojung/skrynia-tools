@@ -5,6 +5,7 @@ import {
   createVaultSession,
   initializeVault,
   saveVaultSession,
+  lockVaultSession,
 } from '../../web-admin-v3/vault.js';
 
 const password = 'correct horse battery staple secret';
@@ -56,6 +57,17 @@ const context = 'tools.a.vau.place/default';
   await assert.rejects(() => saveVaultSession(session, {schema: 1, a: 2}), /disk vanished/);
   assert.equal(session.unresolved, true);
   await assert.rejects(() => saveVaultSession(session, {schema: 1, a: 3}), /outcome unknown/);
+}
+
+
+{
+  const storage = createMemoryVaultStorage();
+  const session = await initializeVault(storage, password, context, {schema: 1, a: 1});
+  lockVaultSession(session);
+  assert.equal(session.password, '');
+  assert.equal(session.data, null);
+  assert.equal(session.unresolved, true);
+  await assert.rejects(() => saveVaultSession(session, {schema: 1, a: 2}), /outcome unknown/);
 }
 
 console.log('v3 crypto and encrypted browser vault tests passed');

@@ -103,3 +103,10 @@ or place it in public objects, logs or deployment manifests.
 This is ONLY a provisional root-level create/modify/delete/CAS bridge:
 it does not yet implement the v2 grant-tree issuance, scoped quotas,
 subscriptions, list or complete HTTP facade.
+
+Stored provisional v2 object records carry their original logical key as
+well as bytes. Reads reject corrupt JSON and key/hash mismatches as an
+uncertain-state error rather than reporting the object missing; neither
+create nor replace may silently overwrite damaged data. The byte encoding
+of an object is never used as the CAS validator: the actual logical bytes
+are SHA-256 hashed for comparison, as in v2.

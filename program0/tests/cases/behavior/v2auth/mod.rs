@@ -22,3 +22,5 @@ mod case1;
 mod case2;
 mod case3;
 mod case4;
+mod case5;
+mod case6;

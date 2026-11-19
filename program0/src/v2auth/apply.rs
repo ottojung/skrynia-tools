@@ -26,7 +26,7 @@ pub fn run<D: Disk>(disk: &D, req: MutateReq<'_>) -> Result<bool, MutateErr<D::E
 }
 
 fn commit<D: Disk>(disk: &D, req: MutateReq<'_>) -> Result<bool, MutateErr<D::Err>> {
-    let current = object::read(disk, req.key).map_err(MutateErr::Disk)?;
+    let current = object::read(disk, req.key)?;
     match req.kind {
         MutateKind::Create if current.is_some() => return Err(MutateErr::Exists),
         MutateKind::Replace | MutateKind::Delete if current.is_none() => {
@@ -39,12 +39,10 @@ fn commit<D: Disk>(disk: &D, req: MutateReq<'_>) -> Result<bool, MutateErr<D::Er
     }
     state::mark_uncertain(disk).map_err(MutateErr::Disk)?;
     let result = match req.kind {
-        MutateKind::Delete => object::remove(disk, req.key),
+        MutateKind::Delete => object::remove(disk, req.key).map_err(MutateErr::Disk),
         _ => object::write(disk, req.key, req.body),
     };
-    if let Err(e) = result {
-        return Err(MutateErr::Disk(e));
-    }
+    result?;
     state::clear_uncertain(disk).map_err(MutateErr::Disk)?;
     Ok(false)
 }

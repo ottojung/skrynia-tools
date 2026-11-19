@@ -16,6 +16,6 @@ pub use types::{Request, Response};
 
 #[cfg(test)]
 mod tests;
-pub use backend::durable::{DurableBackend, RandomSource, StateStore};
+pub use backend::durable::{DiskRandom, DiskStateStore, DurableBackend, RandomSource, StateStore};
 pub use backend::grants;
 pub use key::{credentials, scope};

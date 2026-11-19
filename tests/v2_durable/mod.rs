@@ -1,5 +1,6 @@
 mod admin_http;
 mod bridge;
+mod disk;
 mod failure;
 mod fakes;
 mod faultstore;

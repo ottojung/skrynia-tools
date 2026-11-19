@@ -14,7 +14,7 @@ pub(super) use super::{
 };
 use super::{GrantAdmin, Push, Request, reply};
 
-pub use core::DurableBackend;
+pub use core::{DiskRandom, DiskStateStore, DurableBackend};
 pub use data::{RandomSource, StateStore};
 impl<S, R> Push for DurableBackend<S, R> {
     fn push_subscribe(&self, _: &Request) -> Response {

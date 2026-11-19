@@ -8,9 +8,12 @@ use std::{
 impl Server {
     pub fn ready(&mut self) -> Result<(), String> {
         let addr = self.url.trim_start_matches("http://").trim_end_matches('/');
-        for _ in 0..100 {
+        for _ in 0..300 {
             if TcpStream::connect(addr).is_ok() {
                 return Ok(());
+            }
+            if let Some(status) = self.child.try_wait().map_err(|e| e.to_string())? {
+                return Err(format!("server exited: {status}"));
             }
             std::thread::sleep(Duration::from_millis(20));
         }

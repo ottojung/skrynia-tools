@@ -1,3 +1,4 @@
+mod token;
 use super::{process, tail, wire};
 use skrynia_program0::wire::{Request, V2Kind};
 
@@ -5,8 +6,7 @@ pub fn go() {
     let bin = std::env::var("SKRYNIA_V3_SERVER_BIN").expect("SKRYNIA_V3_SERVER_BIN");
     let wasm = std::env::var("SKRYNIA_V3_PROGRAM0_WASM").expect("SKRYNIA_V3_PROGRAM0_WASM");
     let mut server = process::Server::new(bin, wasm).unwrap();
-    let token = [7u8; 32];
-    wire::ok(&server.url, Request::V2Bootstrap { token }).unwrap();
+    let token = token::private_root(&server);
     wire::ok(
         &server.url,
         req(token, V2Kind::Create, b"a.txt", None, b"v1"),

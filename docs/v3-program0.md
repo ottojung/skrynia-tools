@@ -81,3 +81,25 @@ atomic check-and-rename of a stored program record. Authorization and
 cross-request transaction isolation remain application-protocol duties.
 Likewise, the current optional root still materializes the selected
 module and its result in private WASM memory before emitting output.
+
+## Private initialization of the provisional v2 authority
+
+The optional root's preliminary v2 storage authority is initialized lazily
+when its first v2 mutation arrives. Program 0 generates 256 random bits
+through its explicit secure-random capability, persists them under the
+private data path v2auth/root-secret, then persists an authority containing
+only the token hash. The incoming request NEVER sets or receives this token.
+The public V2Bootstrap binary operation is unconditionally rejected.
+
+If the process stops between writing the private token and the authority,
+the next request reuses the private token and completes initialization;
+malformed or inconsistent pre-existing private state fails closed.
+The initial request still needs the independently obtained private token
+to authorize mutations. The kernel creates new files owner-only (0600),
+and the operator must restrict the entire data root to owner access (0700).
+Do not serve v2auth through a static web root, expose this token to browsers,
+or place it in public objects, logs or deployment manifests.
+
+This is ONLY a provisional root-level create/modify/delete/CAS bridge:
+it does not yet implement the v2 grant-tree issuance, scoped quotas,
+subscriptions, list or complete HTTP facade.

@@ -16,7 +16,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         Ok(
             r @ (crate::protocol::wire::Request::V2Bootstrap { .. }
             | crate::protocol::wire::Request::V2Mutate { .. }),
-        ) => crate::v2auth::handle_wire(&disk, r),
+        ) => crate::v2auth::handle_wire(&disk, &HostRandom, r),
         Ok(_) => crate::protocol::direct::handle(&disk, &HostRandom, &HostEval, &req),
         Err(_) => crate::protocol::res::err(1),
     };

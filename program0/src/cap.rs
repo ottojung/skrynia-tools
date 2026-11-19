@@ -5,6 +5,10 @@ pub trait Disk {
     fn write_atomic(&self, path: &str, bytes: &[u8]) -> Result<(), Self::Err>;
     fn remove(&self, path: &str) -> Result<(), Self::Err>;
     fn list(&self, dir: &str) -> Result<Vec<String>, Self::Err>;
+    // In-memory implementations have no directory tree.
+    fn ensure_directory(&self, _dir: &str) -> Result<(), Self::Err> {
+        Ok(())
+    }
 }
 
 /// Global RAM capability; implementations must only touch RAM explicitly.

@@ -20,3 +20,5 @@ fn sha256(b: &[u8]) -> [u8; 32] {
 mod case0;
 mod case1;
 mod case2;
+mod case3;
+mod case4;

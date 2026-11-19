@@ -23,4 +23,7 @@ impl Disk for HostDisk {
     fn list(&self, dir: &str) -> Result<Vec<String>, i32> {
         super::root_disk_ls::list(dir)
     }
+    fn ensure_directory(&self, dir: &str) -> Result<(), i32> {
+        super::root_disk_ls::ensure(dir)
+    }
 }

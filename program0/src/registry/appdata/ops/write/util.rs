@@ -10,6 +10,15 @@ pub fn matches_precond(state: &State, expect: &AppPrecond) -> bool {
     }
 }
 
+struct Guard<'a, L: MutLock>(&'a L, bool);
+impl<L: MutLock> Drop for Guard<'_, L> {
+    fn drop(&mut self) {
+        if self.1 {
+            let _ = self.0.release();
+        }
+    }
+}
+
 pub fn with_lock<D, L: MutLock, R, F>(lock: &L, f: F) -> Result<R, AppErr<D, L::Err>>
 where
     F: FnOnce() -> Result<R, AppErr<D, L::Err>>,
@@ -18,7 +27,9 @@ where
         true => {}
         false => return Err(AppErr::Busy),
     }
+    let mut guard = Guard(lock, true);
     let res = f();
+    guard.1 = false;
     let rel = lock.release().map_err(AppErr::Lock);
     match (res, rel) {
         (Ok(v), Ok(())) => Ok(v),

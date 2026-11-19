@@ -3,6 +3,18 @@ use crate::root_abi as host;
 
 #[cfg(target_arch = "wasm32")]
 const LOCK_OFF: u64 = 0;
+#[cfg(target_arch = "wasm32")]
+const ERR_RANGE: i32 = -8;
+
+#[cfg(target_arch = "wasm32")]
+fn cas_once(fd: i32, exp: u64, des: u64) -> Result<u64, i32> {
+    let mut cur: u64 = 0;
+    let rc = unsafe { host::cas_ram_u64(fd, LOCK_OFF, exp, des, &mut cur as *mut u64 as u32) };
+    if rc != 0 {
+        return Err(rc);
+    }
+    Ok(cur)
+}
 
 #[cfg(target_arch = "wasm32")]
 fn cas(exp: u64, des: u64) -> Result<u64, i32> {
@@ -10,18 +22,19 @@ fn cas(exp: u64, des: u64) -> Result<u64, i32> {
     if fd < 0 {
         return Err(fd);
     }
-    let rc = unsafe { host::truncate(fd, LOCK_OFF + 8) };
-    if rc != 0 {
-        let _ = unsafe { host::close(fd) };
-        return Err(rc);
-    }
-    let mut cur: u64 = 0;
-    let rc = unsafe { host::cas_ram_u64(fd, LOCK_OFF, exp, des, &mut cur as *mut u64 as u32) };
+    let out = match cas_once(fd, exp, des) {
+        Err(ERR_RANGE) => {
+            let tr = unsafe { host::truncate(fd, LOCK_OFF + 8) };
+            if tr != 0 {
+                Err(tr)
+            } else {
+                cas_once(fd, exp, des)
+            }
+        }
+        other => other,
+    };
     let _ = unsafe { host::close(fd) };
-    if rc != 0 {
-        return Err(rc);
-    }
-    Ok(cur)
+    out
 }
 
 #[cfg(target_arch = "wasm32")]

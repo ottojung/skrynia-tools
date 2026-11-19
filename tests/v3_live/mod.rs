@@ -1,3 +1,4 @@
+mod appdata;
 mod guest;
 mod process;
 mod wire;

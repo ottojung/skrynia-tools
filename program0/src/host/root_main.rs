@@ -11,6 +11,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         "programs",
         "programs/active",
         "programs/blob",
+        "programs/ready",
         "programs/appdata",
     ] {
         if root_disk_ls::ensure(d).is_err() {

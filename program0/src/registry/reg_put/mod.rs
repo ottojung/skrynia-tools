@@ -1,5 +1,6 @@
 mod lock;
 mod mutate;
+mod releases;
 use super::cap::Disk;
 use crate::MutLock;
 use crate::reg::{RegErr, Registry};
@@ -26,6 +27,7 @@ impl Registry {
                 return Err(RegErr::Conflict);
             }
             store_io::ensure_blob(disk, &self.dir, &code).map_err(RegErr::Store)?;
+            store_io::seal_ready(disk, &self.dir, &iid, &code_hash).map_err(RegErr::Store)?;
             store_io::write_active(disk, &self.dir, &iid, &code_hash).map_err(RegErr::Store)?;
             Ok(())
         })?;

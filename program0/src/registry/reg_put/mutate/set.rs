@@ -31,6 +31,7 @@ impl Registry {
                 return Err(RegErr::Conflict);
             }
             store_io::ensure_blob(disk, &self.dir, &code).map_err(RegErr::Store)?;
+            store_io::seal_ready(disk, &self.dir, &iid, &new_hash).map_err(RegErr::Store)?;
             store_io::write_active(disk, &self.dir, &iid, &new_hash).map_err(RegErr::Store)?;
             Ok(())
         })?;

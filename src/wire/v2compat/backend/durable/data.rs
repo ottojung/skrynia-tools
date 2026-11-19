@@ -18,10 +18,19 @@ pub struct State {
     pub grants: Vec<Grant>,
     #[serde(default)]
     pub objects: BTreeMap<String, Vec<u8>>,
+    #[serde(default)]
+    pub subscriptions: Vec<super::super::push::Record>,
 }
 pub fn encode(state: &State) -> Result<Vec<u8>, String> {
     serde_json::to_vec(state).map_err(|e| e.to_string())
 }
 pub fn decode(bytes: &[u8]) -> Result<State, String> {
     serde_json::from_slice(bytes).map_err(|e| e.to_string())
+}
+pub fn sub_counts(state: &State) -> Vec<(String, u64)> {
+    let mut map: BTreeMap<String, u64> = BTreeMap::new();
+    for s in &state.subscriptions {
+        *map.entry(s.grant_id.clone()).or_insert(0) += 1;
+    }
+    map.into_iter().collect()
 }

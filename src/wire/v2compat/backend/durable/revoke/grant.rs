@@ -26,6 +26,9 @@ impl<S: StateStore, R> DurableBackend<S, R> {
                 return Err(CompatError::new(404, "grant_not_found"));
             }
             state.grants.retain(|g| !removed.contains(&g.id));
+            state
+                .subscriptions
+                .retain(|s| !removed.contains(&s.grant_id));
             Ok(())
         })
     }

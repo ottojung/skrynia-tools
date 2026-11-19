@@ -19,7 +19,10 @@ pub fn call(url: &str, request: Request) -> Result<Vec<u8>, String> {
     let payload = res.bytes().map_err(|e| e.to_string())?;
     let reply = decode_res(&payload).map_err(|e| format!("wire {e:?}"))?;
     if reply.status != STATUS_OK {
-        return Err(format!("application {}", reply.status));
+        return Err(format!(
+            "application {}, code {:?}",
+            reply.status, reply.body
+        ));
     }
     Ok(reply.body)
 }

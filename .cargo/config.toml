@@ -1,0 +1,4 @@
+# The native VM callback ABI requires the operator WASM's indirect table to
+# be exported. Without this, the host cannot resolve the callback pointer.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=--export-table"]

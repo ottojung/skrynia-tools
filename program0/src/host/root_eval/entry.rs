@@ -23,3 +23,9 @@ pub extern "C" fn skrynia_guest_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
 #[cfg(target_arch = "wasm32")]
 #[used]
 static GUEST_CB_PTR: unsafe extern "C" fn(u32, u32, u32, u32) -> i32 = skrynia_guest_cb;
+
+#[cfg(target_arch = "wasm32")]
+pub fn callback_index() -> i32 {
+    // wasm32 function pointers refer to linker-assigned indirect-table slots.
+    skrynia_guest_cb as *const () as usize as i32
+}

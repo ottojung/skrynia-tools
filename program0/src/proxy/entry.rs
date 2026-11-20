@@ -1,4 +1,4 @@
-use super::{abi, auth, code};
+use super::{abi, auth, code, host};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
@@ -9,7 +9,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
                 wasm.len() as u32,
                 input_fd,
                 output_fd,
-                -1,
+                host::callback_index(),
             )
         },
         Err(error) => error,

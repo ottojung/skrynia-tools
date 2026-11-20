@@ -86,3 +86,52 @@ The authentication header and the body are independently handled:
 Program 0 checks and removes only the header and delegates the two
 remaining streams to the generic eval API. The current fixed demo guest
 path is not a production application registration policy.
+
+## Generic evaluated-program syscall forwarding (draft)
+
+The optional Program 0 may delegate a generic, **one-to-one kernel API
+relay** through the evaluated guest's skrynia.invoke callback. No
+Skrynia server code knows about programs other than operator-supplied
+Program 0, and Program 0 contains no v2 routes, appdata rules, grant
+tree, code-release registry or deployment management.
+
+The callback framing is deliberately small and independent of any app
+or v2 protocol: requests begin with one opcode byte and typed fields,
+and every reply begins with a signed little-endian 32-bit kernel status.
+When READ succeeds, its reply appends exactly that many bytes.
+
+  opcode 1 OPEN_DISK: u32 path-length | raw path | u32 mode-flags
+                    => i32 opened fd or negative host error
+  opcode 2 READ:      u32 fd | u32 maximum-bytes
+                    => i32 n | exactly n raw bytes (n >= 0)
+  opcode 3 WRITE:     u32 fd | u32 body-length | raw body
+                    => i32 bytes-written or negative host error
+  opcode 4 CLOSE:     u32 fd
+                    => i32 close status
+
+Lengths are u32 little-endian, fd is an opaque request-scoped host
+descriptor encoded as u32, and unknown/trailing fields are rejected.
+READ and WRITE are intentionally short (maximum 64 KiB per invocation);
+clients must retry partial writes and read to EOF. READ checks response
+capacity *before* consuming the descriptor, so a too-small reply
+buffer cannot silently discard data. Every descriptor belongs to that
+one root request; it cannot be reused after the request finishes.
+
+There is NO application-specific authorization in Program 0: anyone
+with the operator's private bearer token has root-equivalent host API
+authority for the confined Skrynia data root. The token is never
+forwarded to the child and must NEVER be present in anonymous client
+JavaScript. Future scoped grants, quotas and application protocol
+rules belong in separately evaluated user programs, not the kernel or
+this relay. The callback currently does NOT implement fsync, atomic
+rename, CAS, grant permissions, Web Push, or durable multi-key
+transactions, so it is not ready for production stateful v2 parity.
+
+The relay requires the generic-kernel parent/child callback authority
+fix in Skrynia draft PR #111. Without it, the parent cannot read its
+own privileged file descriptors and a nested eval can *lose* the outer
+guest's descriptor restrictions, leaking access to private root files.
+Do not deploy a callback-enabled Program 0 with the unfixed kernel.
+The actual independently built Rust Program 0 and fixed Rust kernel
+are qualified together in tests/v3_proxy, with all eight explicitly
+run HTTP tests passing; the kernel still uses only POST /.

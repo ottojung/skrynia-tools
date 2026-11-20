@@ -1,4 +1,5 @@
 use super::cap::{CbDisk, CbLock, CbRandom};
+use super::fd;
 use crate::cap::Eval;
 use crate::reg::Registry;
 struct NoEval;
@@ -14,8 +15,11 @@ impl Eval for NoEval {
     }
 }
 #[unsafe(no_mangle)]
-pub extern "C" fn skrynia_main(in_ptr: u32, in_len: u32, out_ptr: u32, out_cap: u32) -> i32 {
-    let req = unsafe { core::slice::from_raw_parts(in_ptr as *const u8, in_len as usize) };
+pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
+    let req = match fd::read_all(input_fd) {
+        Ok(r) => r,
+        Err(e) => return e,
+    };
     let disk = CbDisk;
     let lock = CbLock;
     let rng = CbRandom;
@@ -24,13 +28,9 @@ pub extern "C" fn skrynia_main(in_ptr: u32, in_len: u32, out_ptr: u32, out_cap: 
         Ok(r) => r,
         Err(_) => return -5,
     };
-    let response = crate::handle::handle(&reg, &disk, &lock, &rng, &eval, req);
-    let n = response.len();
-    if n > out_cap as usize {
-        return -10;
+    let response = crate::handle::handle(&reg, &disk, &lock, &rng, &eval, req.as_slice());
+    match fd::write_all(output_fd, &response) {
+        Ok(()) => 0,
+        Err(e) => e,
     }
-    unsafe {
-        core::ptr::copy_nonoverlapping(response.as_ptr(), out_ptr as *mut u8, n);
-    }
-    n as i32
 }

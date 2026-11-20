@@ -1,5 +1,5 @@
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
-mod call;
+pub(crate) mod call;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 mod disk;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
@@ -15,7 +15,7 @@ mod disk_write;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 mod lock;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
-mod wire;
+pub(crate) mod wire;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub use disk::CbDisk;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]

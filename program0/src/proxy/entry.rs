@@ -1,4 +1,4 @@
-use super::{abi, code, stream};
+use super::{abi, auth, code, stream};
 const MAX_OUTPUT: usize = 8 * 1024 * 1024;
 
 #[unsafe(no_mangle)]
@@ -14,6 +14,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
     }
 }
 fn forward(input_fd: i32, output_fd: i32) -> Result<(), i32> {
+    auth::require(input_fd)?;
     let wasm = code::load()?;
     let input = stream::receive(input_fd)?;
     let mut output = vec![0u8; MAX_OUTPUT];

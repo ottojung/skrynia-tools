@@ -76,3 +76,34 @@ The old direct Program 0 wire and on-disk formats are deliberately not
 forward-compatible. Do not silently interpret them in the proxy; export
 and migrate data through an explicitly trusted operator process. No
 production cutover has been made.
+
+## Authenticated proxy requirement
+
+The skrynia-tools-recommended Program 0 **must** verify a private token
+before forwarding any API request. The server has no token knowledge and
+enforces no application-level bearer authentication itself.
+
+The demonstrated binary header is version byte 1 followed by exactly
+32 raw bytes of a high-entropy operator-issued bearer token, followed by
+the opaque API request. Program 0 consumes the 33-byte header before
+running another program, so the forwarded request never includes the
+credential. It checks SHA-256(token) using a fixed-length constant-time
+comparison against a private **binary** 32-byte digest stored in
+security/program0.sha256 within its confined data root. Missing,
+corrupted, mismatched or unreadable digest fails closed. The verifier
+must be operator-controlled, atomically replaceable, and kept at
+private filesystem permissions (0700 parent, 0600 file).
+
+Generate/distribute tokens via a private operator installation workflow;
+never hard-code one in Program 0's WASM, downloaded HTML/JS, public URL,
+logs or repository. Only authorized clients receive the bearer credential
+out of band; use HTTPS and protect it as root-equivalent authority.
+Individual application authorization and least-authority delegation
+must still be implemented by ordinary user programs, not Program 0.
+
+Current compatibility note: the implemented token gate is tested against
+the earlier buffered generic-eval sample. The newer kernel branch that
+special-cased a named Program 1 is **not** the desired architecture.
+A future generic two-file-descriptor evaluation API should preserve this
+exact gate and simply pass the *remaining* input FD plus output FD to the
+arbitrary evaluated program; the kernel should still know only Program 0.

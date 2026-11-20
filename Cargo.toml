@@ -29,3 +29,14 @@ url = "2"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "Headers", "Response", "RequestCache", "RequestRedirect"] }
+
+[workspace]
+members = [".", "program0"]
+resolver = "2"
+
+[dev-dependencies]
+wat = "1"
+
+[[test]]
+name = "v3_proxy"
+path = "tests/v3_proxy/mod.rs"

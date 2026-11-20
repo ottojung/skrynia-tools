@@ -14,7 +14,10 @@ impl<I: Callback> Store for InvokeBackend<'_, I> {
         let closed = proto::close(self.invoke, fd);
         let bytes = value?;
         closed?;
-        Ok(ObjectRead::Found(Object { key: key.into(), bytes }))
+        Ok(ObjectRead::Found(Object {
+            key: key.into(),
+            bytes,
+        }))
     }
     fn mutate_object(&self, request: Mutation<'_>) -> Result<bool, CompatError> {
         durable::ops::mutate(self.invoke, request)

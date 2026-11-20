@@ -1,5 +1,5 @@
-use super::proto;
 use super::super::{Callback, InvokeError};
+use super::proto;
 pub fn open_disk<I: Callback>(i: &I, path: &str, mode: u32) -> Result<i32, InvokeError> {
     let mut r = vec![1u8];
     r.extend_from_slice(&(path.len() as u32).to_le_bytes());

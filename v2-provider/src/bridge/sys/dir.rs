@@ -1,5 +1,5 @@
-use super::proto;
 use super::super::{Callback, InvokeError};
+use super::proto;
 pub fn open<I: Callback>(i: &I, p: &str) -> Result<i32, InvokeError> {
     let mut r = vec![13u8];
     r.extend_from_slice(&(p.len() as u32).to_le_bytes());

@@ -4,6 +4,7 @@ mod fdctl;
 mod io;
 mod open;
 mod path;
+mod rename;
 mod special;
 mod wire;
 use super::abi;
@@ -23,7 +24,7 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::SYNC) => fdctl::sync(req),
         Some(wire::SEEK) => fdctl::seek(req),
         Some(wire::TRUNCATE) => fdctl::truncate(req),
-        Some(wire::RENAME) => path::rename(req),
+        Some(wire::RENAME) => rename::call(req),
         Some(wire::DELETE) => path::delete(req),
         Some(wire::MKDIR) => path::mkdir(req),
         Some(wire::EXISTS) => path::exists(req),
@@ -35,10 +36,14 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::CAS_RAM) => special::cas_ram(req),
         _ => wire::reply(wire::INVALID, &[]),
     };
-    if result.len() > cap { return wire::OVERFLOW; }
+    if result.len() > cap {
+        return wire::OVERFLOW;
+    }
     unsafe { core::ptr::copy_nonoverlapping(result.as_ptr(), dp as *mut u8, result.len()) };
     result.len() as i32
 }
 #[used]
 static CALLBACK: extern "C" fn(u32, u32, u32, u32) -> i32 = skrynia_host_cb;
-pub fn callback_index() -> i32 { skrynia_host_cb as *const () as usize as i32 }
+pub fn callback_index() -> i32 {
+    skrynia_host_cb as *const () as usize as i32
+}

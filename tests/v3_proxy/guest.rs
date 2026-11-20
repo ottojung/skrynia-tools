@@ -35,3 +35,9 @@ pub fn privileged() -> Vec<u8> {
     )
     .unwrap()
 }
+pub fn read_disk() -> Vec<u8> {
+    wat::parse_str(include_str!("wat/read_disk.wat")).unwrap()
+}
+pub fn write_disk() -> Vec<u8> {
+    wat::parse_str(include_str!("wat/write_disk.wat")).unwrap()
+}

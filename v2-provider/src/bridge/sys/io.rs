@@ -9,7 +9,10 @@ pub fn read_all<I: Callback>(i: &I, name: &str) -> Result<Option<Vec<u8>>, Invok
     };
     let mut out = Vec::new();
     let res = loop {
-        let (st, bytes) = file::read(i, fd, 65536)?;
+        let (st, bytes) = match file::read(i, fd, 65536) {
+            Ok(value) => value,
+            Err(_) => break Err(InvokeError::Unavailable),
+        };
         if st < 0 {
             break Err(InvokeError::Unavailable);
         }
@@ -28,7 +31,10 @@ pub fn read_all<I: Callback>(i: &I, name: &str) -> Result<Option<Vec<u8>>, Invok
         }
         out.extend_from_slice(&bytes);
     };
-    let _ = file::close(i, fd);
+    let closed = file::close(i, fd);
+    if closed != Ok(0) {
+        return Err(InvokeError::Unavailable);
+    }
     res.map(Some)
 }
 pub fn write_all_fd<I: Callback>(i: &I, fd: i32, mut bytes: &[u8]) -> Result<(), InvokeError> {

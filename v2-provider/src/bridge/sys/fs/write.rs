@@ -21,7 +21,7 @@ pub fn write_atomic<I: Callback>(i: &I, name: &str, bytes: &[u8]) -> Result<(), 
         let _ = sync_dir(i, parent);
         return Err(InvokeError::Unavailable);
     }
-    if path::rename(i, &tmp, name)? != 0 {
+    if path::rename(i, &tmp, name) != Ok(0) {
         let _ = path::delete(i, &tmp);
         let _ = sync_dir(i, parent);
         return Err(InvokeError::Unavailable);

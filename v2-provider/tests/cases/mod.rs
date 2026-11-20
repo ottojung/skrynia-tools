@@ -1,5 +1,6 @@
 mod errors;
 mod fake;
+mod filesystem;
 mod read;
 mod wire;
 pub use fake::Fake;

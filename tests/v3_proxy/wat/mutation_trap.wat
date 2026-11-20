@@ -1,0 +1,11 @@
+(module
+  (import "skrynia" "invoke" (func $invoke(param i32 i32 i32 i32)(result i32)))
+  (memory(export "memory") 1)
+  (func(export "skrynia_main")(param $in i32)(param $out i32)(result i32)
+    (i32.store8(i32.const 0)(i32.const 14))
+    (if (i32.ne(call $invoke(i32.const 0)(i32.const 1)
+      (i32.const 64)(i32.const 4))(i32.const 4))
+      (then(return(i32.const -5))))
+    (if (i32.ne(i32.load(i32.const 64))(i32.const 1))
+      (then(return(i32.const -10))))
+    unreachable))

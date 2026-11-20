@@ -6,15 +6,29 @@ directory. It does not decode requests, route application names, maintain a
 registry, authorize users, modify persistent application data, manage
 versions, store grant secrets, or implement an administration interface.
 
-It receives the two forward-only root file descriptors, reads the complete
-request, loads the operator's fixed guest module, invokes that WASM with the
-opaque bytes, and forwards the returned bytes to output. It provides no
-callback for skrynia.invoke and cannot grant an untrusted guest disk/RAM
-access. Missing or invalid guest returns an error, never a fallback service.
-Input is capped at 16 MiB, child code at 8 MiB, output at 8 MiB. These are
-temporary implementation bounds, NOT true streaming: Skrynia's current
-eval guest ABI is memory-buffered. To make the proxy fully streaming, the
-kernel must expose a safe guest FD execution ABI, preserving child isolation.
+It receives two forward-only root file descriptors and consumes only the
+33-byte authentication header. After verification, it loads the fixed
+operator-supplied guest WASM and passes the original input descriptor (now
+advanced past the header) and output descriptor directly into generic
+skrynia.eval(code, code_len, input_fd, output_fd, callback). The child
+reads and writes through bounded streaming channels, with no copying or
+buffering of request/response bodies in Program 0. The whole guest binary
+is loaded into memory up to the 8 MiB module limit; that is independent of
+request size.
+
+This version is for generic two-FD Skrynia eval (kernel branch
+feat/generic-fd-eval-abi), NOT the old 7-argument buffered eval API.
+The child is unprivileged: it cannot import root filesystem, global RAM
+or network APIs. With callback=-1 the child cannot call skrynia.invoke.
+Consequently this is a verified authenticated streaming transport, but
+not yet a working application storage/API delegation mechanism; a
+reviewed generic callback proxy is still required. Missing, invalid,
+or absent child modules fail closed; there is no legacy fallback.
+
+The name programs/root.wasm denotes an operator-selected ordinary child,
+not an independently recognized kernel Program 1 identity. The kernel
+still only knows the root WASM supplied at SKRYNIA_ROOT_WASM. The kernel
+does not know anything about the token or the child module.
 
 NO automatic migration from the former root-owned registry is performed.
 That previous code is retained separately as unshippable implementation
@@ -68,7 +82,7 @@ Skrynia itself has no knowledge of this header, token, or verification.
 The current kernel returns an HTTP error on auth denial; no distinct
 HTTP 401 response is implemented at the transport layer.
 
-This branch adds a tested authentication boundary to the earlier
-buffered generic-eval example. A genuine streaming, generic descriptor
-evaluation/proxy API is still being developed; do not interpret the
-fixed demo guest path as an application registration policy.
+The authentication header and the body are independently handled:
+Program 0 checks and removes only the header and delegates the two
+remaining streams to the generic eval API. The current fixed demo guest
+path is not a production application registration policy.

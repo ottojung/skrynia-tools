@@ -6,8 +6,8 @@ mod wire;
 use skrynia_native_service::auth;
 use skrynia_native_service::wire::{AppPrecond, Request};
 #[test]
-#[ignore = "requires a separately built Skrynia v3 binary and Program 0 WASM"]
-fn external_user_program0_register_set_restart_revoke() {
+#[ignore = "requires paired v3 kernel, dumb Program0 and scoped Program1 WASM"]
+fn external_program1_service_register_set_restart_revoke() {
     let bin = std::env::var("SKRYNIA_V3_SERVER_BIN").expect("SKRYNIA_V3_SERVER_BIN");
     let wasm = std::env::var("SKRYNIA_V3_PROGRAM0_WASM").expect("SKRYNIA_V3_PROGRAM0_WASM");
     let mut server = process::Server::new(bin, wasm).unwrap();

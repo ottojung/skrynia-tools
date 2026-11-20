@@ -13,8 +13,11 @@ impl Server {
         if dir.exists() {
             return Err("live fixture already exists".into());
         }
-        fs::create_dir_all(dir.join("programs")).map_err(|e| e.to_string())?;
-        let private = dir.join("programs/operator.cap");
+        let program1 = std::env::var("SKRYNIA_V3_PROGRAM1_WASM")
+            .map_err(|e| format!("SKRYNIA_V3_PROGRAM1_WASM: {e}"))?;
+        fs::create_dir_all(dir.join("kernel")).map_err(|e| e.to_string())?;
+        fs::create_dir_all(dir.join("service/programs")).map_err(|e| e.to_string())?;
+        let private = dir.join("service/programs/operator.cap");
         fs::write(&private, [85u8; 32]).map_err(|e| e.to_string())?;
         #[cfg(unix)]
         {
@@ -27,7 +30,9 @@ impl Server {
             child: Command::new(&bin)
                 .env("SKRYNIA_BIND", addr.to_string())
                 .env("SKRYNIA_ROOT_WASM", &wasm)
-                .env("SKRYNIA_DATA_DIR", &dir)
+                .env("SKRYNIA_DATA_DIR", dir.join("kernel"))
+                .env("SKRYNIA_PROGRAM1_WASM", &program1)
+                .env("SKRYNIA_PROGRAM1_DATA_DIR", dir.join("service"))
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()
@@ -35,6 +40,7 @@ impl Server {
             dir,
             bin,
             wasm,
+            program1,
         };
         server.ready()?;
         Ok(server)

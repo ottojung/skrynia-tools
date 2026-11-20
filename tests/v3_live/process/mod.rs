@@ -7,4 +7,5 @@ pub struct Server {
     pub(super) dir: PathBuf,
     pub(super) bin: String,
     pub(super) wasm: String,
+    pub(super) program1: String,
 }

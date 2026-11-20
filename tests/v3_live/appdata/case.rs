@@ -5,7 +5,7 @@ use skrynia_native_service::wire::{AppPrecond, Request};
 
 #[test]
 #[ignore = "requires a separately built Skrynia v3 binary and Program 0 WASM"]
-fn external_user_program0_app_data_and_guest_callback_isolation() {
+fn external_program1_app_data_and_guest_callback_isolation() {
     let s = server();
     let wc = vec![7u8; 32];
     let rc = auth::read_cap_vec(&wc);

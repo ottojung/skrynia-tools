@@ -15,3 +15,17 @@ impl Server {
         std::fs::write(self.dir.join("security/program0.sha256"), bytes).unwrap();
     }
 }
+
+impl Server {
+    pub fn seed_file(&self, key: &str, bytes: &[u8]) {
+        let path = self.dir.join(key);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, bytes).unwrap();
+    }
+}
+
+impl Server {
+    pub fn read_file(&self, key: &str) -> Option<Vec<u8>> {
+        std::fs::read(self.dir.join(key)).ok()
+    }
+}

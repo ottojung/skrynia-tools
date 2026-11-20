@@ -3,17 +3,17 @@ use skrynia_v2_provider::dispatch;
 #[test]
 fn ordinary_guest_preserves_v2_get_head_and_range_semantics() {
     let mut request = req("GET", "/store/public/file.txt");
-    let full = dispatch(&request, &Fake);
+    let full = dispatch(&request, &Fake::default());
     assert_eq!(full.status, 200);
     assert_eq!(full.body, b"abcdef");
     assert!(full.headers.contains_key("etag"));
     request.method = "HEAD".into();
-    let head = dispatch(&request, &Fake);
+    let head = dispatch(&request, &Fake::default());
     assert_eq!(head.status, 200);
     assert!(head.body.is_empty());
     request.method = "GET".into();
     request.headers.insert("range".into(), "bytes=2-3".into());
-    let part = dispatch(&request, &Fake);
+    let part = dispatch(&request, &Fake::default());
     assert_eq!(part.status, 206);
     assert_eq!(part.body, b"cd");
     assert_eq!(
@@ -24,15 +24,18 @@ fn ordinary_guest_preserves_v2_get_head_and_range_semantics() {
 #[test]
 fn missing_and_invalid_paths_remain_v2_errors() {
     assert_eq!(
-        dispatch(&req("GET", "/store/public/missing.txt"), &Fake).status,
+        dispatch(&req("GET", "/store/public/missing.txt"), &Fake::default()).status,
         404
     );
-    assert_eq!(dispatch(&req("GET", "/store/../evil"), &Fake).status, 400);
+    assert_eq!(
+        dispatch(&req("GET", "/store/../evil"), &Fake::default()).status,
+        400
+    );
 }
 
 #[test]
 fn preflight_is_legacy_guest_semantics_not_kernel_http() {
-    let options = dispatch(&req("OPTIONS", "/store/public/file.txt"), &Fake);
+    let options = dispatch(&req("OPTIONS", "/store/public/file.txt"), &Fake::default());
     assert_eq!(options.status, 204);
     assert!(options.body.is_empty());
     assert_eq!(

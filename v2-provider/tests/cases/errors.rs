@@ -14,9 +14,12 @@ fn missing_capability_is_503_not_an_invented_404() {
 }
 #[test]
 fn unsupported_grant_and_push_mutations_never_succeed() {
-    assert_eq!(dispatch(&req("POST", "/grants"), &Fake).status, 501);
     assert_eq!(
-        dispatch(&req("POST", "/push/subscriptions"), &Fake).status,
+        dispatch(&req("POST", "/grants"), &Fake::default()).status,
+        501
+    );
+    assert_eq!(
+        dispatch(&req("POST", "/push/subscriptions"), &Fake::default()).status,
         501
     );
 }

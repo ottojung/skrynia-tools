@@ -7,7 +7,8 @@ unsafe extern "C" {
 pub struct Host;
 impl Callback for Host {
     fn invoke(&self, bytes: &[u8]) -> Result<Vec<u8>, InvokeError> {
-        let mut out = vec![0u8; 8 * 1024 * 1024];
+        // Generic syscall callbacks return at most 64KiB plus a signed status.
+        let mut out = vec![0u8; 64 * 1024 + 4];
         let n = unsafe {
             invoke(
                 bytes.as_ptr() as u32,

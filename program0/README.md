@@ -128,6 +128,30 @@ When READ succeeds, its reply appends exactly that many bytes.
                     => i32 kernel status | ceil(bits/8) random bytes on
                        success; zero-count requests return no bytes
 
+  opcode 13 EVAL:     u32 code-path-length | raw module path |
+                       u32 input-fd | u32 output-fd
+                    => i32 generic child evaluation status
+
+EVAL executes *any ordinary WASM module* chosen by the calling guest
+and loaded from the confined data root. It uses the kernel's one generic
+five-argument skrynia.eval, delegates the two supplied forward-only
+descriptors, and registers exactly this same generic callback for the
+evaluated child. The calling guest chooses the module path and can
+consume a protocol prefix before delegating its remaining input
+descriptor to the child. This supplies composable user-program routing
+without reserved Program1/Program2 identities, server naming, v2
+methods, or app semantics in Program0.
+
+**Descriptor ownership transfers to EVAL:** the original guest MUST
+not use those descriptors after the call returns, including failures,
+because evaluation may have consumed/closed them. Module code is
+materialized in Program0 memory up to the kernel's 8 MiB limit, but
+input/output body bytes are forwarded by descriptors rather than
+buffered in Program0. Missing or invalid modules fail closed; guest
+imports remain limited to read, write, close and invoke. Nested child
+callbacks require the kernel security fix in Skrynia PR #111 to
+restore the correct parent and child descriptor capabilities.
+
 Lengths are u32 little-endian, fd is an opaque request-scoped host
 descriptor encoded as u32, and unknown/trailing fields are rejected.
 READ and WRITE are intentionally short (maximum 64 KiB per invocation);

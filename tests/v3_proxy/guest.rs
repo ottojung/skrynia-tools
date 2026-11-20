@@ -44,3 +44,6 @@ pub fn write_disk() -> Vec<u8> {
 pub fn durable() -> Vec<u8> {
     wat::parse_str(include_str!("wat/durable.wat")).unwrap()
 }
+pub fn nested_router() -> Vec<u8> {
+    wat::parse_str(include_str!("wat/router.wat")).unwrap()
+}

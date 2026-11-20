@@ -1,5 +1,4 @@
 use std::{
-    fs,
     net::TcpListener,
     process::{Child, Command, Stdio},
     time::Duration,
@@ -18,10 +17,7 @@ impl Server {
             std::process::id(),
             rand::random::<u64>()
         ));
-        fs::create_dir_all(dir.join("data")).unwrap();
-        fs::copy(guest, dir.join("data/v2.wasm")).unwrap();
-        let root = wat::parse_str(include_str!("../root.wat")).unwrap();
-        fs::write(dir.join("root.wasm"), root).unwrap();
+        super::seed::data(&dir, &guest);
         let listen = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listen.local_addr().unwrap();
         drop(listen);

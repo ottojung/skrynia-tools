@@ -1,5 +1,5 @@
 //! Reusable client-side protocols for Skrynia and the browser.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "guest-core-only")))]
 pub mod browser;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod cas;

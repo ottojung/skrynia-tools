@@ -2,7 +2,8 @@ mod open;
 mod proto;
 mod read;
 use super::{Callback, InvokeBackend};
-use skrynia_tools::wire::v2compat::{CompatError, Object, ObjectRead, Store};
+use crate::durable;
+use skrynia_tools::wire::v2compat::{CompatError, Mutation, Object, ObjectRead, Store};
 
 impl<I: Callback> Store for InvokeBackend<'_, I> {
     fn read_object(&self, key: &str) -> Result<ObjectRead, CompatError> {
@@ -13,9 +14,9 @@ impl<I: Callback> Store for InvokeBackend<'_, I> {
         let closed = proto::close(self.invoke, fd);
         let bytes = value?;
         closed?;
-        Ok(ObjectRead::Found(Object {
-            key: key.into(),
-            bytes,
-        }))
+        Ok(ObjectRead::Found(Object { key: key.into(), bytes }))
+    }
+    fn mutate_object(&self, request: Mutation<'_>) -> Result<bool, CompatError> {
+        durable::ops::mutate(self.invoke, request)
     }
 }

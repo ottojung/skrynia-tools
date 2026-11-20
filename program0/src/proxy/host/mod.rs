@@ -1,6 +1,9 @@
 mod close;
+mod dir;
 mod io;
+mod misc;
 mod open;
+mod path;
 mod wire;
 use super::abi;
 
@@ -15,6 +18,15 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::READ) => io::read(req, dc as usize),
         Some(wire::WRITE) => io::write(req),
         Some(wire::CLOSE) => close::call(req),
+        Some(wire::MKDIR) => path::mkdir(req),
+        Some(wire::DELETE) => path::delete(req),
+        Some(wire::RENAME) => path::rename(req),
+        Some(wire::OPEN_DIR) => dir::open(req),
+        Some(wire::NEXT_ENTRY) => dir::next(req, dc as usize),
+        Some(wire::SYNC) => misc::sync(req),
+        Some(wire::RANDOM) => misc::random(req),
+        Some(wire::TRY_LOCK) => misc::try_lock(req),
+        Some(wire::RELEASE_LOCK) => misc::release_lock(req),
         _ => wire::reply(wire::INVALID, &[]),
     };
     if result.len() > dc as usize {

@@ -1,9 +1,11 @@
 use super::{abi, wire};
 mod delete;
 mod exists;
+mod is_dir;
 mod mkdir;
 mod rename;
 pub use delete::delete;
 pub use exists::exists;
+pub use is_dir::is_dir;
 pub use mkdir::mkdir;
 pub use rename::rename;

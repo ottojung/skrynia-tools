@@ -28,7 +28,7 @@ function safeJoin(root, urlPath) {
   return join(root, clean);
 }
 
-export function createGatewayServer({service, webRoot, extraRoots = {}, port = 0, host = '127.0.0.1'}) {
+export function createGatewayServer({service, webRoot, extraRoots = {}, port = 0, host = '127.0.0.1', sessionToken = null}) {
   let testResult = null;
   const server = http.createServer(async (req, res) => {
     try {
@@ -43,6 +43,13 @@ export function createGatewayServer({service, webRoot, extraRoots = {}, port = 0
         return send(res, 200, JSON.stringify(testResult), 'application/json; charset=utf-8');
       }
       if (req.method === 'POST' && u.pathname === '/_skrynia/') {
+        if (sessionToken !== null) {
+          const auth = req.headers['authorization'] || '';
+          const expected = 'Bearer ' + sessionToken;
+          if (auth !== expected) {
+            return send(res, 401, JSON.stringify({ok:false,error:{message:'Unauthorized',code:'unauthorized'}}), 'application/json; charset=utf-8');
+          }
+        }
         // Dumb transport: opaque body forwarded to nonzero userland registry service.
         // No application/registry semantics in this gateway path.
         const chunks = [];
@@ -58,6 +65,11 @@ export function createGatewayServer({service, webRoot, extraRoots = {}, port = 0
           const status = e && (e.code === 'not_found') ? 404 : e && e.code === 'conflict' ? 409 : 400;
           return send(res, status, JSON.stringify({ok: false, error: {message: e.message || 'Error', code: e.code || 'error', current: e.current, expected: e.expected, currentVersion: e.currentVersion, expectedVersion: e.expectedVersion, currentRevision: e.currentRevision, expectedRevision: e.expectedRevision}}), 'application/json; charset=utf-8');
         }
+      }
+      if (req.method === 'GET' && u.pathname === '/__session') {
+        // Test-only dynamic session bootstrap; not part of static web-admin-v3 bundle.
+        // Returns gateway session credential only (never Program 0 bearer token).
+        return send(res, 200, JSON.stringify({sessionToken: sessionToken || ''}), 'application/json; charset=utf-8');
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         return send(res, 405, 'Method not allowed');

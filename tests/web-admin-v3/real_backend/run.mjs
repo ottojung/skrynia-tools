@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import {join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
+import {randomBytes} from 'node:crypto';
 import {FileRegistryService} from './registry_service.mjs';
 import {createGatewayServer} from './gateway.mjs';
 
@@ -61,7 +62,7 @@ async function runChromium(gw, origin, pathAndQuery, label) {
   return result;
 }
 
-async function startGateway(storageDir, port = 0) {
+async function startGateway(storageDir, port = 0, sessionToken = null) {
   const service = new FileRegistryService(storageDir);
   await service.init();
   const gw = createGatewayServer({
@@ -70,6 +71,7 @@ async function startGateway(storageDir, port = 0) {
     extraRoots: {'/test': __dirname},
     port,
     host: '127.0.0.1',
+    sessionToken,
   });
   const info = await gw.listen();
   return {gw, service, info};
@@ -79,6 +81,7 @@ async function main() {
   const tmp = await mkdtemp(join(tmpdir(), 'skrynia-v3-registry-'));
   const storageDir = join(tmp, 'storage');
   let gw1, info1, svc;
+  const sessionToken = randomBytes(32).toString('hex'); // gateway session credential (not Program 0 bearer)
   try {
     // Seed persistent storage with two apps and multiple releases
     const seeder = new FileRegistryService(storageDir);
@@ -103,7 +106,7 @@ async function main() {
     });
 
     // --- Backend integration: A-B-A safe constant-work CAS with real persistent storage ---
-    ({gw: gw1, service: svc, info: info1} = await startGateway(storageDir));
+    ({gw: gw1, service: svc, info: info1} = await startGateway(storageDir, 0, sessionToken));
     // initial state
     let st = await svc.getAppState('alpha');
     assert.equal(st.active, A1);
@@ -137,8 +140,22 @@ async function main() {
     assert.equal(ptrRaw.active, A1);
     assert.equal(ptrRaw.revision, 3);
 
-    // --- Real browser integration (Chromium) against gateway + persistent backend ---
+    // --- Authentication: gateway requires session credential (not Program 0 bearer, not in static bundle) ---
     const base = info1.origin;
+    const unauth = await fetch(base + '/_skrynia/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({op:'listApps'})});
+    assert.equal(unauth.status, 401);
+    const unauthBody = await unauth.json();
+    assert.equal(unauthBody.ok, false);
+    assert.equal(unauthBody.error.code, 'unauthorized');
+    const wrong = await fetch(base + '/_skrynia/', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer wrong-token'}, body: JSON.stringify({op:'listApps'})});
+    assert.equal(wrong.status, 401);
+    const authed = await fetch(base + '/_skrynia/', {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer ' + sessionToken}, body: JSON.stringify({op:'listApps'})});
+    assert.equal(authed.status, 200);
+    const authedBody = await authed.json();
+    assert.equal(authedBody.ok, true);
+    assert.deepEqual(authedBody.result, ['alpha', 'beta']);
+
+    // --- Real browser integration (Chromium) against gateway + persistent backend ---
     await runChromium(gw1, base, `/test/test.html?phase=verify&expectActive=${encodeURIComponent(A1)}&expectRevision=3`, 'verify-initial');
     // activate to A3 via browser UI
     await runChromium(gw1, base, `/test/test.html?phase=activate&activate=${encodeURIComponent(A3)}&expectActive=${encodeURIComponent(A3)}&expectRevision=4`, 'activate-A3');
@@ -153,7 +170,7 @@ async function main() {
     // --- Persistence across restart: stop gateway, restart with same storage, verify state ---
     await gw1.close();
     gw1 = null;
-    ({gw: gw1, service: svc, info: info1} = await startGateway(storageDir, info1.port));
+    ({gw: gw1, service: svc, info: info1} = await startGateway(storageDir, info1.port, sessionToken));
     const restarted = await svc.getAppState('alpha');
     assert.equal(restarted.active, A2);
     assert.equal(restarted.pointerVersion, 5);
@@ -178,10 +195,13 @@ async function main() {
         'constant-work-pointer-cas',
         'aba-safe-revision-rollback',
         'stale-expectation-conflict',
+        'gateway-session-authentication',
+        'unauthenticated-request-rejected',
         'chromium-browser-ui-activate-inspect',
         'state-survives-gateway-restart',
         'post-restart-cas-continuity',
         'no-root-token-in-browser-adapter',
+        'no-program0-business-semantics-in-gateway',
       ],
       finalAlpha: {active: A1, revision: 6},
     }));

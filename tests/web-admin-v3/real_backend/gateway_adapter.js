@@ -1,8 +1,22 @@
 (function () {
+  let tokenPromise = null;
+  async function getToken() {
+    if (!tokenPromise) {
+      tokenPromise = fetch('/__session', {cache: 'no-store'})
+        .then(r => r.ok ? r.json() : {sessionToken: ''})
+        .then(d => (d && typeof d.sessionToken === 'string') ? d.sessionToken : '')
+        .catch(() => '');
+    }
+    return tokenPromise;
+  }
+
   async function call(op, payload) {
+    const token = await getToken();
+    const headers = {'Content-Type': 'application/json'};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch('/_skrynia/', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers,
       body: JSON.stringify({op, ...payload}),
     });
     let data;
@@ -29,6 +43,8 @@
     async getAppState(app) { return call('getAppState', {app}); },
     async getReleaseManifest(app, releaseId) { return call('getReleaseManifest', {app, releaseId}); },
     async activateRelease(app, releaseId, opts) { return call('activateRelease', {app, releaseId, opts: opts || {}}); },
-    setOperatorSecret(_secret) { /* no root token in browser; gateway session handled server-side if needed */ },
+    // Session credential is a gateway-issued token fetched at runtime (not Program 0 bearer,
+    // not embedded in static web-admin-v3 bundle). UI operator-secret field remains unused here.
+    setOperatorSecret(_secret) { /* no root token in browser */ },
   };
 })();

@@ -11,8 +11,12 @@ userland registry backend with **real filesystem-persistent storage** and
 - `gateway.mjs`: local HTTP server serving `web-admin-v3` and a dumb
   `POST /_skrynia/` transport that forwards opaque JSON service requests to
   the registry service (no Program 0 application semantics in gateway).
+  Requires a gateway session credential on service requests when configured
+  (separately provisioned, **not** a Program 0 bearer token).
 - `gateway_adapter.js`: browser capability adapter using same-origin
-  `POST /_skrynia/`; **no root/Program 0 bearer token in browser**.
+  `POST /_skrynia/`; fetches gateway session credential dynamically at
+  runtime (test harness bootstrap, not in static `web-admin-v3/` bundle);
+  **no root/Program 0 bearer token in browser**.
 - `test.html`: drives the actual `web-admin-v3` UI (vault unlock/init,
   refresh, manifest inspect, activation/rollback) and reports results.
 - `run.mjs`: seeds storage, runs backend CAS/ABA/conflict checks, executes
@@ -24,6 +28,10 @@ Run:
 ```sh
 node tests/web-admin-v3/real_backend/run.mjs
 ```
+
+The run verifies authenticated/unauthenticated gateway access, immutable ready
+release history, ABA-safe constant-work pointer CAS activation/rollback,
+Chromium UI flows, and persistence across restart.
 
 This is a protocol/reference backend integration harness; it does not run the
 registry service as a WASM guest inside a Skrynia kernel/Program 0 stack.

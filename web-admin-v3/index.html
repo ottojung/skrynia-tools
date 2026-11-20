@@ -16,33 +16,41 @@
 </header>
 
 <section id="config-section">
-  <h2>Configuration</h2>
-  <p>Operator-supplied Program 0 endpoint and protocol adapter are required once the native ABI is frozen. This build fails closed when no tested capability adapter is injected.</p>
+  <h2>Configuration and security</h2>
+  <p>This static admin UI requires an injected native Program 0 capability adapter (<code>window.__skryniaV3AdminCapabilities</code>) that performs explicit authorized binary POST operations. The UI is fail-closed without a tested adapter and does not provide server-side authorization, readiness enforcement, or transport security by itself.</p>
   <p id="capability-status" class="status-note"></p>
 </section>
 
 <section id="unlock-section">
   <h2>Unlock encrypted browser vault</h2>
   <form id="unlock-form">
-    <label>Access secret <input id="vault-secret" type="password" autocomplete="off" spellcheck="false"></label>
+    <label>Vault access secret <input id="vault-secret" type="password" autocomplete="off" spellcheck="false"></label>
     <label>Vault context <input id="vault-context" type="text" autocomplete="off" spellcheck="false" value="default"></label>
     <button type="submit">Unlock</button>
   </form>
-  <p>Credentials are decrypted locally in this browser. The access secret is never sent over the network, stored in public releases, or logged.</p>
+  <p>The vault access secret is used only for local browser encryption/decryption and is never sent over the network, stored in public releases, or logged.</p>
 </section>
 
 <div id="workspace" hidden>
   <div class="toolbar">
     <strong>Vault unlocked</strong>
-    <button id="lock" type="button">Lock</button>
+    <button id="lock" type="button">Lock and clear session</button>
   </div>
+
+  <section>
+    <h2>Operator session credential</h2>
+    <label>Trusted operator secret (session memory only)
+      <input id="operator-secret" type="password" autocomplete="off" spellcheck="false" placeholder="Enter only when required by injected adapter">
+    </label>
+    <p class="status-note">Kept in browser session memory only while unlocked. Not written to the static bundle, vault, local storage, URL, query string, or logs by this UI. Cleared on lock.</p>
+  </section>
 
   <section>
     <div class="toolbar">
       <h2>Applications and release history</h2>
-      <button id="refresh-apps" type="button">Refresh</button>
+      <button id="refresh-apps" type="button">Refresh all</button>
     </div>
-    <p>Shows every discovered application and every ready historical release. Activation performs one bounded compare-and-swap on the active release pointer only (O(1) in versions and asset bytes). No release assets or application data are copied or migrated.</p>
+    <p>Shows every discovered application and every ready historical release loaded by the adapter. Activation/rollback performs one bounded compare-and-swap on the active release pointer only (O(1) in version count and asset bytes) with optimistic CAS state from the loaded app pointer. No release assets or application data are copied or migrated. Uncertain/lost-ack outcomes require explicit refresh and reconciliation before further activation of the affected app.</p>
     <div id="apps"></div>
   </section>
 

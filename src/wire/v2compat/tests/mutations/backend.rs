@@ -41,4 +41,5 @@ impl Store for Memory {
         Ok(matches!(req.kind, MutationKind::Create))
     }
 }
+impl crate::wire::v2compat::Admin for Memory {}
 impl CompatBackend for Memory {}

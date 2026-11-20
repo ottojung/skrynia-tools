@@ -1,11 +1,12 @@
 mod close;
 mod control;
 mod directory;
+mod eval;
 mod io;
 mod open;
 mod paths;
 mod wire;
-use super::abi;
+use super::{abi, code};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
@@ -26,6 +27,7 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::NEXT_ENTRY) => directory::next(req, dc as usize),
         Some(wire::EXISTS) => paths::exists(req),
         Some(wire::RANDOM_FILL) => control::random(req, dc as usize),
+        Some(wire::EVAL) => eval::call(req),
         _ => wire::reply(wire::INVALID, &[]),
     };
     if result.len() > dc as usize {

@@ -3,7 +3,10 @@ const GUEST: &[u8] = b"programs/root.wasm";
 const MAX_CODE: usize = 8 * 1024 * 1024;
 
 pub fn load() -> Result<Vec<u8>, i32> {
-    let fd = unsafe { abi::open_disk(GUEST.as_ptr() as u32, GUEST.len() as u32, 1) };
+    read_from(GUEST)
+}
+pub fn read_from(path: &[u8]) -> Result<Vec<u8>, i32> {
+    let fd = unsafe { abi::open_disk(path.as_ptr() as u32, path.len() as u32, 1) };
     if fd < 0 {
         return Err(fd);
     }

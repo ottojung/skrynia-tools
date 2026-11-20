@@ -13,11 +13,8 @@ fn missing_capability_is_503_not_an_invented_404() {
     assert!(String::from_utf8_lossy(&response.body).contains("unavailable"));
 }
 #[test]
-fn unsupported_grant_and_push_mutations_never_succeed() {
-    assert_eq!(
-        dispatch(&req("POST", "/grants"), &Fake::default()).status,
-        501
-    );
+fn unsupported_push_and_unauthenticated_grants_never_succeed() {
+    assert!(dispatch(&req("POST", "/grants"), &Fake::default()).status >= 400);
     assert_eq!(
         dispatch(&req("POST", "/push/subscriptions"), &Fake::default()).status,
         501

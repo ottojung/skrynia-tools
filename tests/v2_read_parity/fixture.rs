@@ -1,5 +1,5 @@
 use skrynia_tools::wire::v2compat::{
-    CompatBackend, CompatResult, Meta, Object, ObjectRead, Response, Store, Unavailable,
+    Admin, CompatBackend, CompatResult, Meta, Object, ObjectRead, Response, Store, Unavailable,
 };
 #[derive(Default)]
 pub struct MemoryStore;
@@ -25,4 +25,5 @@ impl Meta for MemoryStore {
         Unavailable.health()
     }
 }
+impl Admin for MemoryStore {}
 impl CompatBackend for MemoryStore {}

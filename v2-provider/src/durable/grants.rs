@@ -3,7 +3,7 @@ use crate::bridge::sys;
 use skrynia_tools::wire::v2compat::grants::{Authority, Grant};
 const DIR: &str = "v2/state/grants";
 
-pub fn load<I: Callback>(i: &I) -> Result<Authority, ()> {
+pub fn list<I: Callback>(i: &I) -> Result<Vec<Grant>, ()> {
     let names = match sys::fs::list_dir(i, DIR) {
         Ok(v) => v,
         Err(_) => return Err(()),
@@ -23,5 +23,8 @@ pub fn load<I: Callback>(i: &I) -> Result<Authority, ()> {
     if grants.is_empty() {
         return Err(());
     }
-    Authority::from_grants(grants).map_err(|_| ())
+    Ok(grants)
+}
+pub fn load<I: Callback>(i: &I) -> Result<Authority, ()> {
+    Authority::from_grants(list(i)?).map_err(|_| ())
 }

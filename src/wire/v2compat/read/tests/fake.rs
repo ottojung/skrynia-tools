@@ -22,6 +22,7 @@ impl Meta for Stub {
         Unavailable.health()
     }
 }
+impl crate::wire::v2compat::Admin for Stub {}
 impl CompatBackend for Stub {}
 pub fn fake() -> Stub {
     Stub(b"abcdef".to_vec())

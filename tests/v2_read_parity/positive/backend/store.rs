@@ -14,4 +14,5 @@ impl Store for RootStore {
         super::mutator::apply(self, req)
     }
 }
+impl Admin for RootStore {}
 impl CompatBackend for RootStore {}

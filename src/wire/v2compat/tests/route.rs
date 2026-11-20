@@ -31,10 +31,11 @@ fn unknown_and_method_errors() {
     assert_eq!(k.body, br#"{"error":"invalid_percent_encoding"}"#);
 }
 #[test]
-fn recognized_mutations_route_as_not_implemented() {
+fn recognized_mutations_require_auth_or_remain_stubs() {
     let c = handle(&Unavailable, &req("POST", "/store/a.txt"));
     assert_eq!(c.status, 401);
     assert_eq!(c.body, br#"{"error":"grant_user_token_required"}"#);
     let g = handle(&Unavailable, &req("POST", "/grants"));
-    assert_eq!(g.status, 501);
+    assert_eq!(g.status, 401);
+    assert_eq!(g.body, br#"{"error":"grant_user_token_required"}"#);
 }

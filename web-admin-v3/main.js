@@ -20,6 +20,18 @@ function resolveCapabilities() {
 
 let capabilities = resolveCapabilities();
 let session = null;
+let operatorSecret = '';
+
+function applyOperatorSecret(secret) {
+  operatorSecret = typeof secret === 'string' ? secret : '';
+  if (capabilities && typeof capabilities.setOperatorSecret === 'function') {
+    try {
+      capabilities.setOperatorSecret(operatorSecret);
+    } catch {
+      // Adapter rejected secret; keep session value but do not log details.
+    }
+  }
+}
 
 function setCapabilityStatus() {
   const node = $('capability-status');
@@ -27,7 +39,8 @@ function setCapabilityStatus() {
     node.textContent = 'Status: fail-closed. ' + (capabilities.reason || 'Native Program 0 protocol adapter is not configured.');
     node.className = 'status-note error';
   } else {
-    node.textContent = 'Status: capability adapter loaded (' + (capabilities.kind || 'custom') + ').';
+    const auth = operatorSecret ? 'operator secret held in session memory' : 'no operator secret in session';
+    node.textContent = 'Status: capability adapter loaded (' + (capabilities.kind || 'custom') + '); ' + auth + '.';
     node.className = 'status-note';
   }
 }
@@ -36,6 +49,7 @@ const apps = createAppsController({
   hostId: 'apps',
   capabilities,
   status,
+  getOperatorSecret: () => operatorSecret,
   onInspectManifest: manifest => {
     $('manifest-empty').hidden = true;
     $('manifest-view').hidden = false;
@@ -43,14 +57,22 @@ const apps = createAppsController({
   },
 });
 
+function clearOperatorSecretInput() {
+  const input = $('operator-secret');
+  if (input) input.value = '';
+}
+
 function lock() {
   lockVaultSession(session);
   session = null;
+  applyOperatorSecret('');
+  clearOperatorSecretInput();
   $('workspace').hidden = true;
   $('unlock-section').hidden = false;
   $('vault-secret').value = '';
   apps.clear();
-  status('Vault locked.');
+  setCapabilityStatus();
+  status('Vault locked. Session memory cleared.');
 }
 
 $('lock').addEventListener('click', lock);
@@ -86,6 +108,8 @@ $('unlock-form').addEventListener('submit', async event => {
     $('unlock-section').hidden = true;
     $('workspace').hidden = false;
     $('vault-secret').value = '';
+    applyOperatorSecret($('operator-secret') ? $('operator-secret').value : '');
+    setCapabilityStatus();
     await apps.refresh();
   } catch (error) {
     status('Unlock failed: ' + (error.message || 'unknown error'));
@@ -95,6 +119,14 @@ $('unlock-form').addEventListener('submit', async event => {
 $('refresh-apps').addEventListener('click', async () => {
   await apps.refresh();
 });
+
+const opSecretInput = $('operator-secret');
+if (opSecretInput) {
+  opSecretInput.addEventListener('input', () => {
+    applyOperatorSecret(opSecretInput.value);
+    setCapabilityStatus();
+  });
+}
 
 setCapabilityStatus();
 status(capabilities.kind === 'fail-closed'

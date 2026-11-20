@@ -1,4 +1,5 @@
 mod cleanup;
+mod reject;
 mod setup;
 use std::{
     net::TcpListener,
@@ -18,8 +19,12 @@ impl Server {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         drop(listener);
-        let child = Command::new(bin)
-            .env("SKRYNIA_ROOT_WASM", root)
+        let mut cmd = Command::new(bin);
+        cmd.env("SKRYNIA_ROOT_WASM", root);
+        if guest.is_some() {
+            cmd.env("SKRYNIA_PROGRAM1_WASM", temp.join("program1.wasm"));
+        }
+        let child = cmd
             .env("SKRYNIA_BIND", address.to_string())
             .env("SKRYNIA_DATA_DIR", &temp)
             .stdout(Stdio::null())
@@ -41,3 +46,4 @@ impl Server {
         panic!("proxy kernel did not start");
     }
 }
+pub use reject::startup_rejected;

@@ -8,16 +8,13 @@ fn wrong_owner_corrupt_blob_or_forged_ready_fails_closed() {
     let hash = r.stage_release(&d, &l, &admin, b"new").unwrap();
     let ready = store::ready_path("reg", &id, &hash).unwrap();
     d.write_atomic(&ready, b"forged").unwrap();
-    assert!(matches!(r.seal_release(&d, &l, &admin, &hash), Err(_)));
-    assert!(matches!(
-        r.activate_release(&d, &l, &admin, 1, &hash),
-        Err(_)
-    ));
+    assert!(r.seal_release(&d, &l, &admin, &hash).is_err());
+    assert!(r.activate_release(&d, &l, &admin, 1, &hash).is_err());
     d.remove(&ready).unwrap();
     let blob = store::blob_path("reg", &hash).unwrap();
     d.write_atomic(&blob, b"corrupted").unwrap();
     let failed = r.seal_release(&d, &l, &admin, &hash);
-    assert!(matches!(failed, Err(_)));
+    assert!(failed.is_err());
     assert!(
         r.lookup(&d, &id).is_ok(),
         "original active code must survive"

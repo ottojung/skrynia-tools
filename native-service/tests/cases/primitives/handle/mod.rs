@@ -8,7 +8,7 @@ use skrynia_native_service::handle::handle;
 use skrynia_native_service::reg::Registry;
 use skrynia_native_service::wdec::decode_res;
 use skrynia_native_service::wenc::encode_req;
-use skrynia_native_service::wire::{AppPrecond, Request, STATUS_ERR, STATUS_OK};
+use skrynia_native_service::wire::{Request, STATUS_ERR};
 
 struct CatEval;
 impl Eval for CatEval {

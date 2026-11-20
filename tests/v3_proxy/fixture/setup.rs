@@ -5,9 +5,9 @@ pub fn prepare(guest: Option<&[u8]>) -> PathBuf {
         std::process::id(),
         rand::random::<u64>()
     ));
-    fs::create_dir_all(temp.join("programs")).unwrap();
+    fs::create_dir_all(&temp).unwrap();
     if let Some(code) = guest {
-        fs::write(temp.join("programs/root.wasm"), code).unwrap();
+        fs::write(temp.join("program1.wasm"), code).unwrap();
     }
     temp
 }

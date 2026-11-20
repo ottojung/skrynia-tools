@@ -68,9 +68,9 @@ Free Software under GNU AGPLv3 or later.
 
 ## Optional user-supplied Program 0
 
-The program0/ crate builds a **dumb proxy only**. It forwards an opaque
-POST body to one operator-provisioned, unprivileged WASM guest and forwards
-that guest's returned bytes. It does not own a registry, grants, storage,
+The program0/ crate builds a **dumb proxy only**. It forwards the two HTTP body file
+descriptors directly to an operator-selected Program 1 user WASM through
+a kernel-owned descriptor transfer. It does not own a registry, grants, storage,
 registration, application code releases, or administration. Skrynia itself
 never bundles or chooses a root; operators pass SKRYNIA_ROOT_WASM.
 

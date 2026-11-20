@@ -32,6 +32,15 @@ Only environment configuration is supported (no administrative CLI):
   directories. The token file is reloaded on every request for
   immediate credential rotation/revocation.
 
+The listener rejects requests whose HTTP Host header is not the
+exact numeric loopback socket configured in SKRYNIA_V2_GATEWAY_BIND.
+This blocks DNS-rebinding names from invoking the private gateway.
+An external reverse proxy MUST overwrite the upstream Host header
+with this numeric loopback host:port; never pass the public domain
+through as Host. Hop-by-hop request headers, including
+Proxy-Authorization and Connection-nominated fields, are removed
+before the request is packaged for the v2 guest.
+
 Do not place the operator token in JS/HTML bundles, public URLs,
 Skrynia objects, logs or repositories. The adapter and v3 upstream
 must be on the same trusted host/network namespace. The outbound

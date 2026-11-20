@@ -21,3 +21,16 @@ fn strips_hop_by_hop_response_headers_including_connection_nominations() {
     assert!(response.headers().get("transfer-encoding").is_none());
     assert_eq!(response.headers().get("x-visible").unwrap(), "safe");
 }
+#[test]
+fn strips_connection_nominated_and_proxy_credentials_from_requests() {
+    let mut request = axum::http::HeaderMap::new();
+    request.insert("connection", "x-secret".parse().unwrap());
+    request.insert("x-secret", "private".parse().unwrap());
+    request.insert("proxy-authorization", "Basic leaked".parse().unwrap());
+    request.insert("authorization", "Bearer user-token".parse().unwrap());
+    let filtered = headers::from_request(&request).unwrap();
+    assert!(!filtered.contains_key("x-secret"));
+    assert!(!filtered.contains_key("proxy-authorization"));
+    assert!(!filtered.contains_key("connection"));
+    assert_eq!(filtered.get("authorization").unwrap(), "Bearer user-token");
+}

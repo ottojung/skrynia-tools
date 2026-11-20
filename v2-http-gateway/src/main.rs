@@ -2,12 +2,14 @@ mod client;
 mod config;
 mod handler;
 mod headers;
+mod host;
 #[cfg(test)]
 mod tests;
 mod token;
 mod upstream;
-use std::{path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 struct State {
+    bind: SocketAddr,
     endpoint: reqwest::Url,
     token_path: PathBuf,
     client: reqwest::Client,
@@ -16,6 +18,7 @@ struct State {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = config::Config::load()?;
     let state = Arc::new(State {
+        bind: cfg.bind,
         endpoint: cfg.endpoint,
         token_path: cfg.token_path,
         client: client::build()?,

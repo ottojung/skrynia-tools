@@ -28,6 +28,7 @@ async fn cannot_forward_root_bearer_to_untrusted_redirect_destination() {
     let origin = format!("http://{}/", listen.local_addr().unwrap());
     let task_origin = tokio::spawn(axum::serve(listen, redirect).into_future());
     let state = State {
+        bind: "127.0.0.1:1234".parse().unwrap(),
         endpoint: origin.parse().unwrap(),
         token_path: PathBuf::new(),
         client: client::build().unwrap(),

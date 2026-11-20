@@ -5,7 +5,14 @@ use axum::{
 use std::collections::BTreeMap;
 pub fn from_request(headers: &HeaderMap) -> Result<BTreeMap<String, String>, ()> {
     let mut out = BTreeMap::new();
+    let connection = headers
+        .get("connection")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
     for (key, value) in headers {
+        if hop_by_hop(key.as_str(), connection) {
+            continue;
+        }
         let value = value.to_str().map_err(|_| ())?;
         out.insert(key.as_str().into(), value.into());
     }

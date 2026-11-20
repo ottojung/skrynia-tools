@@ -1,4 +1,4 @@
-use super::{State, headers, token, upstream};
+use super::{State, headers, host, token, upstream};
 use axum::{
     body::Bytes,
     extract::{OriginalUri, State as Extract},
@@ -24,6 +24,8 @@ async fn forward(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Response, StatusCode> {
+    // Reject unexpected Host before even opening the private bearer file.
+    host::verify(state, &headers)?;
     let token = token::load(&state.token_path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let r = skrynia_tools::wire::v2compat::Request {
         method: method.to_string(),

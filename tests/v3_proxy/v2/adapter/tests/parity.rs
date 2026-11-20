@@ -8,6 +8,12 @@ fn legacy_http_gateway_preserves_v2_without_disclosing_operator_token() {
     let gateway = Gateway::start(&kernel.url);
     let client = reqwest::blocking::Client::new();
     let path = format!("{}/store/public/file.txt", gateway.url);
+    let rebinding = client
+        .get(&path)
+        .header("Host", "evil.example")
+        .send()
+        .unwrap();
+    assert_eq!(rebinding.status(), 403);
     let get = client.get(&path).send().unwrap();
     assert_eq!(get.status(), 200);
     assert_eq!(get.bytes().unwrap().as_ref(), b"abcdef");

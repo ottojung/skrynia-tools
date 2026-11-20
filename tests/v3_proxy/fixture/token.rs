@@ -35,3 +35,11 @@ impl Server {
         self.dir.join(key).is_dir()
     }
 }
+#[cfg(unix)]
+impl Server {
+    pub fn set_file_mode(&self, key: &str, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+        let path = self.dir.join(key);
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    }
+}

@@ -27,6 +27,7 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::OPEN_DIRECTORY) => directory::open(req),
         Some(wire::NEXT_ENTRY) => directory::next(req, dc as usize),
         Some(wire::EXISTS) => paths::exists(req),
+        Some(wire::IS_DIRECTORY) => paths::is_dir(req),
         Some(wire::RANDOM_FILL) => control::random(req, dc as usize),
         Some(wire::EVAL) => eval::call(req),
         Some(wire::MUTATION_TRY | wire::MUTATION_RELEASE) => lock::call(req),

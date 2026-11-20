@@ -1,4 +1,5 @@
 mod cleanup;
+mod files;
 mod restart;
 mod setup;
 mod token;

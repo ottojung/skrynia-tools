@@ -10,6 +10,7 @@ pub const OPEN_DIRECTORY: u8 = 9;
 pub const NEXT_ENTRY: u8 = 10;
 pub const EXISTS: u8 = 11;
 pub const RANDOM_FILL: u8 = 12;
+pub const EVAL: u8 = 13;
 pub const LIMIT: usize = 64 * 1024;
 pub const INVALID: i32 = -1;
 pub const OVERFLOW: i32 = -11;

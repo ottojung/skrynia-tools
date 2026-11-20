@@ -68,4 +68,14 @@ Free Software under GNU AGPLv3 or later.
 
 ## Optional user-supplied Program 0
 
-The `program0/` crate builds an optional privileged WASM application for the Skrynia v3 kernel. Skrynia server does **not** embed, depend on, distribute, or select this implementation. Operators supply their own Program 0 module via `SKRYNIA_ROOT_WASM`. This package is an application, not part of the native VM.
+The program0/ crate builds a **dumb proxy only**. It forwards an opaque
+POST body to one operator-provisioned, unprivileged WASM guest and forwards
+that guest's returned bytes. It does not own a registry, grants, storage,
+registration, application code releases, or administration. Skrynia itself
+never bundles or chooses a root; operators pass SKRYNIA_ROOT_WASM.
+
+The former prototype registry and persistent appdata code is preserved
+only as a non-root, unshippable library under native-service/. Moving it
+to a genuinely unprivileged user program requires a least-authority
+callback/service ABI and a separate data migration. See
+docs/v3-program0.md for the exact guest sandbox and streaming limitations.

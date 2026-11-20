@@ -1,3 +1,8 @@
+> **Native v3 scope update (2026-11-19):** Program 0 is a transparent
+> proxy only. Earlier prototype descriptions of Program 0 as the database,
+> registry, code publisher or administrator are obsolete. Native services
+> belong to nonzero user programs; see v3-program0.md.
+
 # Skrynia Tools architecture
 
 **One Skrynia server, HTTP operations only.** Skrynia stores public bytes,

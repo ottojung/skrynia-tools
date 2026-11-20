@@ -1,6 +1,6 @@
 use super::fixture::{admin, ready, server};
 use crate::guest;
-use skrynia_program0::wire::AdminRequest;
+use skrynia_native_service::wire::AdminRequest;
 #[test]
 #[ignore = "requires independent kernel and operator-provisioned Program 0"]
 fn native_history_pages_are_public_and_deterministic() {

@@ -1,6 +1,6 @@
 use super::fixture::{admin, server};
 use crate::guest;
-use skrynia_program0::{store, wire::AdminRequest};
+use skrynia_native_service::{store, wire::AdminRequest};
 #[test]
 #[ignore = "requires independent kernel and operator-provisioned Program 0"]
 fn unsealed_version_rejected_even_after_restart() {

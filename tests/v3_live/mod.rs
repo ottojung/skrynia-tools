@@ -3,8 +3,8 @@ mod guest;
 mod process;
 mod versions;
 mod wire;
-use skrynia_program0::auth;
-use skrynia_program0::wire::{AppPrecond, Request};
+use skrynia_native_service::auth;
+use skrynia_native_service::wire::{AppPrecond, Request};
 #[test]
 #[ignore = "requires a separately built Skrynia v3 binary and Program 0 WASM"]
 fn external_user_program0_register_set_restart_revoke() {

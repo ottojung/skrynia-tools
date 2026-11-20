@@ -1,5 +1,5 @@
 use crate::{guest, process, wire};
-use skrynia_program0::wire::{AdminRequest, Request};
+use skrynia_native_service::wire::{AdminRequest, Request};
 pub fn server() -> (process::Server, Vec<u8>, Vec<u8>) {
     let bin = std::env::var("SKRYNIA_V3_SERVER_BIN").expect("SKRYNIA_V3_SERVER_BIN");
     let wasm = std::env::var("SKRYNIA_V3_PROGRAM0_WASM").expect("SKRYNIA_V3_PROGRAM0_WASM");

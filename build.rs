@@ -10,4 +10,5 @@ fn main() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     source_lints::check(root);
     source_lints::check(&root.join("program0"));
+    source_lints::check(&root.join("native-service"));
 }

@@ -1,3 +1,7 @@
+> **Native v3 boundary:** Administration is a nonzero application/service,
+> not Program 0. The legacy v2 HTTP grant/storage endpoints are unsupported
+> by the new POST-only root. See v3-program0.md.
+
 # Skrynia Tools web administration
 
 Grant administration is a static application published to Skrynia. The server

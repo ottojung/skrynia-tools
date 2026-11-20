@@ -1,6 +1,6 @@
 use super::fixture::server;
 use crate::{guest, wire};
-use skrynia_program0::{
+use skrynia_native_service::{
     wdec::decode_res,
     wenc::encode_req,
     wire::{Request, STATUS_ERR},

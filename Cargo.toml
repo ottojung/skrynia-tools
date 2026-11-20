@@ -31,11 +31,11 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "Headers", "Response", "RequestCache", "RequestRedirect"] }
 
 [workspace]
-members = [".", "program0"]
+members = [".", "program0", "native-service"]
 resolver = "2"
 
 [dev-dependencies]
-skrynia-program0 = { path = "program0" }
+skrynia-native-service = { path = "native-service" }
 wat = "1"
 
 [[test]]
@@ -45,3 +45,7 @@ path = "tests/v3_live/mod.rs"
 [[test]]
 name = "v2_read_parity"
 path = "tests/v2_read_parity/mod.rs"
+
+[[test]]
+name = "v3_proxy"
+path = "tests/v3_proxy/mod.rs"

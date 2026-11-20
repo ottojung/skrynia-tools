@@ -1,196 +1,78 @@
-# Optional Program 0 for Skrynia v3
+# Skrynia v3 Program 0: transparent proxy only
 
-Skrynia is **only the VM server** and does not bundle any Program 0.
-This repository supplies **one optional** user-controlled WASM implementation
-under `program0/`, compiled independently and installed by the operator.
-An operator may instead supply any other conforming Program 0 module.
+Skrynia is a VM server. Its root Program 0 is supplied independently by
+the operator, not by the kernel. The optional Program 0 in program0/ in this
+repository is intentionally a **dumb proxy**. It does not interpret the
+request body, select applications by ID, authorize clients, maintain a
+registry, implement storage, issue capabilities, manage code versions,
+perform rollbacks or operate an administration interface.
 
-The VM loads a module from `SKRYNIA_ROOT_WASM` on every initialization or
-restart. The module exports:
+The proxy receives its root's two file descriptors through
+skrynia_main(input_fd:i32, output_fd:i32)->i32. It loads the
+operator-provisioned WASM guest from programs/root.wasm in the confined
+Skrynia data directory, forwards the opaque input bytes as the child's
+input buffer using the kernel's skrynia.eval import, and forwards exactly
+the guest result bytes to the output FD. All application semantics belong
+to the nonzero guest. The proxy does not register itself or fall back to any
+protocol when that guest is missing.
 
-```text
-skrynia_main(input_fd: i32, output_fd: i32) -> i32
-```
+The guest is not privileged. Its WASM may import only skrynia.invoke, and
+the proxy passes no callback, so in this initial minimal configuration it
+cannot obtain filesystem, shared RAM or other ambient root capabilities.
+A guest that tries to import skrynia.open_disk is rejected. Operators
+must provision root.wasm and, when appropriate, an independently designed
+capability-limited service; those interfaces are not specified or
+implemented by Program 0.
 
-Both arguments are opaque, forward-only stream descriptors, **not** WASM
-memory addresses. The module reads the first using the privileged
-`skrynia.read(input_fd, dst_private_ptr, len)` import until EOF, then
-writes its output with `skrynia.write(output_fd, src_private_ptr, len)`
-in a loop to handle short writes. It may close either descriptor. The
-input forbids writes; the output forbids reads. Neither can seek, truncate
-or sync. Program
-0 has its own private linear memory, wholly separate from global RAM.
-Evaluated child programs do **not** inherit Program 0 privileges.
+## Real limitation: not yet streaming through the child
 
-## Build
+The root accepts forward-only read and write FDs, but the kernel's current
+child eval interface copies the request and result into the guest linear
+memory. The proxy is therefore temporarily limited to 16 MiB input,
+8 MiB child module, and 8 MiB output. It does not buffer or reinterpret
+any binary protocol fields, but it still buffers the complete opaque payload.
+A true zero-copy or backpressured streaming proxy requires a new kernel
+capability-safe guest execution ABI with read-only input FD and write-only
+output FD. That change must preserve guest privilege separation.
 
-Use Rust 1.93 and the `wasm32-unknown-unknown` Rust target:
+## Build and validation
 
-```sh
-cargo build --locked --release -p skrynia-program0 --target wasm32-unknown-unknown
-```
+Build the independent root WASM for wasm32-unknown-unknown:
 
-The output is `target/wasm32-unknown-unknown/release/skrynia_program0.wasm`.
-With Rust source installed but no target stdlib, the equivalent development
-cross-build is `RUSTC_BOOTSTRAP=1 cargo -Z build-std=std,panic_abort build
---target wasm32-unknown-unknown --release -p skrynia-program0`.
+    cargo build --locked --release -p skrynia-program0 --target wasm32-unknown-unknown
 
-Point a **disposable Skrynia v3** instance's `SKRYNIA_ROOT_WASM` at this file,
-and provide a separate, confined data directory. A release must not point at
-an existing v2 data tree until migration and rollback are validated.
+Supply the built skrynia_program0.wasm through SKRYNIA_ROOT_WASM and place
+a trusted, independently built guest at programs/root.wasm within the
+Skrynia data directory. No CLI administration or compatibility HTTP facade
+exists.
 
-The current example Program 0 implements a native, application-defined
-binary POST protocol: code registration/invocation and scoped app data
-read/write with separate capability secrets and conditional CAS. It does not
-emulate the withdrawn older HTTP GET/store/grants/Web Push surface. Operator
-code activation authorization, issuance and bounded registration require
-separate release qualification. This Program 0 now uses a kernel-owned
-request-scoped mutation lock instead of a non-expiring shared-RAM CAS bit. There is no CLI.
+The disposable real-kernel test suite is:
 
-### Native mutation lock ABI
+    SKRYNIA_V3_SERVER_BIN=/path/to/skrynia-server \
+    SKRYNIA_V3_PROGRAM0_WASM=/path/to/skrynia_program0.wasm \
+    cargo test --locked -p skrynia-tools --test v3_proxy -- --ignored
 
-This optional Program 0 requires native host imports
-try_mutation_lock() -> i32 (1 acquired, 0 busy) and
-release_mutation_lock() -> i32 (0 released, -4 nonowner).
-It holds this kernel-owned lock for code registry and appdata mutations.
-The kernel automatically releases the lock when the root VM terminates,
-including fuel exhaustion and WASM traps. This import addition requires
-upgrading the kernel and Program 0 together. General cas_ram_u64 remains
-available for shared RAM but is no longer used for this transaction lock.
-Program 0 still must sync/rename staged disk writes before publishing and
-reconcile ambiguous client responses after a crash.
+The tests cover byte-for-byte opaque forwarding, missing-guest fail-closed,
+and guest import denial. They do not qualify persistent app services or
+real application migration.
 
-Appdata object keys are nonempty byte strings of at most 256 bytes, scoped
-under a 32-byte read capability. The disk stores a fixed 64-hex SHA-256 digest
-of each raw key plus the four-byte .bin extension as a filename (68 bytes),
-rather than hex-encoding raw input bytes into an unbounded path component.
-This avoids filesystem NAME_MAX failures even for valid 256-byte keys.
-Separate read capabilities isolate namespaces. This is a new native layout,
-not a compatibility layer: older developmental appdata snapshots with raw
-hexadecimal filenames must be explicitly exported and migrated by a trusted
-operator before upgrading; no silent rewrite or automatic key discovery.
+## Architecture and migration status
 
+The prior root-owned application registry, storage, operator auth, and code
+history have been moved out of Program 0 into the separate
+native-service/ library, without a privileged root entry point. They remain
+unshippable scaffolding until redesigned as ordinary, independently
+sandboxed user programs. Their historical tests do not confer runtime
+authority, nor do they establish that any app is migrated.
 
-## Executable cross-repository integration
+Native code history, immutable versions, authenticated activation/rollback,
+capability issuance, data migrations, and the browser administration UI
+must be implemented outside Program 0, in an authorized nonzero
+application or separately reviewed service. A safe storage/callback
+capability ABI and native streaming guest interface are outstanding
+kernel-plus-userland design tasks.
 
-With both repositories built independently, verify the actual HTTP behavior
-using the explicitly ignored test (it never touches production data):
-
-```sh
-SKRYNIA_V3_SERVER_BIN=/absolute/path/to/skrynia-server \
-SKRYNIA_V3_PROGRAM0_WASM=/absolute/path/to/skrynia_program0.wasm \
-cargo test --locked -p skrynia-tools --test v3_live -- --ignored --nocapture
-```
-
-The harness creates a fresh temporary storage directory, launches and
-restarts the external server process, then verifies register/invoke/set/
-restart/invoke/revoke through real `POST /` requests. Missing env variables
-fail explicitly when this opt-in test is run; ordinary unit test executions
-report it as ignored, not as a false parity pass. This tests the small
-example registry only, not the complete historical grant protocol.
-
-## Operator-controlled application registration
-
-The optional native Program 0 requires a separate 256-bit operator
-installation capability for new applications. It never generates a
-publicly retrievable installer secret and never lets the first untrusted
-client nominate the operator. The operator must pre-provision exactly
-32 cryptographically random raw bytes at the private path
-$SKRYNIA_DATA_DIR/programs/operator.cap, with file mode 0600 and
-private parent-directory permissions, before starting the v3 server.
-
-Example one-time operator setup on the trusted server:
-
-~~~sh
-umask 077
-mkdir -p "$SKRYNIA_DATA_DIR/programs"
-test ! -e "$SKRYNIA_DATA_DIR/programs/operator.cap" || exit 1
-head -c 32 /dev/urandom > "$SKRYNIA_DATA_DIR/programs/operator.cap"
-chmod 600 "$SKRYNIA_DATA_DIR/programs/operator.cap"
-~~~
-
-This is installation/bootstrap, not an administration CLI. Never
-regenerate or replace the operator capability as part of normal
-service restarts. Do not expose it through public objects, static
-browser bundles, source control, query parameters, access logs or
-deployment output. Browser admin needs a separate secure
-operator-authenticated provisioning path and an encrypted,
-user-unlocked credential vault before production use.
-
-The previous unauthenticated binary registration opcode 1 is
-retired and rejected. Authenticated opcode 15 instead requires:
-operator_cap (length-prefixed 32-byte secret), then independent
-per-application admin_cap (32-byte secret), then WASM code blob.
-A missing or invalid installer file fails closed; an incorrect
-operator capability gets an unauthorized response with no durable
-application registration. Validation happens before any code
-publishing. The registration/update code limit is 8 MiB, and the
-operator's separate per-app admin_cap remains required to modify,
-stage, seal, activate or revoke that application's code. General
-application data operations never require revealing the installer
-secret. Tests run with a disposable fixture capability only.
-
-Provisioning control does not itself guarantee total storage
-quotas or rate limits for an operator who intentionally creates
-many applications. The trusted operator and web administration
-must enforce release count/storage policies separately.
-
-## Native immutable code releases and activation (draft, v3 ABI version 1)
-
-Program 0 defines new **binary POST** operations for version management.
-They are NOT HTTP GET/PUT/store/grants compatibility operations. All
-identifiers and code digests are 32 raw bytes; an id field carries a little
-endian 16-bit length followed by those bytes, and a blob field carries a
-little endian 32-bit length followed by the bytes.
-
-- Opcode 9, StageCode: admin_cap id, WASM code blob. Stores an immutable
-  content-hash blob and returns its 32-byte SHA-256. Requires a live app
-  already owned by that private admin capability. Unsealed blobs cannot
-  be activated.
-- Opcode 10, SealCode: admin_cap id, 32-byte code hash. Re-reads and
-  verifies the complete staged blob and fsyncs a per-app immutable
-  readiness marker. This operation costs O(code bytes) only at release
-  preparation; readiness is an explicit operator assertion, **not** proof
-  of kernel execution safety, test coverage, or authorization of child
-  operations. Use a disposable native VM to validate before sealing.
-- Opcode 11, ActivateCode: admin_cap id, expected_revision u64 LE,
-  target_ready_hash 32 bytes. Under the exclusive native mutation lock,
-  checks an exact revision and the fixed-size ready marker, then atomically
-  writes a fixed **42-byte** code pointer and advances its revision.
-  Returns the new 42-byte active pointer. No historical list scan, code
-  read, rehash, copy or migration on activation/rollback. Repeating a
-  successful but acknowledgement-lost activation with the stale revision
-  returns a conflict. Read current state to reconcile.
-- Opcode 12, GetActive: invoke_id id, returns the 42-byte current
-  pointer. The pointer format is v3: [3, live_byte, 32-byte hash,
-  u64_le_revision]; tombstones remain durable with advanced revisions.
-  A re-register after revoke **never** resets the revision, so a stale
-  A->B->A request cannot become valid after a revoke/recreate.
-- Opcode 13, ListVersions: invoke_id id, cursor (one byte 0/1 plus
-  optional 32-byte last returned hash), limit u16 LE (1..256). Returns
-  u16 LE count followed by that many ascending 32-byte ready hashes.
-  List and paging may cost O(number of historical releases) in this
-  implementation; the **activation** operation never pays this cost.
-- Opcode 14, ListPrograms: cursor and limit in the same format;
-  returns sorted public 32-byte invoke IDs in pages of 256 or fewer.
-  These APIs expose public IDs and version hashes but never grant
-  mutation authority. Mutations require the operator's private
-  32-byte admin_cap, not its SHA-256 public invocation identifier.
-
-The root's active record is an **incompatible new native v3 format**.
-Prior experimental v2-format active files and hex-encoded object basenames
-require explicit trusted export/import; no automatic legacy translation.
-The per-app release marker is written only after its full code blob has
-been durably published and cryptographically verified. Blob reads also
-verify the actual bytes match their content hash; corrupt records fail
-closed. The global historical blob store may retain unused versions;
-garbage collection and quotas are separate security/operational tasks.
-
-Important release blockers: Register remains an unqualified anonymous
-user-secret-based operation. It can allocate unbounded durable code
-storage and must be protected by operator-owned installation authority
-and quotas before enabling public internet access. The current code
-readiness marker represents the trusted admin's preparation, not
-independent WASM compile approval. Production migrations, Web admin
-integration, browser credential issuance, aborted-write recovery and
-security review remain incomplete.
+The old direct Program 0 wire and on-disk formats are deliberately not
+forward-compatible. Do not silently interpret them in the proxy; export
+and migrate data through an explicitly trusted operator process. No
+production cutover has been made.

@@ -1,6 +1,6 @@
 use super::fixture::{admin, ready, server};
 use crate::{guest, wire};
-use skrynia_program0::{auth, store, wire::AdminRequest};
+use skrynia_native_service::{auth, store, wire::AdminRequest};
 #[test]
 #[ignore = "requires independent kernel and operator-provisioned Program 0"]
 fn native_release_activation_and_rollback_survive_restart() {

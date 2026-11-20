@@ -1,7 +1,7 @@
 use super::util::{put, server};
 use crate::{guest, wire};
-use skrynia_program0::auth;
-use skrynia_program0::wire::{AppPrecond, Request};
+use skrynia_native_service::auth;
+use skrynia_native_service::wire::{AppPrecond, Request};
 
 #[test]
 #[ignore = "requires a separately built Skrynia v3 binary and Program 0 WASM"]

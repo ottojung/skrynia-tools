@@ -1,5 +1,5 @@
 use crate::{process, wire};
-use skrynia_program0::wire::{AppPrecond, Request};
+use skrynia_native_service::wire::{AppPrecond, Request};
 
 pub fn server() -> process::Server {
     let b = std::env::var("SKRYNIA_V3_SERVER_BIN").expect("SKRYNIA_V3_SERVER_BIN");

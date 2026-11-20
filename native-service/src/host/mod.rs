@@ -8,5 +8,5 @@ pub mod root_random;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use super::cap;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use super::{handle, id, reg};
+pub(crate) use super::id;
 pub mod root_stream;

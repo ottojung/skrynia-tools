@@ -39,3 +39,25 @@ cannot perform persistent data operations without a separately reviewed,
 least-authority capability API. All five app migrations and browser admin
 remain blocked on that capability boundary and independently tested
 data migration/rollback; no production installation is authorized.
+
+## Separate stateful Program 1 example
+
+The native-service/ crate is now a separately built user Program 1 example.
+It exports its own skrynia_main two-FD handler and implements application
+protocol/storage in Program 1, never Program 0. Its trusted operator must
+configure SKRYNIA_PROGRAM1_DATA_DIR as a dedicated private directory, and
+provision that directory's programs/operator.cap secret offline.
+
+The kernel enforces the capability root, path safety and guest import
+restrictions. The Program 1 service enforces application-level separate
+read/write capabilities and CAS. It may evaluate unprivileged children
+without giving them host disk rights. This distinction allows the dumb
+Program 0 to remain exactly a descriptor forwarder.
+
+The actual three-component integration suite is tests/v3_live/ (ignored
+unless invoked explicitly with the real external binary and both root
+and Program 1 WASM paths). It tests stored appdata, guest callbacks,
+ready-version listing and release CAS/rollback across restarts.
+No production data migration, rate limits or independent security audit
+has been completed. This example is a draft service, not a bundled kernel
+dependency.

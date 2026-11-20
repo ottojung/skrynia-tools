@@ -1,0 +1,15 @@
+[package]
+name = "skrynia-program1"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "AGPL-3.0-or-later"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+skrynia-native-service = { path = "../native-service" }
+
+[dev-dependencies]
+sha2 = "0.10"

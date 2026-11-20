@@ -29,11 +29,15 @@ impl Registry {
         })?;
         let dir = self.dir.clone();
         let iid = invoke_id.to_vec();
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
+        crate::set_invoke_ctx(iid.clone());
+        #[cfg(all(target_arch = "wasm32", not(feature = "cb-guest")))]
         crate::root_eval::set_cb_invoke(iid.clone());
         let mut cb = move |req: &[u8]| appdata::cb::guest_callback(disk, lock, &dir, &iid, req);
         let out = eval.eval(&code, input, Some(&mut cb)).map_err(RegErr::Eval);
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
+        crate::clear_invoke_ctx();
+        #[cfg(all(target_arch = "wasm32", not(feature = "cb-guest")))]
         crate::root_eval::clear_cb_invoke();
         out
     }

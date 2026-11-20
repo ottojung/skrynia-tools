@@ -8,6 +8,7 @@ description = "Minimal unprivileged-guest proxy root for Skrynia v3"
 
 [dependencies]
 sha2 = "0.10"
+skrynia-native-service = { path = "../native-service" }
 subtle = "2.6"
 
 [lib]

@@ -9,5 +9,10 @@ license = "AGPL-3.0-or-later"
 path = "src/lib.rs"
 crate-type = ["rlib", "cdylib"]
 
+[features]
+default = []
+direct-guest = []
+cb-guest = []
+
 [dependencies]
 sha2 = "0.10"

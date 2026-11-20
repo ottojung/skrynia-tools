@@ -10,6 +10,10 @@ description = "Skrynia client protocols and web application administration"
 [lib]
 crate-type = ["rlib", "cdylib"]
 
+[features]
+# Compile pure protocol rules in sandboxed VM guests without JS imports.
+guest-core-only = []
+
 [dependencies]
 anyhow = "1"
 hex = "0.4"
@@ -31,7 +35,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "Headers", "Response", "RequestCache", "RequestRedirect"] }
 
 [workspace]
-members = [".", "program0", "native-service"]
+members = [".", "program0", "native-service", "v2-provider"]
 resolver = "2"
 
 [dev-dependencies]

@@ -35,7 +35,7 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Request", "RequestInit", "Headers", "Response", "RequestCache", "RequestRedirect"] }
 
 [workspace]
-members = [".", "program0", "native-service", "v2-provider"]
+members = [".", "program0", "native-service", "v2-provider", "v2-http-gateway"]
 resolver = "2"
 
 [dev-dependencies]

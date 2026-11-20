@@ -18,13 +18,13 @@ An arbitrary child may be the v2 API provider built here:
                                   v
                             delegated v3 API callback
 
-The evaluated v2 guest imports only skrynia.invoke; it cannot directly
-access storage, global RAM or network endpoints. In the example, a trusted
-parent callback supplies public object reads using a provisional app-defined
-binary contract (opcode 1, u16 little-endian key byte length, UTF-8 key).
-The callback responds with [0] for missing, or [1, object bytes...] when
-found. This is an example delegated callback, NOT a kernel-level v2
-endpoint or a general v3 protocol specification.
+The evaluated v2 guest imports only the generic skrynia.invoke,
+skrynia.read and skrynia.write operations; it cannot directly import
+kernel disk, global RAM or network APIs. Program 0 forwards the
+four generic disk opcodes OPEN_DISK, READ, WRITE and CLOSE through
+skrynia.invoke. The v2 program itself chooses the application-owned
+v2/objects/ prefix for read requests. This is not a kernel v2 namespace
+or special Program 1 execution path.
 
 ## Request and reply
 
@@ -44,34 +44,35 @@ visitors. v2 user/issuer credentials remain separate from the v3 root token.
 
 ## Verified and deliberately unimplemented behavior
 
-The current v2 guest implements the shared v2 semantics for OPTIONS
-preflight, GET, HEAD, ETag/ranges, invalid paths and missing objects using
-the injected public-read callback. Bad callback responses and backend
-unavailability fail closed as HTTP-semantic 503 in the reply. It does
-not grant positive mutations; unimplemented grants, Web Push, listings,
-health and version APIs do not fabricate success. It is not full v2
-compatibility, not a migration, and no production credentials/data are used.
+The ordinary v2 guest now exports skrynia_main(input_fd, output_fd),
+accepting the kernel's two forward-only file descriptors; it decodes
+a bounded JSON v2 request and writes the JSON reply to output, retrying
+short writes. It implements the shared v2 semantics for OPTIONS
+preflight, GET, HEAD, ETag/ranges, invalid paths and missing objects
+using root-forwarded generic open/read/close through skrynia.invoke.
 
-The native unit suite exercises successful reads, HEAD/ranges, unknown
-fields, malformed frames, missing callback and unimplemented methods.
-An explicitly opted-in real-kernel test compiles a test-only root that
-evaluates the separately built v2 guest using generic skrynia.eval and an
-in-memory public-read callback. The test ensures the outer server rejects
-HTTP GET even when the inner v2 operation is GET.
+Nine native v2 unit tests pass with a fake generic kernel-file API.
+The real integration test under tests/v3_proxy/v2 uses an independently
+built *actual Rust Program 0* with its operator-provisioned token and
+the corrected generic-FD kernel PR #111. It proves that the v2 guest
+reads actual stored bytes through the generic callback, serves
+GET/HEAD/ranges and rejects invalid/unauthorized requests, while
+kernel HTTP remains POST-only. The previous test-only WAT root and
+buffered four-pointer ABI are retired; do not treat that old fixture
+as production evidence.
 
-Build the standalone guest with the skrynia-tools guest-core-only
-feature enabled (the guest crate does this automatically), so browser
-wasm-bindgen/JavaScript imports cannot enter the VM guest:
+Build the v2 guest with the skrynia-tools guest-core-only feature
+(enabled automatically here), so browser wasm-bindgen/JavaScript
+imports cannot enter the unprivileged VM. Browser builds of the
+ordinary skrynia-tools library remain unchanged. The resulting
+standalone WASM must import only skrynia.invoke, read and write.
 
-    cargo build --locked -p skrynia-v2-provider --release --target wasm32-unknown-unknown
-
-The resulting guest has only the skrynia.invoke import. Rust browser
-clients remain fully supported by ordinary skrynia-tools builds,
-including its existing --no-default-features browser CI command.
-
-Current limits: a whole-envelope 8 MiB request limit and 10 MiB encoded
-reply limit, a temporary nonstreaming representation. Actual v2 supports
-larger objects. Positive v2 writes require a durable grant-aware CAS backend
-with correct quota and issuer/user-token authority; delegation, revocation,
-push delivery, failure recovery, independent differential parity, external
-adapter security and data migration all remain release blockers.
+The current v2 response is a bounded JSON envelope, with maximum
+8 MiB request and 10 MiB encoded response; the full legacy v2 API
+supports much larger objects. Authorization for v2 positive mutations,
+issuer/user credentials, persistent grant tree, quota/CAS accounting,
+Web Push, fault/restart recovery, legacy external HTTP gateway,
+differential v2 compatibility and data migration are NOT implemented.
+All unfinished operations must fail closed. Never expose the Program 0
+bearer token in public application JavaScript, repositories or URLs.
+No production state is migrated or accessed.

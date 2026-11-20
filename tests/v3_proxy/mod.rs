@@ -4,3 +4,4 @@ mod cases;
 mod fixture;
 mod guest;
 mod stream;
+mod v2;

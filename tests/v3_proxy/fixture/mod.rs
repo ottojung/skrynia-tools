@@ -1,4 +1,5 @@
 mod cleanup;
+mod restart;
 mod setup;
 mod token;
 use std::{

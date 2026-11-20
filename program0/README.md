@@ -109,13 +109,54 @@ When READ succeeds, its reply appends exactly that many bytes.
   opcode 4 CLOSE:     u32 fd
                     => i32 close status
 
+  opcode 5 SYNC:      u32 fd
+                    => i32 sync status (file or directory)
+  opcode 6 MKDIR:     u32 path-length | raw path | u32 flags
+                    => i32 mkdir status
+  opcode 7 RENAME:    u32 old-len | old path | u32 new-len | new path
+                    => i32 rename status
+  opcode 8 DELETE:    u32 path-length | raw path
+                    => i32 deletion status
+  opcode 9 OPEN_DIR:  u32 path-length | raw path
+                    => i32 opened directory fd or negative host error
+  opcode 10 NEXT:     u32 directory-fd | u32 maximum-name-bytes
+                    => i32 n | exactly n bytes of entry name (n > 0);
+                       n = 0 means EOF
+  opcode 11 EXISTS:   u32 path-length | raw path
+                    => i32 existence status, 0 false, 1 true, negative error
+  opcode 12 RANDOM:   u32 requested bit-count
+                    => i32 kernel status | ceil(bits/8) random bytes on
+                       success; zero-count requests return no bytes
+
 Lengths are u32 little-endian, fd is an opaque request-scoped host
 descriptor encoded as u32, and unknown/trailing fields are rejected.
 READ and WRITE are intentionally short (maximum 64 KiB per invocation);
-clients must retry partial writes and read to EOF. READ checks response
-capacity *before* consuming the descriptor, so a too-small reply
-buffer cannot silently discard data. Every descriptor belongs to that
-one root request; it cannot be reused after the request finishes.
+clients must retry partial writes and read to EOF. READ and NEXT
+check reply capacity *before* advancing their file/directory descriptor,
+so a too-small reply buffer cannot silently discard data. RANDOM is
+bounded to 64 KiB of output. Every descriptor belongs to one root
+request; it cannot be reused after the request finishes.
+
+For durable single-file replacement, an ordinary guest can open a new
+file exclusively, write and sync it, close, rename within the same
+filesystem and sync its parent directory. DELETE similarly needs
+parent-directory sync. This is an atomic filesystem *replacement*
+primitive; it is NOT a conditional compare-and-swap or transactional
+grant/quota mutation, and a restarted kernel check is NOT a power-loss
+test. The kernel maps these generic operations directly to its confined
+filesystem API; Program 0 neither interprets app names nor coordinates
+multiple file updates.
+
+The owner-selected ordinary guest is a TRUSTED recipient of these
+privileged generic APIs. Although it cannot directly import root
+filesystem functions, it can ask the parent callback to access any
+path within the configured kernel data root, INCLUDING the private
+token-verifier and installed-program paths. A malicious or publicly
+replaceable guest can therefore compromise the operator's data root.
+Only install trusted immutable guest code under operator control;
+real least-authority per-child delegation is an outstanding security
+and multi-tenancy requirement. The Program0 bearer MUST NOT be exposed
+to untrusted clients or browser bundles.
 
 There is NO application-specific authorization in Program 0: anyone
 with the operator's private bearer token has root-equivalent host API
@@ -123,9 +164,9 @@ authority for the confined Skrynia data root. The token is never
 forwarded to the child and must NEVER be present in anonymous client
 JavaScript. Future scoped grants, quotas and application protocol
 rules belong in separately evaluated user programs, not the kernel or
-this relay. The callback currently does NOT implement fsync, atomic
-rename, CAS, grant permissions, Web Push, or durable multi-key
-transactions, so it is not ready for production stateful v2 parity.
+this relay. The callback does not implement CAS, grant permissions, Web Push or
+durable multi-key transactions, so it is not ready for production
+stateful v2 parity.
 
 The relay requires the generic-kernel parent/child callback authority
 fix in Skrynia draft PR #111. Without it, the parent cannot read its

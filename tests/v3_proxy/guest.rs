@@ -41,3 +41,6 @@ pub fn read_disk() -> Vec<u8> {
 pub fn write_disk() -> Vec<u8> {
     wat::parse_str(include_str!("wat/write_disk.wat")).unwrap()
 }
+pub fn durable() -> Vec<u8> {
+    wat::parse_str(include_str!("wat/durable.wat")).unwrap()
+}

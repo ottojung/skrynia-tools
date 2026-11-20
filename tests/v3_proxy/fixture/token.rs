@@ -29,3 +29,9 @@ impl Server {
         std::fs::read(self.dir.join(key)).ok()
     }
 }
+
+impl Server {
+    pub fn dir_exists(&self, key: &str) -> bool {
+        self.dir.join(key).is_dir()
+    }
+}

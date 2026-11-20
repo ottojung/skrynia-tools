@@ -3,6 +3,7 @@ mod control;
 mod directory;
 mod eval;
 mod io;
+mod lock;
 mod open;
 mod paths;
 mod wire;
@@ -28,6 +29,7 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
         Some(wire::EXISTS) => paths::exists(req),
         Some(wire::RANDOM_FILL) => control::random(req, dc as usize),
         Some(wire::EVAL) => eval::call(req),
+        Some(wire::MUTATION_TRY | wire::MUTATION_RELEASE) => lock::call(req),
         _ => wire::reply(wire::INVALID, &[]),
     };
     if result.len() > dc as usize {

@@ -132,6 +132,31 @@ When READ succeeds, its reply appends exactly that many bytes.
                        u32 input-fd | u32 output-fd
                     => i32 generic child evaluation status
 
+  opcode 14 MUTATION_TRY:
+                    => i32 1 if this root request acquired the
+                       process-scoped exclusive mutation lock,
+                       0 if contended/already held in this request
+  opcode 15 MUTATION_RELEASE:
+                    => i32 0 if the same root request releases it,
+                       negative permission error if it was not held
+
+These last two are generic v3 kernel capabilities, not a v2 grant
+or data-specific CAS operation. They are exposed exclusively through
+the root Program0 callback to *trusted* user-supplied ordinary guests.
+The root VM owns the lock: its descriptor-table cleanup and Drop
+release it automatically if an evaluated guest traps or exhausts
+fuel. A different root request cannot release the owner's lock.
+The guest cannot directly import the kernel's privileged lock calls;
+only the operator root can relay them as generic API opcodes.
+Users of MUTATION_TRY must handle contention explicitly, with
+bounded retries across fresh requests rather than spinning until
+fuel exhaustion. A lock is local to this kernel process: it does
+not establish cross-process distributed transactions or durable
+grant/CAS semantics and resets after a kernel restart. Release
+before lengthy untrusted or potentially blocking operations.
+This requires Skrynia kernel PR #112, based on descriptor-scope
+security PR #111.
+
 EVAL executes *any ordinary WASM module* chosen by the calling guest
 and loaded from the confined data root. It uses the kernel's one generic
 five-argument skrynia.eval, delegates the two supplied forward-only

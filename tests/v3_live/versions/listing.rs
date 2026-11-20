@@ -17,7 +17,13 @@ fn native_history_pages_are_public_and_deterministic() {
     .unwrap();
     assert_eq!(u16::from_le_bytes(all[..2].try_into().unwrap()), 2);
     assert_eq!(all.len(), 66);
-    assert!(all[2..].chunks_exact(32).any(|x| x == h));
+    assert!(
+        all[2..]
+            .as_chunks::<32>()
+            .0
+            .iter()
+            .any(|x| x.as_slice() == h.as_slice())
+    );
     let first = all[2..34].to_vec();
     let later = admin(
         &server.url,

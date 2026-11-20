@@ -107,3 +107,23 @@ special-cased a named Program 1 is **not** the desired architecture.
 A future generic two-file-descriptor evaluation API should preserve this
 exact gate and simply pass the *remaining* input FD plus output FD to the
 arbitrary evaluated program; the kernel should still know only Program 0.
+
+
+## Compiled streaming root integration
+
+A separate branch feature/v3-authenticated-fd-stream adapts the actual
+Rust Program 0 to the generic two-descriptor eval ABI. It validates the
+same 33-byte private header, loads an operator-chosen ordinary WASM child,
+and calls the five-argument skrynia.eval with the remaining input and
+the output file descriptors. It neither reads complete request bodies nor
+buffers child responses. The child has no special kernel identity and
+cannot access root filesystem/RAM; until generic invoke callbacks are
+wired, it receives no privileged API delegation (callback=-1).
+
+The real executable / independently compiled WASM HTTP integration tests
+(tests/v3_proxy, explicitly --ignored) include token rejection,
+verifier corruption/rotation, transparent binary forwarding, forbidden
+child imports, missing child, and request bodies beyond old buffer
+assumptions. Run them only against the exact generic-FD Skrynia
+kernel branch, not buffered-eval or privileged Program1 kernels.
+No production deployment or application migration is implied.

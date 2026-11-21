@@ -16,7 +16,7 @@ pub async fn run() -> Result<(), String> {
         .build()
         .map_err(|_| "failed to build upstream client")?;
     let bind = config.bind.parse().map_err(|_| "invalid bind address")?;
-    let permits = Semaphore::new(config.max_concurrent_requests);
+    let permits = Arc::new(Semaphore::new(config.max_concurrent_requests));
     let state = crate::state::State {
         inner: Arc::new(crate::state::Inner {
             config,

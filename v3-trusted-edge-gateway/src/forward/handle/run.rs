@@ -1,8 +1,16 @@
 use axum::body::Body;
 use axum::http::{StatusCode, request::Parts};
 use axum::response::{IntoResponse, Response};
+use tokio::sync::OwnedSemaphorePermit;
+use tokio::time::Instant;
 
-pub async fn forward(state: crate::state::State, parts: Parts, body: Body) -> Response {
+pub async fn forward(
+    state: crate::state::State,
+    parts: Parts,
+    body: Body,
+    permit: OwnedSemaphorePermit,
+    deadline: Instant,
+) -> Response {
     let max = state.inner.config.max_body_bytes;
     if let Some(len) = parts
         .headers
@@ -21,7 +29,7 @@ pub async fn forward(state: crate::state::State, parts: Parts, body: Body) -> Re
     };
     let idle = state.upstream_read_idle();
     match super::super::upstream::send(&state, operator, body, max).await {
-        Ok(resp) => super::super::response::from_upstream(resp, max, idle),
+        Ok(resp) => super::super::response::from_upstream(resp, max, idle, permit, deadline),
         Err(status) => status.into_response(),
     }
 }

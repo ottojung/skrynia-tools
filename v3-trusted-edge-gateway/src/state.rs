@@ -10,7 +10,7 @@ pub struct State {
 pub struct Inner {
     pub config: super::config::Config,
     pub client: reqwest::Client,
-    pub permits: Semaphore,
+    pub permits: Arc<Semaphore>,
 }
 
 impl State {

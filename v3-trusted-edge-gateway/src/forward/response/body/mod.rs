@@ -5,7 +5,8 @@ use futures_util::stream::{Stream, StreamExt};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::time::{Sleep, sleep};
+use tokio::sync::OwnedSemaphorePermit;
+use tokio::time::{Instant, Sleep, sleep, sleep_until};
 
 type In = futures_util::stream::BoxStream<'static, Result<Bytes, reqwest::Error>>;
 
@@ -13,6 +14,8 @@ pub fn limited_idle(
     stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
     max: usize,
     idle: Duration,
+    permit: OwnedSemaphorePermit,
+    deadline: Instant,
 ) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Send {
     IdleLimited {
         inner: stream.boxed(),
@@ -20,7 +23,9 @@ pub fn limited_idle(
         seen: 0,
         idle,
         sleep: Box::pin(sleep(idle)),
+        deadline: Box::pin(sleep_until(deadline)),
         done: false,
+        _permit: permit,
     }
 }
 
@@ -30,7 +35,9 @@ pub(super) struct IdleLimited {
     seen: usize,
     idle: Duration,
     sleep: Pin<Box<Sleep>>,
+    deadline: Pin<Box<Sleep>>,
     done: bool,
+    _permit: OwnedSemaphorePermit,
 }
 
 impl Stream for IdleLimited {

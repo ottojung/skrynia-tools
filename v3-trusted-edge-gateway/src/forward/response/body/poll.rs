@@ -9,6 +9,12 @@ pub fn next(
     if this.done {
         return Poll::Ready(None);
     }
+    if this.deadline.as_mut().poll(cx).is_ready() {
+        this.done = true;
+        return Poll::Ready(Some(Err(std::io::Error::other(
+            "response lifetime exceeded",
+        ))));
+    }
     if this.sleep.as_mut().poll(cx).is_ready() {
         this.done = true;
         return Poll::Ready(Some(Err(std::io::Error::other("upstream idle timeout"))));

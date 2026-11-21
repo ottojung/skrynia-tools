@@ -72,6 +72,25 @@ no lost update, restart persistence and all auth negatives.
 
 No production, DNS, TLS, Ivanka, real credentials or user data are touched.
 
+## Fresh source-pinned rerun (21:18 UTC)
+
+Verified at runtime that `harness/feedback.js.native-fix` is byte-identical
+(SHA256 `9e680491d51afdaa1d627c62c2aa558d6d917d273172241466113401c35c393c`)
+to `source/theorem-lab/feedback.js` fetched from the **remote** skrynia-apps
+commit `197ec51990f64bddc3f16aeb2504328498cbc556` (PR306, base = PR305 branch,
+parent `e6c9ff51`, single-file 49-line JS change). The remote branch ref is
+present: `refs/heads/agent/Jmf1xmEs6yST2sOvBNYUTN-theorem-browser-protocol-fix`
+= `197ec51990f64bddc3f16aeb2504328498cbc556`. No force push or workflow edit
+was performed.
+
+Fresh generic-edge run with that exact source:
+`real-p2-chromium-pr306-source-final.log` SHA256
+`88c3e09864c89e6a85d6b680867518016b1dbc3a0b024893b76a6209a59a5777`,
+**ALL_OK=True**, 21 PASS / 0 FAIL, retained work dir
+`/workspace/tl-real-p2-eysgvvoj`. Same checks as the previous final run
+(raw browser bytes unchanged at kernel, real P2 CAS retry, no lost update,
+restart, auth negatives).
+
 ## Blocker
 No Antonina board (`ygD`/`w4wg`) tool or MCP resource is available in this
 environment; board reporting was done via GitHub comments on apps PR305 only.

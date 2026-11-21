@@ -1,3 +1,4 @@
 cfaf5882826fd735a1b5eacf450ef38935e3afa3fa8742b3743f0abe76b87996  real-p2-chromium-generic-edge-final.log
 9e680491d51afdaa1d627c62c2aa558d6d917d273172241466113401c35c393c  harness/feedback.js.native-fix
 9e512e8c3863f9323d48d0919ece19eb78a98dd5620da2e9947d35a3a6d765ce  harness/real_feedback_p2_chromium.py
+88c3e09864c89e6a85d6b680867518016b1dbc3a0b024893b76a6209a59a5777  real-p2-chromium-pr306-source-final.log

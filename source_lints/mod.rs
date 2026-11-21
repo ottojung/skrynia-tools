@@ -12,6 +12,17 @@ pub fn check(root: &Path) {
             tree::visit(&folder, &mut violations);
         }
     }
+    for area in [
+        "v3-trusted-edge-gateway/src",
+        "v3-trusted-edge-gateway/tests",
+        "v3-trusted-edge-gateway/examples",
+        "v3-trusted-edge-gateway/benches",
+    ] {
+        let folder = root.join(area);
+        if folder.is_dir() {
+            tree::visit(&folder, &mut violations);
+        }
+    }
     let build = root.join("build.rs");
     if let Ok(source) = std::fs::read_to_string(&build) {
         let count = lines::code_lines(&source);

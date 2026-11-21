@@ -13,6 +13,7 @@ pub const RANDOM_FILL: u8 = 12;
 pub const EVAL: u8 = 13;
 pub const LIMIT: usize = 64 * 1024;
 pub const INVALID: i32 = -1;
+pub const DENIED: i32 = -4;
 pub const OVERFLOW: i32 = -11;
 
 pub fn u32_at(req: &[u8], at: &mut usize) -> Option<u32> {

@@ -6,8 +6,9 @@ mod io;
 mod open;
 mod paths;
 mod wire;
-use super::{abi, code};
 
+// Release blocker (hAxVrL5ZstxkNOF5O2mBvS-refreshed): generic guest callback
+// delegation is not yet implemented; privileged operations fail closed.
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
     if dc < 4 || rl as usize > wire::LIMIT + 16 {
@@ -15,19 +16,19 @@ pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {
     }
     let req = unsafe { core::slice::from_raw_parts(rp as *const u8, rl as usize) };
     let result = match req.first().copied() {
-        Some(wire::OPEN_DISK) => open::call(req),
-        Some(wire::READ) => io::read(req, dc as usize),
-        Some(wire::WRITE) => io::write(req),
-        Some(wire::CLOSE) => close::call(req),
-        Some(wire::SYNC) => control::sync(req),
-        Some(wire::MKDIR) => paths::mkdir(req),
-        Some(wire::RENAME) => paths::rename(req),
-        Some(wire::DELETE) => paths::delete(req),
-        Some(wire::OPEN_DIRECTORY) => directory::open(req),
-        Some(wire::NEXT_ENTRY) => directory::next(req, dc as usize),
-        Some(wire::EXISTS) => paths::exists(req),
-        Some(wire::RANDOM_FILL) => control::random(req, dc as usize),
-        Some(wire::EVAL) => eval::call(req),
+        Some(wire::OPEN_DISK)
+        | Some(wire::READ)
+        | Some(wire::WRITE)
+        | Some(wire::CLOSE)
+        | Some(wire::SYNC)
+        | Some(wire::MKDIR)
+        | Some(wire::RENAME)
+        | Some(wire::DELETE)
+        | Some(wire::OPEN_DIRECTORY)
+        | Some(wire::NEXT_ENTRY)
+        | Some(wire::EXISTS)
+        | Some(wire::RANDOM_FILL)
+        | Some(wire::EVAL) => wire::reply(wire::DENIED, &[]),
         _ => wire::reply(wire::INVALID, &[]),
     };
     if result.len() > dc as usize {

@@ -1,4 +1,7 @@
-use super::{cases, fixture::Server, guest};
+use super::{cases, fixture, guest};
+use fixture::Server;
+mod adversarial;
+mod adversarial_more;
 #[test]
 #[ignore = "requires actual compiled Program0 and callback-safe generic kernel"]
 fn generic_guest_reads_private_disk_only_via_parent_api_callback() {

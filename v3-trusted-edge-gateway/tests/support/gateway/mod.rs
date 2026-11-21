@@ -15,7 +15,20 @@ impl Gateway {
         apps: serde_json::Value,
         max_body: usize,
     ) -> Self {
-        start::start(kernel_url, token, apps, max_body)
+        start::start_with(
+            kernel_url,
+            token,
+            apps,
+            serde_json::json!({"max_body_bytes": max_body}),
+        )
+    }
+    pub fn start_with(
+        kernel_url: &str,
+        token: [u8; 32],
+        apps: serde_json::Value,
+        overrides: serde_json::Value,
+    ) -> Self {
+        start::start_with(kernel_url, token, apps, overrides)
     }
     pub fn stderr_text(&mut self) -> String {
         let _ = self.child.kill();

@@ -27,4 +27,27 @@ restart that lost `/tmp/opencode` worktrees. This worktree is under persistent
   real compiled feedback P2 through P1's self-namespace callback, with the
   trusted edge acting only as a public-identifier/protocol adapter (no CAS).
 
+## Result (actual feedback P2, not echo)
+
+`harness/real_feedback_p2_chromium.py` drives the unmodified apps PR305
+`feedback.js` in real headless Chromium through nginx HTTPS -> trusted edge
+(protocol adapter ONLY, no appdata CAS) -> kernel -> clean dumb P0 -> ordinary
+P1 -> THE feedback P2.
+
+Final run log: `real-p2-chromium-run4.log` SHA256
+`cae8c34420759456a3dcc271e245e7f43536b19714a78ae8fc6f8f6a4653ed2f`,
+**22 PASS / 0 FAIL, ALL_OK=True**, retained work dir
+`/workspace/tl-real-p2-a7d3eofm`.
+
+Verified: real P2 registration + direct invoke; browser Save; persistence via
+real public `OP_APP_GET`; invoke-read path; genuine concurrent real-P2 CAS
+conflict mapped to one 409, browser retry succeeded; concurrent no lost update;
+kernel restart persistence; deny bad Host/Origin/session/non-POST/wrong kernel
+token/sibling namespace; no admin cap in page and no P0 token in logs.
+
+P0 note: rebuild from the same PR53 source commit `fdf0d02` produced a different
+WASM SHA (`5dd3e382...` locally) than both the earlier `ec74523b...` and the
+pinned `d57ab27a...`; byte-identical reproducibility is NOT claimed. The pinned
+independently-validated `d57ab27a...` artifact was used for the run above.
+
 No production, DNS, TLS, Ivanka, real credentials or user data are touched.

@@ -1,0 +1,28 @@
+PASS exact-artifact-hashes :: kernel/p0/p1/p2 match pinned SHA-256 values
+work=/workspace/tl-real-p2-a7d3eofm
+PASS register-actual-feedback-p2 :: {'kind': 'ok', 'body': b',\x96\xaa!\xd4\xa3\x99f\xb7\x9e\x0cjY\xde\xa4i/_w\x07X\xb1&\x00\xe5\xbb\xea\xe9\xe5\xbce\xb4'}
+PASS actual-p2-direct-invoke :: {'kind': 'ok', 'body': b'{"created":true,"id":"probe","ok":true,"op":"submit","retries":0,"v":1}'}
+PASS nginx-config-valid ::  No such file or directory)
+nginx: the configuration file /workspace/tl-real-p2-a7d3eofm/nginx.conf syntax is ok
+nginx: configuration file /workspace/tl-real-p2-a7d3eofm/nginx.conf
+PASS nginx-https-up
+PASS chromium-actual-p2-save :: OK:browser-save
+PASS persisted-via-real-appget :: ['probe', 'cf248885-11c2-474d-91d3-0ac55ae4db3b']
+PASS no-admin-cap-in-page
+PASS no-p0-token-in-logs
+PASS chromium-invoke-read-path :: OK:browser-save
+PASS chromium-cas-redo :: OK:browser-save
+PASS real-cas-conflict-409-observed :: edge 409 mappings=1 racer={'kind': 'ok', 'body': b'{"created":true,"id":"real-racer","ok":true,"op":"submit","retries":0,"v":1}'}
+PASS concurrent-no-lost-update :: ['probe', 'cf248885-11c2-474d-91d3-0ac55ae4db3b', 'fead915c-dd29-45cd-a778-b6e72d4021d0', 'real-racer', 'c1bcafa2-ea56-42cf-b6f7-ea54b6badc6a']
+PASS state-after-restart :: b'{"version":1,"updatedAt":"2026-11-21T20:59:19.271Z","htmlFragments":{},"feedback":[{"id":"probe","co'
+PASS deny-bad-host :: 403
+PASS deny-bad-origin :: 403
+PASS deny-wrong-session :: 403
+PASS deny-non-post :: 405
+PASS deny-wrong-kernel-token :: {'kind': 'short'}
+PASS sibling-namespace-denied :: {'kind': 'err', 'code': 8}
+PASS edge-session-cookie-accepted :: 6
+PASS edge-conflict-adapter-observed :: conflicts=1 (real P2 busy/CAS mapped to 409)
+preserved work=/workspace/tl-real-p2-a7d3eofm
+
+ALL_OK=True

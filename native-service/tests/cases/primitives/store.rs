@@ -1,0 +1,44 @@
+use skrynia_native_service::auth;
+use skrynia_native_service::cap::Disk;
+use skrynia_native_service::store_io;
+use skrynia_native_service::store_ls::list_ids;
+use std::collections::BTreeMap;
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct MemDisk(Mutex<BTreeMap<String, Vec<u8>>>);
+
+impl Disk for MemDisk {
+    type Err = ();
+    fn read_all(&self, path: &str) -> Result<Option<Vec<u8>>, ()> {
+        Ok(self.0.lock().unwrap().get(path).cloned())
+    }
+    fn write_atomic(&self, path: &str, bytes: &[u8]) -> Result<(), ()> {
+        self.0
+            .lock()
+            .unwrap()
+            .insert(path.to_string(), bytes.to_vec());
+        Ok(())
+    }
+    fn remove(&self, path: &str) -> Result<(), ()> {
+        self.0.lock().unwrap().remove(path);
+        Ok(())
+    }
+    fn list(&self, dir: &str) -> Result<Vec<String>, ()> {
+        let p = format!("{}/", dir.trim_end_matches('/'));
+        let g = self.0.lock().unwrap();
+        Ok(g.keys()
+            .filter_map(|k| k.strip_prefix(&p).map(|s| s.to_string()))
+            .collect())
+    }
+}
+
+#[test]
+fn store_roundtrip_and_list() {
+    let disk = MemDisk::default();
+    let invoke_id = auth::read_cap(&[7u8; 32]);
+    store_io::put_code(&disk, "reg", &invoke_id, b"wasm").unwrap();
+    assert_eq!(store_io::get(&disk, "reg", &invoke_id).unwrap(), b"wasm");
+    let ids = list_ids(&disk, "reg").unwrap();
+    assert_eq!(ids, vec![invoke_id.to_vec()]);
+}

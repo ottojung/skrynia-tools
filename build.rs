@@ -6,5 +6,7 @@ fn main() {
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=examples");
     println!("cargo:rerun-if-changed=benches");
-    source_lints::check(std::path::Path::new(env!("CARGO_MANIFEST_DIR")));
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    source_lints::check(root);
+    source_lints::check(&root.join("native-service"));
 }

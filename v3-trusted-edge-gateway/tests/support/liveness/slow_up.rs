@@ -1,9 +1,7 @@
-mod support;
+use super::{apps::two_apps, gateway::Gateway, http::post_raw, kernel::Kernel, kit::kit, slow};
 use std::time::Duration;
-use support::{apps::two_apps, gateway::Gateway, http::post_raw, kernel::Kernel, kit::kit, slow};
 
-#[test]
-fn slow_unfinished_chunked_recovers() {
+pub fn slow_unfinished_chunked_recovers() {
     let Some((bin, p0)) = kit() else {
         eprintln!("SKIP: canonical kit required");
         return;

@@ -1,10 +1,13 @@
-use super::{abi, wire};
+use super::{abi, scope, wire};
+fn write_ok(path: &[u8]) -> bool {
+    scope::write_in(scope::PREFIX, scope::WRITE_OK, path)
+}
 pub fn mkdir(req: &[u8]) -> Vec<u8> {
     let mut at = 1;
     let (Some(path), Some(mode)) = (wire::bytes(req, &mut at), wire::u32_at(req, &mut at)) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() {
+    if at != req.len() || !write_ok(path) {
         return wire::reply(wire::INVALID, &[]);
     }
     wire::reply(
@@ -17,7 +20,7 @@ pub fn delete(req: &[u8]) -> Vec<u8> {
     let Some(path) = wire::bytes(req, &mut at) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() {
+    if at != req.len() || !write_ok(path) {
         return wire::reply(wire::INVALID, &[]);
     }
     wire::reply(
@@ -30,7 +33,7 @@ pub fn rename(req: &[u8]) -> Vec<u8> {
     let (Some(old), Some(new)) = (wire::bytes(req, &mut at), wire::bytes(req, &mut at)) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() {
+    if at != req.len() || !write_ok(old) || !write_ok(new) {
         return wire::reply(wire::INVALID, &[]);
     }
     wire::reply(

@@ -1,4 +1,3 @@
-#[cfg(target_arch = "wasm32")]
 mod proxy;
-#[cfg(any(target_arch = "wasm32", test))]
+pub use proxy::{dispatch, skrynia_host_cb};
 mod token;

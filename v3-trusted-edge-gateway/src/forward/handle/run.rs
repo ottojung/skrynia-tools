@@ -1,19 +1,8 @@
 use axum::body::Body;
-use axum::extract::State as AxumState;
-use axum::http::{Method, Request, StatusCode};
+use axum::http::{StatusCode, request::Parts};
 use axum::response::{IntoResponse, Response};
 
-pub async fn handle(
-    AxumState(state): AxumState<crate::state::State>,
-    req: Request<Body>,
-) -> Response {
-    if req.method() != Method::POST {
-        return StatusCode::METHOD_NOT_ALLOWED.into_response();
-    }
-    let (parts, body) = req.into_parts();
-    if let Err(status) = crate::auth::authenticate(&state, &parts.headers) {
-        return status.into_response();
-    }
+pub async fn forward(state: crate::state::State, parts: Parts, body: Body) -> Response {
     let max = state.inner.config.max_body_bytes;
     if let Some(len) = parts
         .headers
@@ -30,8 +19,9 @@ pub async fn handle(
         Ok(t) => t,
         Err(_) => return StatusCode::SERVICE_UNAVAILABLE.into_response(),
     };
-    match super::upstream::send(&state, operator, body, max).await {
-        Ok(resp) => super::response::from_upstream(resp, max),
+    let idle = state.upstream_read_idle();
+    match super::super::upstream::send(&state, operator, body, max).await {
+        Ok(resp) => super::super::response::from_upstream(resp, max, idle),
         Err(status) => status.into_response(),
     }
 }

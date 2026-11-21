@@ -1,11 +1,11 @@
 mod apps;
 mod checks;
+mod limits;
 mod net;
 
-pub(super) use super::model::AppConfig;
+pub(super) use super::model::{AppConfig, Config};
 pub(super) use super::normalize::{normalize_host, normalize_origin};
 
-use super::model::Config;
 use std::path::Path;
 
 pub fn validate(cfg: &Config) -> Result<(), String> {
@@ -17,6 +17,7 @@ pub fn validate(cfg: &Config) -> Result<(), String> {
     if cfg.max_body_bytes == 0 {
         return Err("max_body_bytes must be > 0".into());
     }
+    limits::validate(cfg)?;
     if cfg.apps.is_empty() {
         return Err("at least one app must be configured".into());
     }

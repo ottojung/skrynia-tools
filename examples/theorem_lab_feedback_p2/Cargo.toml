@@ -1,0 +1,22 @@
+[package]
+name = "theorem-lab-feedback-p2"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+sha2 = { version = "0.10", default-features = false }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

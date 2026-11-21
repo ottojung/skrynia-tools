@@ -1,5 +1,6 @@
 mod fd;
 pub mod meta;
+mod meta_dec;
 mod meta_load;
 mod path;
 mod state;

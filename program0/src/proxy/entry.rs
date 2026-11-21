@@ -4,7 +4,7 @@ use super::{abi, auth, code, host};
 pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
     let result = match auth::require(input_fd).and_then(|()| code::load()) {
         Ok(wasm) => {
-            host::begin_request();
+            host::scope::enter(b"programs/root.wasm");
             let r = unsafe {
                 abi::eval(
                     wasm.as_ptr() as u32,
@@ -14,7 +14,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
                     host::callback_index(),
                 )
             };
-            host::end_request();
+            host::scope::exit();
             r
         }
         Err(error) => error,

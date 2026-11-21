@@ -5,15 +5,8 @@ mod eval;
 mod io;
 mod open;
 mod paths;
-mod scope;
+pub(crate) mod scope;
 mod wire;
-
-pub fn begin_request() {
-    scope::enter(b"programs/root.wasm");
-}
-pub fn end_request() {
-    scope::exit();
-}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_host_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32 {

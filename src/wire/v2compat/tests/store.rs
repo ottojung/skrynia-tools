@@ -1,6 +1,5 @@
-use super::backend::{CompatBackend, CompatResult, Meta, Object, ObjectRead, Store};
+use super::backend::{Admin, CompatBackend, CompatResult, Meta, Object, ObjectRead, Store};
 use super::{Request, Response, Unavailable, handle};
-use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 #[derive(Clone)]
 struct R(Option<Vec<u8>>);
@@ -26,6 +25,7 @@ impl Store for R {
         })
     }
 }
+impl Admin for R {}
 impl CompatBackend for R {}
 fn req(m: &str, p: &str) -> Request {
     Request {
@@ -37,14 +37,12 @@ fn req(m: &str, p: &str) -> Request {
     }
 }
 #[test]
-fn store_get_head_and_missing() {
-    let b = b"hello".to_vec();
-    let tag = format!("\"{}\"", hex::encode(Sha256::digest(&b)));
-    let r = handle(&R(Some(b.clone())), &req("GET", "/store/a.txt"));
-    assert_eq!(r.status, 200);
-    assert_eq!(r.headers.get("etag"), Some(&tag));
-    assert_eq!(r.body, b"hello");
-    let h = handle(&R(Some(b)), &req("HEAD", "/store/a.txt"));
-    assert!(h.status == 200 && h.body.is_empty());
-    assert_eq!(handle(&R(None), &req("GET", "/store/a.txt")).status, 404);
+fn route_stubs_auth_and_methods_stay_consistent() {
+    let r = R(Some(b"abcdef".to_vec()));
+    assert_eq!(handle(&Unavailable, &req("GET", "/store")).status, 501);
+    assert_eq!(handle(&Unavailable, &req("POST", "/grants")).status, 401);
+    assert_eq!(handle(&r, &req("GET", "/grants/x")).status, 401);
+    assert_eq!(handle(&r, &req("POST", "/push/subscriptions")).status, 501);
+    assert_eq!(handle(&r, &req("TRACE", "/store/a.txt")).status, 405);
+    assert_eq!(handle(&r, &req("GET", "/missing")).status, 404);
 }

@@ -1,10 +1,5 @@
 pub fn stub(method: &str, path: &str) -> bool {
-    matches!(
-        (method, path),
-        ("POST", "/grants") | ("POST", "/push/subscriptions")
-    ) || (method == "GET" && path.starts_with("/grants/"))
-        || (method == "POST" && path.starts_with("/grants/") && path.ends_with("/users"))
-        || (method == "DELETE" && path.starts_with("/grants/"))
+    matches!((method, path), ("POST", "/push/subscriptions"))
         || ((method == "PUT" || method == "DELETE") && path.starts_with("/push/subscriptions/"))
 }
 pub fn known(path: &str) -> bool {

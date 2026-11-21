@@ -1,4 +1,6 @@
+mod admin;
 pub mod grants;
+pub use self::admin::Admin;
 pub use self::store::{Mutation, MutationKind, Object, ObjectRead, Store};
 pub(super) use super::scope;
 use super::types::Response;
@@ -24,7 +26,7 @@ pub trait Meta {
     fn version(&self) -> Response;
     fn push_vapid(&self) -> Response;
 }
-pub trait CompatBackend: Meta + Store {}
+pub trait CompatBackend: Meta + Store + Admin {}
 
 #[derive(Clone, Debug, Default)]
 pub struct Unavailable;
@@ -40,4 +42,5 @@ impl Meta for Unavailable {
     }
 }
 impl Store for Unavailable {}
+impl Admin for Unavailable {}
 impl CompatBackend for Unavailable {}

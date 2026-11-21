@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod grants;
 pub mod lock;
 pub mod objects;

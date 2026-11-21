@@ -1,3 +1,4 @@
+mod admin;
 mod call;
 mod meta;
 mod object;

@@ -50,4 +50,28 @@ WASM SHA (`5dd3e382...` locally) than both the earlier `ec74523b...` and the
 pinned `d57ab27a...`; byte-identical reproducibility is NOT claimed. The pinned
 independently-validated `d57ab27a...` artifact was used for the run above.
 
+## Superseded run / final architecture-correct result
+
+The earlier `real-p2-chromium-run4.log` (`cae8c344...`) used an app-specific
+translating edge and is **not** acceptance. It was superseded after owner review
+(apps PR305 comments 7069149069 / 7069158605).
+
+Final: `harness/real_feedback_p2_chromium.py` now uses a **generic framing-only
+edge** (Host/Origin/session + private P0 bearer framing only; no Theorem JSON
+parsing/rewriting, no gateway CAS). The browser fix lives in its own skrynia-apps
+draft PR306 (base = PR305 branch; PR305 itself unchanged). Browser sends the real
+P2 v1 input verbatim (numeric `op:1`, public `invokeId`); read is the scoped
+public `OP_APP_GET`.
+
+Final log `real-p2-chromium-generic-edge-final.log` SHA256
+`cfaf5882826fd735a1b5eacf450ef38935e3afa3fa8742b3743f0abe76b87996`:
+**ALL_OK=True, 22 PASS / 0 FAIL**. Includes an executable raw-byte equivalence
+check: every browser OP_INVOKE payload hash is observed unchanged at the kernel
+(only the 33-byte bearer prefix added), a genuine bounded CAS retry, concurrent
+no lost update, restart persistence and all auth negatives.
+
 No production, DNS, TLS, Ivanka, real credentials or user data are touched.
+
+## Blocker
+No Antonina board (`ygD`/`w4wg`) tool or MCP resource is available in this
+environment; board reporting was done via GitHub comments on apps PR305 only.

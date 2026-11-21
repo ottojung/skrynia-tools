@@ -1,5 +1,8 @@
-use super::{abi, wire};
+use super::{abi, scope, wire};
 pub fn sync(req: &[u8]) -> Vec<u8> {
+    if !scope::allowed(scope::op::SYNC) {
+        return wire::reply(wire::DENIED, &[]);
+    }
     let mut at = 1;
     let Some(fd) = wire::u32_at(req, &mut at) else {
         return wire::reply(wire::INVALID, &[]);
@@ -7,9 +10,15 @@ pub fn sync(req: &[u8]) -> Vec<u8> {
     if at != req.len() {
         return wire::reply(wire::INVALID, &[]);
     }
-    wire::reply(unsafe { abi::sync(fd as i32) }, &[])
+    let Some(real) = scope::fd_get(fd as i32) else {
+        return wire::reply(wire::DENIED, &[]);
+    };
+    wire::reply(unsafe { abi::sync(real) }, &[])
 }
 pub fn random(req: &[u8], cap: usize) -> Vec<u8> {
+    if !scope::allowed(scope::op::RANDOM) {
+        return wire::reply(wire::DENIED, &[]);
+    }
     let mut at = 1;
     let Some(bits) = wire::u32_at(req, &mut at) else {
         return wire::reply(wire::INVALID, &[]);

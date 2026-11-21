@@ -4,12 +4,12 @@ fn denied(res: reqwest::blocking::Response) {
     assert_eq!(res.status(), 500);
     assert!(res.bytes().unwrap().is_empty());
 }
-
 #[test]
 #[ignore = "requires compiled Program0 and callback-safe generic kernel"]
-fn guest_cannot_read_outside_fixture() {
-    let g = wat::parse_str(include_str!("../wat/read_outside.wat")).unwrap();
+fn guest_cannot_read_outside_with_scope() {
+    let g = wat::parse_str(include_str!("../wat/adv/read_outside.wat")).unwrap();
     let s = Server::start(Some(&g));
+    s.grant_all_userland("userland");
     s.seed_file("outside/secret.txt", b"outside-secret");
     denied(cases::post(
         &s.url,
@@ -22,9 +22,10 @@ fn guest_cannot_read_outside_fixture() {
 }
 #[test]
 #[ignore = "requires compiled Program0 and callback-safe generic kernel"]
-fn guest_cannot_write_outside_fixture() {
-    let g = wat::parse_str(include_str!("../wat/write_outside.wat")).unwrap();
+fn guest_cannot_write_outside_with_scope() {
+    let g = wat::parse_str(include_str!("../wat/adv/write_outside.wat")).unwrap();
     let s = Server::start(Some(&g));
+    s.grant_all_userland("userland");
     s.seed_file("outside/existing.txt", b"keep");
     denied(cases::post(
         &s.url,
@@ -34,8 +35,8 @@ fn guest_cannot_write_outside_fixture() {
 }
 #[test]
 #[ignore = "requires compiled Program0 and callback-safe generic kernel"]
-fn guest_cannot_delete_outside_fixture() {
-    let g = wat::parse_str(include_str!("../wat/delete_outside.wat")).unwrap();
+fn missing_scope_denies_privileged_callbacks() {
+    let g = wat::parse_str(include_str!("../wat/adv/read_outside.wat")).unwrap();
     let s = Server::start(Some(&g));
     s.seed_file("outside/secret.txt", b"outside-secret");
     denied(cases::post(

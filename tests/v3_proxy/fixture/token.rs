@@ -35,3 +35,17 @@ impl Server {
         self.dir.join(key).is_dir()
     }
 }
+
+impl Server {
+    pub fn grant_root_scope(&self, prefix: &str, ops: u32) {
+        let key = "security/program/programs%2Froot.wasm";
+        let mut data = Vec::new();
+        data.extend_from_slice(&ops.to_le_bytes());
+        data.extend_from_slice(&(prefix.len() as u32).to_le_bytes());
+        data.extend_from_slice(prefix.as_bytes());
+        self.seed_file(key, &data);
+    }
+    pub fn grant_all_userland(&self, prefix: &str) {
+        self.grant_root_scope(prefix, 0xfff);
+    }
+}

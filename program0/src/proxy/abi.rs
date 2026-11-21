@@ -13,4 +13,11 @@ unsafe extern "C" {
     pub fn sync(fd: i32) -> i32;
     pub fn secure_random_bits(dst: u32, bits: u32) -> i32;
     pub fn eval(code: u32, code_len: u32, input_fd: i32, output_fd: i32, callback: i32) -> i32;
+    pub fn eval_delegate(
+        code: u32,
+        code_len: u32,
+        input_fd: i32,
+        output_fd: i32,
+        callback: i32,
+    ) -> i32;
 }

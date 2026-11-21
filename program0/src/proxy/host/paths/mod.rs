@@ -1,4 +1,4 @@
-use super::{abi, wire};
+use super::{abi, scope, wire};
 mod delete;
 mod exists;
 mod mkdir;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https: http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <title>Skrynia v3 Administration</title>
 <link rel="stylesheet" href="./styles.css">
 </head>
@@ -39,10 +39,10 @@
 
   <section>
     <h2>Operator session credential</h2>
-    <label>Trusted operator secret (session memory only)
+    <label>Gateway or local-entry session credential (session memory only)
       <input id="operator-secret" type="password" autocomplete="off" spellcheck="false" placeholder="Enter only when required by injected adapter">
     </label>
-    <p class="status-note">Kept in browser session memory only while unlocked. Not written to the static bundle, vault, local storage, URL, query string, or logs by this UI. Cleared on lock.</p>
+    <p class="status-note">For a trusted server-side admin session/gateway or operator local secure entry only. Never a raw Program 0 bearer token and never embedded in anonymously downloaded static assets. Kept in browser session memory only while unlocked, not written to the vault/local storage/URL/query string/fragment or logged by this UI, and cleared on lock. The injected adapter is responsible for using it without leaking it.</p>
   </section>
 
   <section>

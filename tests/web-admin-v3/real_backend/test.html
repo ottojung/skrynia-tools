@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Skrynia v3 Browser Integration Test</title>
+<link rel="stylesheet" href="/web-admin-v3/styles.css">
+<style>body{margin:8px} #test-log{white-space:pre-wrap;font:12px/1.4 monospace;background:#111;color:#eee;padding:8px;margin-top:12px;max-height:40vh;overflow:auto}</style>
+</head>
+<body>
+<main>
+<header><h1>Skrynia v3 Browser Integration Test</h1></header>
+<p id="status" role="status" aria-live="polite"></p>
+<section id="config-section"><p id="capability-status" class="status-note"></p></section>
+<section id="unlock-section">
+  <h2>Unlock</h2>
+  <form id="unlock-form">
+    <label>Vault access secret <input id="vault-secret" type="password" autocomplete="off" spellcheck="false"></label>
+    <label>Vault context <input id="vault-context" type="text" autocomplete="off" spellcheck="false" value="default"></label>
+    <button type="submit">Unlock</button>
+  </form>
+</section>
+<div id="workspace" hidden>
+  <div class="toolbar"><strong>Vault unlocked</strong><button id="lock" type="button">Lock</button></div>
+  <section><label>Credential <input id="operator-secret" type="password" autocomplete="off"></label></section>
+  <section><div class="toolbar"><h2>Apps</h2><button id="refresh-apps" type="button">Refresh all</button></div><div id="apps"></div></section>
+  <section><h2>Manifest</h2><p id="manifest-empty">none</p><pre id="manifest-view" hidden></pre></section>
+</div>
+</main>
+<pre id="test-log"></pre>
+<script src="/test/gateway_adapter.js"></script>
+<script>
+window.confirm = function(msg){ window.__lastConfirm = msg; return window.__autoConfirm !== false; };
+window.alert = function(msg){ window.__lastAlert = msg; };
+</script>
+<script type="module">
+import '/web-admin-v3/main.js';
+
+const logEl = document.getElementById('test-log');
+function log(msg){ logEl.textContent += msg + '\n'; }
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+async function waitFor(pred, ms=8000, step=50){
+  const start = Date.now();
+  while(Date.now() - start < ms){ if(pred()) return true; await sleep(step); }
+  return false;
+}
+function setResult(ok, detail){
+  document.documentElement.dataset.result = ok ? 'pass' : 'fail';
+  document.documentElement.dataset.detail = detail || '';
+  log((ok ? 'PASS: ' : 'FAIL: ') + (detail || ''));
+  try {
+    fetch('/__test_result', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ok, detail: detail || '', log: logEl.textContent})});
+  } catch(e) {}
+}
+
+async function run(){
+  try {
+    const params = new URLSearchParams(location.search);
+    const phase = params.get('phase') || 'full';
+    const expectActive = params.get('expectActive');
+    const expectRevision = params.get('expectRevision');
+
+    log('phase=' + phase);
+    // Unlock (auto-initializes new vault via confirm override)
+    document.getElementById('vault-secret').value = 'test-secret-1234567890-abcdefghijklmnopqrstuvwxyz';
+    document.getElementById('vault-context').value = 'default';
+    document.getElementById('unlock-form').dispatchEvent(new Event('submit', {bubbles:true,cancelable:true}));
+    const unlocked = await waitFor(() => !document.getElementById('workspace').hidden, 10000);
+    if(!unlocked) throw Error('workspace did not unlock: ' + document.getElementById('status').textContent);
+
+    // Refresh apps
+    document.getElementById('refresh-apps').click();
+    await waitFor(() => document.getElementById('apps').textContent.includes('alpha'), 10000);
+    const appsText = document.getElementById('apps').textContent;
+    log('apps loaded');
+    if(!appsText.includes('alpha') || !appsText.includes('beta')) throw Error('expected apps missing: ' + appsText.slice(0,300));
+
+    if(phase === 'verify'){
+      // Browser negative auth: direct unauthenticated request must be rejected (no root/Program 0 token in JS)
+      const unauth = await fetch('/_skrynia/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({op:'listApps'})});
+      let unauthBody = null; try { unauthBody = await unauth.json(); } catch {}
+      if(unauth.status !== 401 || !unauthBody || unauthBody.ok !== false || !unauthBody.error || unauthBody.error.code !== 'unauthorized'){
+        throw Error('browser negative auth failed: status=' + unauth.status + ' body=' + JSON.stringify(unauthBody));
+      }
+      log('browser negative auth rejected unauthenticated request');
+      if(expectActive && !appsText.includes('Active pointer (release ID/hash): ' + expectActive)){
+        throw Error('expected active ' + expectActive + ' not found in: ' + appsText.slice(0,500));
+      }
+      if(expectRevision && !appsText.includes('Loaded CAS pointer state (optimistic token): ' + expectRevision)){
+        throw Error('expected revision ' + expectRevision + ' not found in: ' + appsText.slice(0,500));
+      }
+      setResult(true, 'verified active/revision after restart + browser negative auth');
+      return;
+    }
+
+    // Inspect manifest on first visible version button in alpha panel
+    const panels = [...document.querySelectorAll('.app-panel')];
+    const alpha = panels.find(p => p.querySelector('h3') && p.querySelector('h3').textContent.includes('alpha'));
+    if(!alpha) throw Error('alpha panel missing');
+    const inspectBtn = [...alpha.querySelectorAll('button')].find(b => b.textContent.includes('Inspect manifest'));
+    if(!inspectBtn) throw Error('inspect button missing');
+    inspectBtn.click();
+    const inspected = await waitFor(() => !document.getElementById('manifest-view').hidden, 8000);
+    if(!inspected) throw Error('manifest not shown');
+
+    // Activate a specific target for alpha if requested
+    const target = params.get('activate');
+    if(target){
+      const rowButtons = [...alpha.querySelectorAll('.version-row')];
+      let clicked = false;
+      for(const row of rowButtons){
+        if(row.textContent.includes(target)){
+          const act = [...row.querySelectorAll('button')].find(b => /Activate/.test(b.textContent));
+          if(!act) throw Error('activate button not found for target');
+          if(act.disabled) throw Error('activate button disabled for target');
+          act.click();
+          clicked = true;
+          break;
+        }
+      }
+      if(!clicked) throw Error('target release row not found: ' + target);
+      await waitFor(() => document.getElementById('status').textContent.includes('confirmed') || document.getElementById('status').textContent.includes('Conflict') || document.getElementById('status').textContent.includes('UNKNOWN'), 10000);
+      await sleep(300);
+      await waitFor(() => document.getElementById('apps').textContent.includes('alpha'), 10000);
+      const st = document.getElementById('status').textContent;
+      const apps2 = document.getElementById('apps').textContent;
+      log('status=' + st);
+      if(expectActive && !apps2.includes('Active pointer (release ID/hash): ' + expectActive)){
+        throw Error('post-activation active mismatch, expected ' + expectActive + ' got: ' + apps2.slice(0,600));
+      }
+      if(expectRevision && !apps2.includes('Loaded CAS pointer state (optimistic token): ' + expectRevision)){
+        throw Error('post-activation revision mismatch, expected ' + expectRevision + ' got: ' + apps2.slice(0,600));
+      }
+    }
+
+    setResult(true, 'browser integration phase completed');
+  } catch (e) {
+    log('ERROR ' + (e && e.stack || e));
+    setResult(false, String(e && e.message || e));
+  }
+}
+
+run();
+</script>
+</body>
+</html>

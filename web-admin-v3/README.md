@@ -8,10 +8,11 @@ admin daemon, or any legacy v2 HTTP facade.
 
 ## Status and backend dependency
 
-- **Native Program 0 ABI not finalized here.** Backend registry auth/rollback
+- **Native Program 0/service ABI not finalized here.** Backend registry auth/rollback
   protocol is tracked separately (Antonina issue
   `7X0twPgWYhSfBcCUBTZlwS-poor`, agent `TsmxG6zM7rBp5wl8lN1R8V-holder`). This UI
-  does **not** invent or hardcode an unfinalized wire format.
+  does **not** invent or hardcode an unfinalized wire format; the userland
+  version registry contract must be implemented by the authorized nonzero service.
 - **Fail-closed by default.** Real operations require an injected, tested
   semantic capability adapter. Without it the UI reports unavailable operations
   and performs no privileged action.
@@ -23,21 +24,33 @@ admin daemon, or any legacy v2 HTTP facade.
 - The browser UI and fake in-memory adapter **do not** provide security,
   authorization, or readiness enforcement. They are for local logic/testing and
   operator interaction only.
+- **Userland version registry/service boundary:** app IDs, historical release
+  records, manifests/readiness metadata, and the active pointer must be owned by
+  an authorized nonzero persistent userland service/state, not by Program 0 and
+  not by this static UI. Program 0 remains a dumb proxy; this UI communicates
+  only through a tested capability adapter over POST `/_skrynia/` to that proxy
+  and service per the frozen native protocol.
+- **No raw Program 0 bearer in downloaded JS:** the raw Program 0 bearer token
+  must never appear in static bundles, URLs, logs, or anonymous browser
+  JavaScript. Privileged access must be mediated by a separately provisioned
+  trusted server-side admin session/gateway or operator local secure entry that
+  holds Program 0 authority outside the downloaded UI. Any credential entered in
+  this UI is a gateway/local-entry session credential only.
 - **Server-side authorization is required** for every privileged operation
   (listing protected admin state, reading manifests/state as applicable, and
   activation/rollback). The injected adapter/backend must authenticate and
-  authorize the operator request using the frozen native protocol; this UI must
+  authorize the operator request using the concrete native protocol; this UI must
   not be treated as a security boundary.
 - **Server-side readiness verification is required** before activation. The
-  backend/Program 0 must verify that the selected release is actually READY,
-  valid, and eligible to become active; the UI may pre-check loaded state but
-  cannot prove readiness or integrity on its own.
-- **Trusted operator secret:** if the adapter requires an operator credential,
-  the UI keeps it in browser session memory only while unlocked. It is not
-  embedded in static assets, not placed in URLs/query strings/fragments, not
-  persisted to local storage or the encrypted vault by this UI, and not logged
-  by this UI. It is cleared on lock. The injected adapter is responsible for not
-  leaking it.
+  backend/Program 0/service must verify that the selected release is actually
+  READY, valid, and eligible to become active; the UI may pre-check loaded state
+  but cannot prove readiness or integrity on its own.
+- **Session credential handling:** if the adapter requires a gateway/local-entry
+  credential, the UI keeps it in browser session memory only while unlocked. It
+  is not embedded in static assets, not placed in URLs/query strings/fragments,
+  not persisted to local storage or the encrypted vault by this UI, and not
+  logged by this UI. It is cleared on lock. The injected adapter is responsible
+  for not leaking it.
 - **Encrypted browser vault:** local vault data is encrypted client-side
   (PBKDF2-SHA256 + AES-256-GCM, context bound as AAD) for convenience/storage of
   local admin state. Vault unlock does not authenticate to the server.
@@ -120,6 +133,7 @@ node tests/web-admin-v3/fail_closed.mjs
 node tests/web-admin-v3/browser_vault_lock.mjs
 node tests/web-admin-v3/pagination_reconcile.mjs
 node tests/web-admin-v3/session_and_adapter.mjs
+node tests/web-admin-v3/registry_model.mjs
 ```
 
 Tests cover fake app history, manifest inspection, O(1)-style pointer CAS
@@ -128,6 +142,15 @@ vault crypto/session/locking behavior, fail-closed defaults, pagination logic,
 uncertain/lost-ack reconciliation behavior, and session/operator-secret adapter
 contract expectations. They do **not** prove server-side authorization,
 readiness enforcement, or a finalized native wire protocol.
+
+## Minimal userland registry model
+
+`registry.js` defines a protocol-agnostic, testable model for the userland
+version registry contract (app discovery keys, active pointer schema with
+monotonic revision for ABA-safe O(1) CAS, and activation planning over
+ready/usable releases). The authoritative registry state and authorization must
+live in the authorized nonzero persistent service; this module is a UI/reference
+contract and local validation aid, not the service implementation.
 
 ## Native release identity and ABA safety
 

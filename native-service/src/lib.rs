@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod cap;
+pub mod cb_contract;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub mod cb_guest;
 #[cfg(not(all(target_arch = "wasm32", feature = "cb-guest")))]
@@ -9,6 +10,7 @@ pub mod protocol;
 pub mod registry;
 
 pub use auth::{CAP_LEN, hash_bytes, read_cap, read_cap_vec};
+pub use cb_contract::try_lock_status;
 #[cfg(not(all(target_arch = "wasm32", feature = "cb-guest")))]
 pub use host::{
     root_abi, root_disk, root_disk_atom, root_disk_io, root_disk_ls, root_eval, root_random,

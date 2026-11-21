@@ -6,13 +6,7 @@ impl MutLock for CbLock {
     type Err = i32;
     fn try_acquire(&self) -> Result<bool, i32> {
         let (n, _) = call::call(&[wire::TRY_LOCK])?;
-        if n == 0 {
-            Ok(true)
-        } else if n == -3 {
-            Ok(false)
-        } else {
-            Err(n)
-        }
+        crate::try_lock_status(n)
     }
     fn release(&self) -> Result<(), i32> {
         let (n, _) = call::call(&[wire::RELEASE_LOCK])?;

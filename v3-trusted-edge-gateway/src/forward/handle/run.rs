@@ -29,7 +29,15 @@ pub async fn forward(
     };
     let idle = state.upstream_read_idle();
     match super::super::upstream::send(&state, operator, body, max).await {
-        Ok(resp) => super::super::response::from_upstream(resp, max, idle, permit, deadline),
+        Ok(resp) => super::super::response::from_upstream(
+            resp,
+            max,
+            idle,
+            permit,
+            deadline,
+            state.inner.resp_polls.clone(),
+            state.inner.poll_file.clone(),
+        ),
         Err(status) => status.into_response(),
     }
 }

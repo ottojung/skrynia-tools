@@ -1,33 +1,20 @@
 mod poll;
+mod watch;
 
 use bytes::Bytes;
-use futures_util::stream::{Stream, StreamExt};
+use futures_util::stream::Stream;
+use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::OwnedSemaphorePermit;
-use tokio::time::{Instant, Sleep, sleep, sleep_until};
+use tokio::time::Sleep;
 
 type In = futures_util::stream::BoxStream<'static, Result<Bytes, reqwest::Error>>;
-
-pub fn limited_idle(
-    stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
-    max: usize,
-    idle: Duration,
-    permit: OwnedSemaphorePermit,
-    deadline: Instant,
-) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Send {
-    IdleLimited {
-        inner: stream.boxed(),
-        max,
-        seen: 0,
-        idle,
-        sleep: Box::pin(sleep(idle)),
-        deadline: Box::pin(sleep_until(deadline)),
-        done: false,
-        _permit: permit,
-    }
-}
+pub(super) type Permit = Arc<Mutex<Option<OwnedSemaphorePermit>>>;
+pub use watch::limited_idle;
 
 pub(super) struct IdleLimited {
     inner: In,
@@ -37,14 +24,14 @@ pub(super) struct IdleLimited {
     sleep: Pin<Box<Sleep>>,
     deadline: Pin<Box<Sleep>>,
     done: bool,
-    _permit: OwnedSemaphorePermit,
+    polls: Arc<AtomicUsize>,
+    poll_file: Option<PathBuf>,
+    _permit: Permit,
 }
 
 impl Stream for IdleLimited {
     type Item = Result<Bytes, std::io::Error>;
-
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = &mut *self;
-        poll::next(this, cx)
+        poll::next(&mut self, cx)
     }
 }

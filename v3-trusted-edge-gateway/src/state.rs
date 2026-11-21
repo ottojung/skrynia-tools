@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 use tokio::sync::Semaphore;
 
@@ -11,6 +12,8 @@ pub struct Inner {
     pub config: super::config::Config,
     pub client: reqwest::Client,
     pub permits: Arc<Semaphore>,
+    pub resp_polls: Arc<AtomicUsize>,
+    pub poll_file: Option<std::path::PathBuf>,
 }
 
 impl State {

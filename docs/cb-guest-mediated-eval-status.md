@@ -35,7 +35,7 @@ Kernel: PR118 249ba342 (`/workspace/skrynia-v3-integration-kit/artifacts/skrynia
 
 Fixed triad: kernel PR118 + P0 `4f1c4a4e...` + P1 `d3686527...`. P0 scope meta: `security/program/programs%2Froot.wasm` with ops=0xfff, prefix=`userland`. Token-gated HTTP POST.
 
-**29/29 PASS** in `/tmp/opencode/e2e_cbguest.py`:
+**29/29 PASS** in `/tmp/opencode/e2e_cbguest.py` + **17/17 PASS** in `/tmp/opencode/e2e_cbguest_extra.py`:
 
 - Register echo P2: HTTP 200 OK, invoke_id matches.
 - Lookup: HTTP 200 OK, code hash matches registered code.
@@ -46,6 +46,8 @@ Fixed triad: kernel PR118 + P0 `4f1c4a4e...` + P1 `d3686527...`. P0 scope meta: 
 - Operator isolation: register with wrong operator cap denied (err 9).
 - CAS/ABA/restart: stage B, seal B, get active rev1, activate B (expected rev1) OK; stale activate (expected rev1 after activation) conflict err 10 with no current-hash leak in body form observed; restart; get_active/lookup show B; stage/seal A, activate rollback with current rev -> OK; lookup returns A.
 - Trap P2: register OK, invoke returns err 4, server stays alive and serves subsequent lookup.
+
+- Extra (17/17): appdata PUT survives restart, GET returns same value; cross-namespace GET/DELETE denied (err 13); own-namespace DELETE OK; GET after delete missing (err 8). ABA-safe CAS rechecked: stage/seal/activate B, stale rev conflict err 10, restart shows B, rollback to A with current rev, restart shows A.
 
 ## Root cause / fix
 

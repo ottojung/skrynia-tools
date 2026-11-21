@@ -9,3 +9,8 @@ fn response_hold_saturates_then_recovers() {
 fn trickle_exceeds_absolute_lifetime() {
     support::liveness::trickle_exceeds_absolute_lifetime();
 }
+
+#[test]
+fn backpressure_nonreading_downstream() {
+    support::liveness::backpressure_nonreading_downstream();
+}

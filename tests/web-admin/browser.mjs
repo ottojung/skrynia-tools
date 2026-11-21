@@ -6,21 +6,35 @@ const browser = process.env.CHROME_BIN || 'chromium';
 const port = 18000 + Math.floor(Math.random() * 10000);
 const chrome = spawn(browser, ['--headless=new', '--no-sandbox',
   '--disable-gpu', '--disable-dev-shm-usage', '--no-first-run',
+  '--remote-allow-origins=*',
   '--remote-debugging-port=' + port,
   '--user-data-dir=/tmp/skrynia-admin-chromium-' + process.pid,
   origin + '/'], {stdio:['ignore','ignore','pipe']});
+let chromeErr = '';
+chrome.stderr.on('data', d => {
+  chromeErr += String(d);
+  if (chromeErr.length > 8000) chromeErr = chromeErr.slice(-8000);
+});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function target() {
-  for (let i = 0; i < 100; i++) {
+  let lastTargets = null;
+  for (let i = 0; i < 200; i++) {
+    if (chrome.exitCode !== null) {
+      throw Error('Browser exited before CDP target ready (code='
+        + chrome.exitCode + '): ' + chromeErr.slice(-1500));
+    }
     try {
       const response = await fetch('http://127.0.0.1:' + port + '/json/list');
       const pages = await response.json();
+      lastTargets = pages;
       const page = pages.find(p => p.type === 'page' && p.url?.startsWith(origin));
       if (page?.webSocketDebuggerUrl) return page.webSocketDebuggerUrl;
     } catch {}
     await sleep(100);
   }
-  throw Error('Browser app target unavailable');
+  throw Error('Browser app target unavailable (origin=' + origin
+    + ', targets=' + JSON.stringify(lastTargets)
+    + ', chrome=' + chromeErr.slice(-1500) + ')');
 }
 function evaluator(socket) {
   let next = 0;

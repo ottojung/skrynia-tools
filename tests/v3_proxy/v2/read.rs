@@ -23,7 +23,8 @@ fn v2_provider_can_read_real_disk_via_generic_v3_callbacks() {
         404
     );
     assert_eq!(call(&s, &req("GET", "/store/../evil")).status, 400);
-    assert_eq!(call(&s, &req("POST", "/grants")).status, 501);
+    // Admin routes are guest-owned and require a bearer; no kernel stub.
+    assert_eq!(call(&s, &req("POST", "/grants")).status, 401);
     assert_eq!(call(&s, &req("PUT", "/store/public/file.txt")).status, 401);
     assert_eq!(
         reqwest::blocking::Client::new()

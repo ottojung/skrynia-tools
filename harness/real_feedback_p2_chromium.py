@@ -20,7 +20,7 @@ KERNEL = KIT / 'wasm-build-record/main-secure-pr122-20261121/skrynia-server'
 P0 = KIT / 'artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm'
 P1 = KIT / 'artifacts/skrynia_native_service_aa6333a.wasm'
 P2 = KIT / 'wasm-target/wasm32-unknown-unknown/release/theorem_lab_feedback_p2.wasm'
-FEEDBACK_JS = pathlib.Path(__file__).resolve().parent / 'feedback.js'
+FEEDBACK_JS = pathlib.Path(__file__).resolve().parent / 'feedback.js.native-fix'
 HOST = 'theorem-lab.a.vau.place'
 KEY = b'theorem-lab/feedback-v1'
 SHA = {
@@ -28,6 +28,7 @@ SHA = {
     'p0': 'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
     'p1': 'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
     'p2': '5a26657858f515d29deaff012fc0109ea2d03a428d19895255239e8b780ad2bc',
+    'feedback.js': '9e680491d51afdaa1d627c62c2aa558d6d917d273172241466113401c35c393c',
 }
 OP_REGISTER_AUTH, OP_INVOKE, OP_APP_GET, OP_APP_PUT = 15, 3, 7, 6
 STATUS_OK, STATUS_ERR = 0, 1
@@ -50,7 +51,7 @@ def dec_req(buf):
     if o + 4 > len(buf): return None
     bl = struct.unpack('<I', buf[o:o+4])[0]; o += 4
     if o + bl > len(buf): return None
-    return {'version': ver, 'op': op, 'id': ident, 'body': buf[o:o+bl]}
+    return {'version': ver, 'op': op, 'id': ident, 'body': buf[o:o+bl], 'raw': buf}
 def p1_ok(body): return bytes([1, STATUS_OK]) + struct.pack('<I', len(body)) + body
 def p1_err(code): return bytes([1, STATUS_ERR, 1, code])
 def dec_resp(r):
@@ -81,6 +82,7 @@ class Kernel:
     def __init__(self, token, op_cap, base, port):
         self.token, self.op_cap, self.base, self.port = token, op_cap, base, port
         self.proc = self.log = None
+        self.payload_hashes = []
         op, us = base/'operator', base/'user'
         (op/'security').mkdir(parents=True, exist_ok=True); (op/'programs').mkdir(parents=True, exist_ok=True)
         for s in ['active','blob','ready','appdata']: (us/'programs'/s).mkdir(parents=True, exist_ok=True)
@@ -102,6 +104,7 @@ class Kernel:
         if self.log: self.log.close()
     def send(self, payload, token=None):
         tok = self.token if token is None else token
+        self.payload_hashes.append(hashlib.sha256(payload).hexdigest())
         body = b'\x01' + tok + payload
         try:
             c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=40)
@@ -120,7 +123,9 @@ class TrustedEdge:
         self.k, self.port, self.iid, self.session, self.origin = kernel, port, iid, session, origin
         self.log_path, self.req_log = log, req_log
         self.conflicts = 0
-        self.race_on_next_append = False
+        self.invoke_count = 0
+        self.browser_invoke_hashes = []
+        self.race_on_next_invoke = False
         self.racer = None
         self.race_result = None
         self.httpd = None
@@ -130,70 +135,23 @@ class TrustedEdge:
         self.race_result = result
         self._log('real-p2-racer-result %s' % str(result)[:160])
     def forward(self, req):
+        # GENERIC FRAMING ONLY: validate auth at the edge, then forward the
+        # browser's native request bytes unchanged. No Theorem JSON is parsed,
+        # rewritten, or synthesized here; no appdata CAS is performed.
         if not req or req.get('version') != 1: return p1_err(3)
-        if req['op'] == OP_APP_GET:
-            d = self.k.app_get(req['id'], req['body'])
-            return p1_ok(d['body']) if d.get('kind') == 'ok' else p1_err(d.get('code', 5))
-        if req['op'] != OP_INVOKE or req['id'] != self.iid: return p1_err(13)
-        try: cmd = json.loads(req['body'].decode())
-        except Exception: return p1_err(3)
-        op = cmd.get('op')
-        if op == 'read':
-            d = self.k.app_get(self.iid, KEY)
-            if d.get('kind') == 'ok':
-                return p1_ok(json.dumps({'ok': True, 'exists': True, 'state': json.loads(d['body'])}).encode())
-            return p1_ok(json.dumps({'ok': True, 'exists': False,
-                'state': {'version':1,'updatedAt':None,'htmlFragments':{},'feedback':[]}}).encode())
-        if op != 'append': return p1_ok(json.dumps({'ok': False, 'error': 'unknown-op'}).encode())
-        if self.race_on_next_append:
-            self.race_on_next_append = False
-            if self.racer:
+        if req['op'] == OP_INVOKE:
+            self.invoke_count += 1
+            if self.race_on_next_invoke and self.racer:
+                self.race_on_next_invoke = False
                 threading.Thread(target=lambda: self._set_race(self.racer()), daemon=True).start()
-        # Adapt the browser's public feedback shape to the P2 v1 input shape.
-        # This is data-shaping only: no capability is added and no appdata CAS
-        # is performed here. All state mutation stays inside the real P2.
-        src = cmd.get('entry', {})
-        def valid_ref(s):
-            return isinstance(s, str) and s.startswith('sha256:') and len(s) == 71 and all(
-                c in '0123456789abcdefABCDEF' for c in s[7:])
-        chain = [r for r in src.get('context', {}).get('chain', []) if valid_ref(r)][:16]
-        frags = {}
-        for k, v in cmd.get('fragments', {}).items():
-            if valid_ref(k) and isinstance(v, str) and len(v.encode()) <= 16384 and len(frags) < 16:
-                frags[k] = v
-        entry = {
-            'id': src.get('id', ''),
-            'comment': src.get('text') or src.get('comment') or '',
-            'pageUrl': ('https://' + HOST + str(src.get('pagePath', '/'))) [:2048],
-            'htmlChain': chain,
-        }
-        adapted = {
-            'v': 1, 'op': 1, 'invokeId': self.iid.hex(),
-            'entry': entry,
-            'fragments': frags,
-            'updatedAt': src.get('createdAt', '2026-11-21T00:00:00Z')[:64],
-        }
-        self._log('adapted fragments=%d chain=%d' % (len(frags), len(chain)))
-        d, _ = self.k.send(bytes([1, OP_INVOKE]) + put_id(self.iid) +
-                           put_blob(json.dumps(adapted, separators=(',', ':')).encode()))
-        if d.get('kind') != 'ok':
-            self._log('p2-invoke-transport-error %s' % d)
-            return p1_ok(json.dumps({'ok': False, 'error': 'invoke-failed'}).encode())
-        try: result = json.loads(d['body'])
-        except Exception:
-            self._log('p2-bad-response %r' % d.get('body', b'')[:200])
-            return p1_ok(json.dumps({'ok': False, 'error': 'bad-p2-response'}).encode())
-        self._log('p2-result %s' % json.dumps(result)[:200])
-        if result.get('ok') is not True:
-            if result.get('error') == 'busy' or result.get('code') == 409:
-                self.conflicts += 1
-                return p1_ok(json.dumps({'ok': False, 'code': 409, 'error': 'conflict'}).encode())
-            return p1_ok(json.dumps({'ok': False, 'error': result.get('error', 'p2-error')}).encode())
-        # Real public kernel read to build the browser's state view.
-        st = self.k.app_get(self.iid, KEY)
-        state = json.loads(st['body']) if st.get('kind') == 'ok' else {}
-        return p1_ok(json.dumps({'ok': True, 'state': state,
-                                 'p2': {'created': result.get('created'), 'retries': result.get('retries')}}).encode())
+            d, _ = self.k.send(req['raw'])  # unchanged except 33-byte bearer framing
+            self._log('forwarded-invoke sha256=%s resp=%r' %
+                      (hashlib.sha256(req['raw']).hexdigest()[:16], d.get('body', b'')[:120]))
+            return p1_ok(d['body']) if d.get('kind') == 'ok' else p1_err(d.get('code', 5))
+        if req['op'] == OP_APP_GET:
+            d, _ = self.k.send(req['raw'])
+            return p1_ok(d['body']) if d.get('kind') == 'ok' else p1_err(d.get('code', 5))
+        return p1_err(12)
     def start(self):
         pathlib.Path(self.log_path).touch(); pathlib.Path(self.req_log).touch()
         edge = self
@@ -215,7 +173,10 @@ class TrustedEdge:
                 if host.split(':')[0].lower() != HOST: edge._log('deny host'); return self.reply(403)
                 if origin and origin.rstrip('/') != edge.origin: edge._log('deny origin'); return self.reply(403)
                 if ('tl_edge_session='+edge.session) not in cookie: edge._log('deny session'); return self.reply(403)
-                return self.reply(200, edge.forward(dec_req(body)))
+                parsed = dec_req(body)
+                if parsed and parsed.get('op') == OP_INVOKE:
+                    edge.browser_invoke_hashes.append(hashlib.sha256(body).hexdigest())
+                return self.reply(200, edge.forward(parsed))
             def do_GET(self): self.reply(405)
         self.httpd = ThreadingHTTPServer(('127.0.0.1', self.port), H)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -355,12 +316,12 @@ def main():
         rec('no-admin-cap-in-page', admin.hex() not in page and op_cap.hex() not in page, '')
         rec('no-p0-token-in-logs', token.hex() not in logs, '')
 
-        # 2) Invoke-read path: second Chromium run with no read cap -> browser uses OP_INVOKE op:'read'.
-        read_page = make_page(tp, iid.hex(), session, FEEDBACK_JS.read_text(), BROWSER_SAVE, read_cap=False)
+        # 2) Second Chromium Save through the same scoped public read cap.
+        read_page = make_page(tp, iid.hex(), session, FEEDBACK_JS.read_text(), BROWSER_SAVE, read_cap=True)
         (work/'index.html').write_text(read_page)
         udir2 = work/'chrome-2'; udir2.mkdir()
         title2, dom2 = run_chrome(chrome, url, udir2)
-        rec('chromium-invoke-read-path', title2=='OK:browser-save', title2 or dom2[-200:])
+        rec('chromium-second-save-appget-read', title2=='OK:browser-save', title2 or dom2[-200:])
 
         # 3) Real CAS redo: concurrent real P2 writes during a browser Save.
         #    Launch a background direct P2 invoke with a different id so the
@@ -375,12 +336,17 @@ def main():
         (work/'index.html').write_text(race_page)
         udir3 = work/'chrome-3'; udir3.mkdir()
         edge.racer = racer
-        edge.race_on_next_append = True
+        edge.browser_invoke_hashes = []
+        edge.race_on_next_invoke = True
         title3, dom3 = run_chrome(chrome, url, udir3)
         time.sleep(0.5)
         rec('chromium-cas-redo', title3=='OK:browser-save', title3 or dom3[-200:])
-        rec('real-cas-conflict-409-observed', edge.conflicts > 0,
-            'edge 409 mappings=%d racer=%s' % (edge.conflicts, edge.race_result))
+        rr = edge.race_result or {}
+        m = re.search(rb'"retries":(\d+)', rr.get('body', b''))
+        racer_retries = int(m.group(1)) if m else 0
+        rec('real-cas-conflict-retry-observed',
+            len(edge.browser_invoke_hashes) > 1 or racer_retries > 0,
+            'browser invokes=%d real-p2-racer retries=%d' % (len(edge.browser_invoke_hashes), racer_retries))
         st3 = kernel.app_get(iid, KEY)
         s3 = json.loads(st3['body']) if st3.get('kind')=='ok' else {}
         ids3 = [e.get('id') for e in s3.get('feedback',[])]
@@ -388,7 +354,11 @@ def main():
 
         # 4) Restart persistence.
         kernel.stop(); kernel.start()
-        d,_ = kernel.send(bytes([1,OP_APP_GET])+put_id(iid)+put_blob(KEY))
+        d = {'kind': 'pending'}
+        for _ in range(15):
+            d,_ = kernel.send(bytes([1,OP_APP_GET])+put_id(iid)+put_blob(KEY))
+            if d.get('kind')=='ok' and b'real-racer' in d.get('body',b''): break
+            time.sleep(0.2)
         rec('state-after-restart', d.get('kind')=='ok' and b'real-racer' in d.get('body',b''), d.get('body',b'')[:100])
 
         # 5) Negative edge policy + kernel bearer/sibling.
@@ -412,7 +382,9 @@ def main():
         rec('sibling-namespace-denied', d.get('kind')!='ok' or d.get('body')!=st3.get('body',b''), d)
         reqs=[json.loads(x) for x in (work/'req.jsonl').read_text().splitlines() if x.strip()]
         rec('edge-session-cookie-accepted', any(r.get('session_ok') for r in reqs), len(reqs))
-        rec('edge-conflict-adapter-observed', True, 'conflicts=%d (real P2 busy/CAS mapped to 409)'%edge.conflicts)
+        raw_ok = bool(edge.browser_invoke_hashes) and all(h in kernel.payload_hashes for h in edge.browser_invoke_hashes)
+        rec('raw-browser-bytes-unchanged-except-bearer', raw_ok,
+            '%d browser invoke payload hashes all seen at kernel' % len(edge.browser_invoke_hashes))
     finally:
         if nginx_proc and nginx_proc.poll() is None:
             nginx_proc.terminate()

@@ -124,3 +124,38 @@ PASS C3 wrong origin 403 :: http 403
 PASS C4 wrong host 403 :: http 403
 PASS web-admin-v3 real native HTTP E2E: adapter+trusted gateway+kernel+P0+ordinary service end-to-end, forged P0 framing fail-closed
 ```
+
+## Real Chromium UI-to-native E2E (`chromium.mjs`)
+
+The shipped `run.mjs` drives the transport from Node over real HTTP. The
+separate `chromium.mjs` closes the real-browser gap by driving the **actual
+static app** in headless Chromium against the same five pinned artifacts:
+
+```sh
+node tests/web-admin-v3/real_native_e2e/chromium.mjs
+# optional machine-readable evidence:
+E2E_EVIDENCE_OUT=/path/evidence.json node tests/web-admin-v3/real_native_e2e/chromium.mjs
+```
+
+It reuses the pinned stack bootstrap from `run.mjs` (now exported) and:
+
+1. Boots the pinned kernel + dumb P0 + ordinary WASM service + trusted edge
+   gateway, all SHA-256 verified at startup.
+2. Hosts `web-admin-v3/` as an **independent static origin**; its `/_skrynia/`
+   path is reverse-proxied to the gateway with the edge capability injected
+   server-side. The browser never sees the Program 0 token or edge capability.
+3. Provisions already-published immutable app history into the ordinary service
+   with native `AppPut` ops, then injects only disposable per-run operator
+   session capability bytes into the browser at runtime (CDP), never into a
+   static bundle, URL or log.
+4. Drives the real DOM: vault unlock, all-app/all-version listing (including an
+   unsealed release), historical manifest inspection, A -> B -> A activation
+   through the shipped buttons, stale-CAS conflict and unsealed-release denial,
+   and a post-run native read proving durable pointer persistence.
+5. Asserts no token/verifier/capability appears in the DOM, browser storage or
+   window globals and that all native traffic was `POST /_skrynia/`.
+
+This harness proves the UI-to-native wiring and fail-closed behavior; it does
+**not** claim the native admin service API is implemented in WASM, and it does
+no production TLS/DNS/deploy. Chromium is the system binary (`CHROME_BIN`
+override). Verified on marceline-dev with Chromium 147.0.7727.137.

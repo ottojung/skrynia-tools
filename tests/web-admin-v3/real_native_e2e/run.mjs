@@ -32,7 +32,7 @@ const ADAPTER = new URL('../../../web-admin-v3/binary_transport.js', import.meta
 const { createBinaryPostTransport } = await import(ADAPTER);
 
 // Exact compiled-artifact pins (SHA-256 of bytes, verified at startup).
-const PINS = {
+export const PINS = {
   kernel: {
     path: process.env.SKRYNIA_KERNEL_BIN
       || '/workspace/skrynia-v3-integration-kit/wasm-build-record/main-secure-pr122-20261121/skrynia-server',
@@ -64,7 +64,7 @@ const PINS = {
     note: 'trusted edge gateway, source commit 71773b52',
   },
 };
-const P0_FRAME_PIN = '8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217';
+export const P0_FRAME_PIN = '8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217';
 
 const results = [];
 function rec(name, ok, detail = '') {
@@ -72,18 +72,18 @@ function rec(name, ok, detail = '') {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' :: ' + detail : ''}`);
   return ok;
 }
-const sha256hex = b => createHash('sha256').update(b).digest('hex');
-const sha256buf = b => createHash('sha256').update(b).digest();
-async function hashFile(p) { return sha256hex(await readFile(p)); }
-async function exists(p) { try { await stat(p); return true; } catch { return false; } }
+export const sha256hex = b => createHash('sha256').update(b).digest('hex');
+export const sha256buf = b => createHash('sha256').update(b).digest();
+export async function hashFile(p) { return sha256hex(await readFile(p)); }
+export async function exists(p) { try { await stat(p); return true; } catch { return false; } }
 
-async function freePort() {
+export async function freePort() {
   return await new Promise((ok, no) => {
     const s = createServer();
     s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(e => e ? no(e) : ok(p)); });
   });
 }
-async function waitTcp(port, proc, logPath, tries = 250) {
+export async function waitTcp(port, proc, logPath, tries = 250) {
   for (let i = 0; i < tries; i += 1) {
     if (proc.exitCode !== null) {
       throw new Error('process died rc=' + proc.exitCode + ' tail=' + (await readFile(logPath, 'utf8')).slice(-800));
@@ -97,7 +97,7 @@ async function waitTcp(port, proc, logPath, tries = 250) {
   }
   throw new Error('timeout waiting for tcp ' + port + ' tail=' + (await readFile(logPath, 'utf8')).slice(-800));
 }
-async function stopProc(proc) {
+export async function stopProc(proc) {
   if (!proc || proc.exitCode !== null) return;
   proc.kill('SIGTERM');
   for (let i = 0; i < 50; i += 1) { if (proc.exitCode !== null) return; await delay(100); }
@@ -105,24 +105,24 @@ async function stopProc(proc) {
 }
 
 // ---- native wire helpers (mirror the P1 ordinary service ABI; P0 decodes none) ----
-const putId = b => { const x = Buffer.from(b); const h = Buffer.alloc(2); h.writeUInt16LE(x.length); return Buffer.concat([h, x]); };
-const putBlob = b => { const x = Buffer.from(b); const h = Buffer.alloc(4); h.writeUInt32LE(x.length); return Buffer.concat([h, x]); };
-const registerOp = (opCap, adminCap, wasm) => Buffer.concat([Buffer.from([0x01, 0x0f]), putId(opCap), putId(adminCap), putBlob(wasm)]);
-const lookupOp = iid => Buffer.concat([Buffer.from([0x01, 0x04]), putId(iid)]);
-const invokeOp = (iid, payload) => Buffer.concat([Buffer.from([0x01, 0x03]), putId(iid), putBlob(payload)]);
-const appPutOp = (adminCap, key, value) => Buffer.concat([
+export const putId = b => { const x = Buffer.from(b); const h = Buffer.alloc(2); h.writeUInt16LE(x.length); return Buffer.concat([h, x]); };
+export const putBlob = b => { const x = Buffer.from(b); const h = Buffer.alloc(4); h.writeUInt32LE(x.length); return Buffer.concat([h, x]); };
+export const registerOp = (opCap, adminCap, wasm) => Buffer.concat([Buffer.from([0x01, 0x0f]), putId(opCap), putId(adminCap), putBlob(wasm)]);
+export const lookupOp = iid => Buffer.concat([Buffer.from([0x01, 0x04]), putId(iid)]);
+export const invokeOp = (iid, payload) => Buffer.concat([Buffer.from([0x01, 0x03]), putId(iid), putBlob(payload)]);
+export const appPutOp = (adminCap, key, value) => Buffer.concat([
   Buffer.from([0x01, 0x06]), putId(adminCap), putBlob(key),
   Buffer.from([0]), // expect-absent precondition
   putBlob(value),
 ]);
-const appCasOp = (adminCap, key, expectedHash, value) => Buffer.concat([
+export const appCasOp = (adminCap, key, expectedHash, value) => Buffer.concat([
   Buffer.from([0x01, 0x06]), putId(adminCap), putBlob(key),
   Buffer.from([1]), Buffer.from(expectedHash), putBlob(value),
 ]);
-const appGetOp = (iid, key) => Buffer.concat([Buffer.from([0x01, 0x07]), putId(iid), putBlob(key)]);
+export const appGetOp = (iid, key) => Buffer.concat([Buffer.from([0x01, 0x07]), putId(iid), putBlob(key)]);
 
 // Kernel response envelope: 0x01(version) || status || u32 LE length || body.
-function decodeResponse(buf) {
+export function decodeResponse(buf) {
   const b = Buffer.from(buf);
   if (b.length < 6 || b[0] !== 1) throw new Error('bad native response framing: ' + b.subarray(0, 16).toString('hex'));
   const len = b.readUInt32LE(2);
@@ -131,7 +131,7 @@ function decodeResponse(buf) {
 }
 
 // Direct kernel POST with an arbitrary full body (used only for forged frames).
-async function rawKernelBody(port, body, timeoutMs = 15000) {
+export async function rawKernelBody(port, body, timeoutMs = 15000) {
   return await new Promise((ok, no) => {
     const req = http.request({ host: '127.0.0.1', port, path: '/', method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': body.length } }, res => {
@@ -141,9 +141,9 @@ async function rawKernelBody(port, body, timeoutMs = 15000) {
     req.end(Buffer.from(body));
   });
 }
-const framed = (token, payload) => Buffer.concat([Buffer.from([0x01]), Buffer.from(token), Buffer.from(payload)]);
+export const framed = (token, payload) => Buffer.concat([Buffer.from([0x01]), Buffer.from(token), Buffer.from(payload)]);
 
-async function startKernel({ base, port, token, opCap, logs }) {
+export async function startKernel({ base, port, token, opCap, logs }) {
   const op = join(base, 'operator'), us = join(base, 'user');
   await mkdir(join(op, 'security'), { recursive: true });
   await mkdir(join(op, 'programs'), { recursive: true });
@@ -161,7 +161,7 @@ async function startKernel({ base, port, token, opCap, logs }) {
   return { proc, op, us, logPath };
 }
 
-async function startGateway({ dir, port, kernelPort, token, edgeCap, logs }) {
+export async function startGateway({ dir, port, kernelPort, token, edgeCap, logs, appHost, appOrigin }) {
   await mkdir(dir, { recursive: true });
   const tokenFile = join(dir, 'operator.token');
   await writeFile(tokenFile, token, { mode: 0o600 });
@@ -173,7 +173,7 @@ async function startGateway({ dir, port, kernelPort, token, edgeCap, logs }) {
     upstream: `http://127.0.0.1:${kernelPort}/`,
     operator_token_file: tokenFile,
     max_body_bytes: 4 * 1024 * 1024,
-    apps: [{ name: 'webadmin-v3-e2e', hosts: [host], origins: [origin], edge_capabilities: [edgeCap] }],
+    apps: [{ name: 'webadmin-v3-e2e', hosts: [appHost || host], origins: [appOrigin || origin], edge_capabilities: [edgeCap] }],
   }), { mode: 0o600 });
   const logPath = join(dir, logs);
   const fd = fsn.openSync(logPath, 'a');
@@ -186,7 +186,7 @@ async function startGateway({ dir, port, kernelPort, token, edgeCap, logs }) {
 
 // Minimal injected fetch for the shipped adapter: adds the gateway-only
 // session headers (edge cap + origin) that never live in the public bundle.
-function gatewayFetch({ host, origin, edgeCap }) {
+export function gatewayFetch({ host, origin, edgeCap }) {
   return (url, init) => new Promise((resolve, reject) => {
     const u = new URL(url);
     const body = Buffer.from(init.body);
@@ -207,7 +207,7 @@ function gatewayFetch({ host, origin, edgeCap }) {
 }
 
 // Raw gateway request for auth-boundary negatives (bypasses the adapter).
-function rawGatewayPost({ host, origin, edgeCap, port, body }) {
+export function rawGatewayPost({ host, origin, edgeCap, port, body }) {
   return new Promise((resolve, reject) => {
     const headers = { 'Content-Type': 'application/octet-stream', 'Content-Length': body.length };
     if (origin !== null) headers.Origin = origin;
@@ -348,4 +348,7 @@ async function main() {
   }
 }
 
-main().catch(e => { console.error(e.stack || String(e)); process.exit(1); });
+// Reusable as a library (see chromium.mjs); run only when invoked directly.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(e => { console.error(e.stack || String(e)); process.exit(1); });
+}

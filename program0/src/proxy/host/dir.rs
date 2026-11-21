@@ -21,9 +21,10 @@ pub fn next(req: &[u8], cap: usize) -> Vec<u8> {
     let (Some(fd), Some(len)) = (wire::u32_at(req, &mut at), wire::u32_at(req, &mut at)) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() || len as usize > wire::LIMIT || len as usize > cap.saturating_sub(4) {
-        return wire::reply(wire::OVERFLOW, &[]);
+    if at != req.len() {
+        return wire::reply(wire::INVALID, &[]);
     }
+    let len = (len as usize).min(cap.saturating_sub(4).min(wire::LIMIT)) as u32;
     if !scope::allows(fd as i32) {
         return wire::reply(wire::INVALID, &[]);
     }

@@ -7,9 +7,8 @@ pub fn read(req: &[u8], capacity: usize) -> Vec<u8> {
     if at != req.len() {
         return wire::reply(wire::INVALID, &[]);
     }
-    if len as usize > wire::LIMIT || len as usize > capacity.saturating_sub(4) {
-        return wire::reply(wire::OVERFLOW, &[]);
-    }
+    let max_len = capacity.saturating_sub(4).min(wire::LIMIT);
+    let len = (len as usize).min(max_len) as u32;
     if !scope::allows(fd as i32) {
         return wire::reply(wire::INVALID, &[]);
     }

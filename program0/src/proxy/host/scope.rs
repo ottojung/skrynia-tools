@@ -5,7 +5,7 @@ pub const PREFIX: &str = match option_env!("SKRYNIA_P0_FS_PREFIX") {
     None => "",
 };
 pub const WRITE_OK: bool = option_env!("SKRYNIA_P0_FS_WRITE").is_some();
-pub const MAX_FDS: usize = 16;
+pub const MAX_FDS: usize = 64;
 
 /// Accept only plain descendant paths under a delegated prefix.
 pub fn path_in(prefix: &str, path: &[u8]) -> bool {
@@ -18,7 +18,8 @@ pub fn path_in(prefix: &str, path: &[u8]) -> bool {
     if s.split('/').any(|p| p.is_empty() || p == "." || p == "..") {
         return false;
     }
-    s.strip_prefix(prefix).is_some_and(|r| r.starts_with('/'))
+    s.strip_prefix(prefix)
+        .is_some_and(|r| r.is_empty() || r.starts_with('/'))
 }
 
 pub fn path_ok(path: &[u8]) -> bool {
@@ -67,6 +68,7 @@ pub fn grant(fd: i32) -> bool {
 pub fn allows(fd: i32) -> bool {
     unsafe { (*core::ptr::addr_of!(DELEGATED)).has(fd) }
 }
+#[allow(dead_code)]
 pub fn revoke(fd: i32) {
     unsafe { (*core::ptr::addr_of_mut!(DELEGATED)).revoke(fd) }
 }

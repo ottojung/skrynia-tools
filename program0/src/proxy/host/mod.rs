@@ -9,6 +9,7 @@ mod scope;
 #[cfg(test)]
 mod scope_tests;
 mod wire;
+pub use scope::PREFIX;
 
 fn run(req: &[u8], dc: usize) -> Result<Vec<u8>, i32> {
     if dc < 4 || req.len() > wire::LIMIT + 16 {

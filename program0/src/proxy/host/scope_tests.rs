@@ -2,10 +2,10 @@ use super::scope::{Fds, MAX_FDS, path_in, write_in};
 
 #[test]
 fn delegated_path_is_descendant_only() {
+    assert!(path_in("programs", b"programs"));
     assert!(path_in("programs", b"programs/app/a.json"));
     for bad in [
-        b"programs".as_slice(),
-        b"programs2/a",
+        b"programs2/a".as_slice(),
         b"../programs/a",
         b"programs/../secret",
         b"programs//a",

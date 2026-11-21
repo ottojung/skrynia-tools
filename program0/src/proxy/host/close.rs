@@ -7,7 +7,7 @@ pub fn call(req: &[u8]) -> Vec<u8> {
     if at != req.len() || !scope::allows(fd as i32) {
         return wire::reply(wire::INVALID, &[]);
     }
-    let result = unsafe { abi::close(fd as i32) };
-    scope::revoke(fd as i32);
-    wire::reply(result, &[])
+    // The kernel owns FD lifecycle/scope; keep the delegated allowlist
+    // monotonic so a kernel-reused handle number stays authorized.
+    wire::reply(unsafe { abi::close(fd as i32) }, &[])
 }

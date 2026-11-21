@@ -55,3 +55,11 @@ pub unsafe fn release_mutation_lock() -> i32 {
 pub unsafe fn eval(_c: u32, _cl: u32, _i: i32, _o: i32, _cb: i32) -> i32 {
     0
 }
+#[allow(dead_code)]
+pub unsafe fn eval_delegate(_c: u32, _cl: u32, _i: i32, _o: i32, _cb: i32) -> i32 {
+    0
+}
+#[allow(dead_code)]
+pub unsafe fn fs_delegate_scope(_r: i32, _p: u32, _n: u32, _ops: u32) -> i32 {
+    0
+}

@@ -1,7 +1,7 @@
 # cb-guest mediated nested-eval adaptation status
 
 Branch: `agent/temperate-cb-guest-mediated-eval` (based on PR #48 `agent/persist-svc-qualify-bonfires@282ed2b`).
-Kernel ABI reference: `ccbbbdf1e771` / `6bc52ec` compose-eval (`docs/nested-eval-abi.md`, PR #116, base PR115).
+Kernel ABI references: nested mediation `6bc52ec/7695fd3/ccbbbdf` (`docs/nested-eval-abi.md`), buffered bridge `004c01b` on `agent/hQGjVJwW8gkAfcPE3WnB1s/8dWY-buffered-eval` (`docs/buffered-eval-abi.md`, stacked atop nested reentrancy/PR117 lineage).
 
 ## Adapted in this branch
 
@@ -12,42 +12,46 @@ Kernel ABI reference: `ccbbbdf1e771` / `6bc52ec` compose-eval (`docs/nested-eval
 - `native-service/src/cb_guest/eval/{mod,cb,kernel}.rs`: added cb-guest mediator callback
   (`skrynia_mediator_cb`, indirect-table index) that mediates P2 `invoke` requests through
   `appdata::cb::guest_callback` under app-scoped delegated rights (self-namespace/invoke_id
-  only), plus direct kernel `skrynia.eval` import and `MediatorEval` replacing `NoEval`.
+  only). `MediatorEval` now invokes kernel `skrynia.eval_buffered(code_ptr,code_len,req_ptr,req_len,res_ptr,res_cap,cb_idx)`
+  (004c01b ABI) with immediate-parent callback mediation, returning buffered P2 output bytes
+  for registry `Request::Invoke` (replaces `NoEval` / prior `-4` bridge stub).
 - `native-service/src/cb_guest/entry.rs`: service uses `MediatorEval`.
-- `native-service/src/registry/reg_ops/invoke.rs`: sets/clears cb-guest mediation context
-  for the raw kernel callback path (host `root_eval` hooks remain gated out for cb-guest).
+- `native-service/src/registry/reg_ops/invoke.rs`: sets/clears cb-guest mediation context for
+  the raw kernel callback path (host `root_eval` hooks remain gated out for cb-guest).
 - `native-service/src/cb_guest/cap/wire.rs` and `program0/src/proxy/host/wire.rs` unchanged:
-  P0↔P1 relay opcodes 1-13 are `OPEN_DISK..TRY_LOCK,RELEASE_LOCK`; nested eval is a direct
-  kernel import in compose-eval ABI, not a relay opcode. No opcode-13 conflict in this wire.
+  P0↔P1 relay opcodes 1-13 are `OPEN_DISK..TRY_LOCK,RELEASE_LOCK`; nested/buffered eval are
+  direct kernel imports in current ABI, not relay opcodes. No opcode-13 conflict in this wire.
 
 ## Host validation (independent target `/tmp/opencode/target-bonfires`)
 
 - `cargo fmt --all -- --check`: PASS
-- `rustc --test source_lints/mod.rs`: PASS (7/7)
+- `rustc --test source_lints/mod.rs -o /tmp/opencode/skrynia-lint-tests-bonfires`: PASS (7/7)
 - `cargo clippy -p skrynia-native-service --all-targets --locked -- -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity`: PASS
 - `cargo test -p skrynia-native-service --locked`: PASS (2 unit + 35 integration)
-- `cargo test -p skrynia-native-service --doc`: not executed (`rustdoc` missing in environment)
+- `cargo test -p skrynia-native-service --doc`: not executed (`rustdoc` missing)
 
-## Blockers (precise)
+## wasm32 toolchain / artifacts / runtime validation
 
-1. **wasm32 P1/P2 artifacts not built (no fake success):** `rustc 1.93.0` stable
-   (`/gnu/store/r4i9jyz2mlvvyww6mwcgacmapm4rjllm-rust-1.93.0`), no `rustup`, no installed
-   `wasm32-unknown-unknown` rustlib. rust-src 1.93 present in sysroot and
-   `/workspace/skrynia-buildstd-sysroot/lib/rustlib/src/rust/library/...` (and Guix rust-src
-   stores) but `RUSTC_BOOTSTRAP=1 cargo build -Z build-std=std,panic_abort --target wasm32-unknown-unknown`
-   failed in this environment during std dependency resolution (`getopts`/`vex-sdk` checksum
-   mismatch between lock files while fetching build-std deps, even with `--offline` attempts
-   showing lock/registry state issues). No prebuilt wasm32 std rlibs found in `/gnu/store`.
-2. **Buffered Invoke I/O bridge for fd-based nested eval:** compose-eval ABI transfers child
-   I/O as kernel FDs `(in_fd,out_fd)` taken from mediator's fd table; cb-guest mediator has no
-   guest capability to create buffer-backed stream FDs for registry `Request::Invoke` byte
-   input/output. `MediatorEval::eval` therefore returns `-4` (permission/capability unavailable)
-   rather than misrouting streams. Real P2 execution for buffered invoke requires coordinated
-   generic ABI for guest buffer/pipe stream FDs or an explicit buffered-eval mediation contract.
-3. **Real POST+P0+P1+P2 adversarial HTTP tests not run:** requires wasm32 P0/P1/(P2) artifacts
-   and a pinned/integrated kernel runtime implementing ccbbbdf/6bc52ec mediation ABI; not
-   available here and no kernel builds duplicated. Host Rust tests remain green but are not
-   equivalent to real compiled wasm32/HTTP mediation proofs (scoped authorized success, sibling/
-   root FD denial, trap/cancel/restart, CAS durability).
-4. **Board/Antonina coordination:** cannot post to Antonina/PR issue tracker from this
-   environment; requires owner/reviewer handoff.
+- Integration kit documents reproducible wasm32 build-std procedure for 006a0d3 artifacts
+  (`/workspace/skrynia-v3-integration-kit/wasm-build-record/README.md`, prebuilt 006a0d3 hashes
+  `skrynia_program0.wasm=65396f61...`, `skrynia_native_service.wasm(cb-guest)=665d47dd...`).
+  This session updates source to call `eval_buffered`; new artifact hashes and end-to-end
+  runtime validation depend on rebuilding from current HEAD and running against a kernel+P0
+  implementing buffered-eval + eval-delegate mediator capability (see below).
+- **Not yet completed in this continuation:** rebuild current wasm32 P0/cb-guest artifacts with
+  exact recorded hashes, and execute real POST+P0+P1+P2 adversarial HTTP tests on a pinned
+  compatible kit/kernel (004c01b+ mediator-capable P0) proving authorized scoped P2 execution,
+  invalid/sibling/root denial, trap/cancel/restart, and A-B-A CAS code-only rollback.
+
+## Remaining blockers / coordination
+
+1. **Pinned compatible runtime:** need kernel binary/commit with `eval_buffered` + mediated
+   callback provider semantics (004c01b/8dWY lineage) and P0 that `eval_delegate`s forwarded
+   service; pinned kit P0 `d166d974` uses plain `eval` (no mediator capability) so new cb-guest
+   (imports eval/eval_buffered) is not compatible with it.
+2. **Real compiled P1/P2 HTTP proofs:** pending artifact rebuild and execution on coordinated
+   kit (owner H5) with P0 security/behavior coordination (wB1) and kernel specialist (hQGj,
+   004c01b / 8dWYQhFw8BiBLUqpXSccAZ-enhance). No duplicate kernel caches.
+3. **Board/Antonina:** cannot post to Antonina issue tracker from environment; record exact
+   SHAs/hashes/tests for owner handoff.
+4. **No production/secrets/Ivanka.**

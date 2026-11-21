@@ -19,6 +19,6 @@ impl crate::cap::Eval for MediatorEval {
         input: &[u8],
         _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
     ) -> Result<Vec<u8>, i32> {
-        kernel::eval_buffered(wasm, input)
+        kernel::eval_buffered_call(wasm, input)
     }
 }

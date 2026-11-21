@@ -23,9 +23,10 @@ pub fn write_atomic(path: &str, bytes: &[u8]) -> Result<(), i32> {
     if res.is_ok() {
         let mut s = vec![wire::SYNC];
         wire::put_u32(&mut s, fd as u32);
-        let (n, _) = call::call(&s).unwrap_or((-5, vec![]));
-        if n < 0 {
-            res = Err(n);
+        match call::call(&s) {
+            Ok((n, _)) if n < 0 => res = Err(n),
+            Err(e) => res = Err(e),
+            _ => {}
         }
     }
     let _ = close(fd);
@@ -38,12 +39,18 @@ pub fn write_atomic(path: &str, bytes: &[u8]) -> Result<(), i32> {
     let mut rn = vec![wire::RENAME];
     wire::put_bytes(&mut rn, tmp.as_bytes());
     wire::put_bytes(&mut rn, path.as_bytes());
-    let (n, _) = call::call(&rn)?;
-    if n < 0 {
-        let mut d = vec![wire::DELETE];
-        wire::put_bytes(&mut d, tmp.as_bytes());
-        let _ = call::call(&d);
-        return Err(n);
+    match call::call(&rn) {
+        Ok((n, _)) if n < 0 => {
+            let mut d = vec![wire::DELETE];
+            wire::put_bytes(&mut d, tmp.as_bytes());
+            let _ = call::call(&d);
+            return Err(n);
+        }
+        Ok(_) => sync_dir(dir),
+        Err(e) => {
+            // Transport/protocol failure after rename request: outcome may be
+            // committed-but-ack-lost. Fail closed without claiming rollback.
+            Err(e)
+        }
     }
-    sync_dir(dir)
 }

@@ -47,7 +47,10 @@ this directory contains only the app).
   fail-closed defaults. Injected fake capabilities are test doubles only: they
   do not demonstrate that a native Program 0, gateway or ordinary service
   backend exists or is authorized. Real kernel + Program 0 + service end-to-end
-  qualification remains a separate release gate.
+  qualification of this transport is provided by
+  `tests/web-admin-v3/real_native_e2e/run.mjs` against pinned compiled artifacts
+  (host-local HTTP, disposable token); see that harness README for exact scope
+  and the still-open native admin API qualification gate.
 
 ## Integration contract (pending native service qualification)
 
@@ -109,6 +112,13 @@ node tests/web-admin-v3/app_history_activation.mjs
 node tests/web-admin-v3/fail_closed.mjs
 node tests/web-admin-v3/browser_vault_lock.mjs
 node tests/web-admin-v3/p0_framing_decode.mjs
+```
+
+Real native HTTP qualification against the pinned compiled kernel + P0 +
+ordinary service + trusted gateway (host-local, not run by default):
+
+```sh
+node tests/web-admin-v3/real_native_e2e/run.mjs
 ```
 
 ## Native release identity and ABA safety

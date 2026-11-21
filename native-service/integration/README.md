@@ -34,7 +34,7 @@ fixture (real compiled kernel + P0 + P1 + echo P2 over HTTP, no mocks) with
 sha256-pinned inputs:
 
 - kernel: secure PR122 bridge `8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f`
-- P0: clean PR53 dumb proxy `ec74523be4d537969b6a9b93d702ba5f550a1205ca7fa85c3dc3261c5e1645dc`
+- P0: clean PR53 dumb proxy rebuilt from PR53 source in this recovered environment `d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa` (the earlier `ec74523b...` artifact lived under `/tmp` and was lost in the container restart; exact byte reproduction was not possible here because the isolated sysroot snapshot was also lost, but this PR53-source rebuild passes the same acceptance unchanged).
 - P1: this branch `83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a`
 - P2 echo: `dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5`
 

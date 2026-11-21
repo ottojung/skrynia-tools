@@ -9,12 +9,12 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 KIT="/workspace/skrynia-v3-integration-kit"
 
 KERNEL="${KERNEL:-$KIT/wasm-build-record/main-secure-pr122-20261121/skrynia-server}"
-P0="${P0:-$KIT/artifacts/skrynia_program0_pr53_ec74523b.wasm}"
+P0="${P0:-$KIT/artifacts/skrynia_program0_pr53_rebuild_d57ab27a.wasm}"
 P1="${P1:-$KIT/artifacts/skrynia_native_service_p1clean_83a65a2f.wasm}"
 ECHO="${ECHO:-$KIT/tests/guests/echo_guest.wasm}"
 
 KERNEL_SHA=8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f
-P0_SHA=ec74523be4d537969b6a9b93d702ba5f550a1205ca7fa85c3dc3261c5e1645dc
+P0_SHA=d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa
 P1_SHA=83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a
 ECHO_SHA=dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5
 

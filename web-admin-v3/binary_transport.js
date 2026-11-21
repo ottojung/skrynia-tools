@@ -1,6 +1,10 @@
+// The endpoint is the trusted same-origin gateway, not Program 0 directly.
+// The browser posts opaque bytes; the gateway constructs the pinned Program 0
+// token frame server-side. No root/issuer/write token belongs in public assets,
+// URLs or logs, and this adapter defines no native opcodes.
 export function createBinaryPostTransport(endpoint, fetchImpl = globalThis.fetch) {
   if (typeof endpoint !== 'string' || !/^https?:\/\//.test(endpoint)) {
-    throw Error('A valid Program 0 HTTPS endpoint is required');
+    throw Error('A valid trusted gateway HTTPS endpoint is required');
   }
   if (typeof fetchImpl !== 'function') {
     throw Error('Fetch capability is required');
@@ -20,13 +24,13 @@ export function createBinaryPostTransport(endpoint, fetchImpl = globalThis.fetch
           body: bytes,
         });
       } catch {
-        throw Object.assign(Error('Program 0 request failed; outcome unknown'), {
+        throw Object.assign(Error('Gateway request failed; outcome unknown'), {
           code: 'transport_unknown',
         });
       }
       const body = new Uint8Array(await response.arrayBuffer());
       if (response.status < 200 || response.status >= 300) {
-        throw Object.assign(Error('Program 0 rejected request (HTTP ' + response.status + ')'), {
+        throw Object.assign(Error('Gateway rejected request (HTTP ' + response.status + ')'), {
           code: 'rejected',
           status: response.status,
           body,

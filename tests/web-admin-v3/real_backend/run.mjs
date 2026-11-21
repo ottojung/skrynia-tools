@@ -197,6 +197,7 @@ async function main() {
         'stale-expectation-conflict',
         'gateway-session-authentication',
         'unauthenticated-request-rejected',
+        'browser-negative-auth',
         'chromium-browser-ui-activate-inspect',
         'state-survives-gateway-restart',
         'post-restart-cas-continuity',

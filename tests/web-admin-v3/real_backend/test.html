@@ -77,13 +77,20 @@ async function run(){
     if(!appsText.includes('alpha') || !appsText.includes('beta')) throw Error('expected apps missing: ' + appsText.slice(0,300));
 
     if(phase === 'verify'){
+      // Browser negative auth: direct unauthenticated request must be rejected (no root/Program 0 token in JS)
+      const unauth = await fetch('/_skrynia/', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({op:'listApps'})});
+      let unauthBody = null; try { unauthBody = await unauth.json(); } catch {}
+      if(unauth.status !== 401 || !unauthBody || unauthBody.ok !== false || !unauthBody.error || unauthBody.error.code !== 'unauthorized'){
+        throw Error('browser negative auth failed: status=' + unauth.status + ' body=' + JSON.stringify(unauthBody));
+      }
+      log('browser negative auth rejected unauthenticated request');
       if(expectActive && !appsText.includes('Active pointer (release ID/hash): ' + expectActive)){
         throw Error('expected active ' + expectActive + ' not found in: ' + appsText.slice(0,500));
       }
       if(expectRevision && !appsText.includes('Loaded CAS pointer state (optimistic token): ' + expectRevision)){
         throw Error('expected revision ' + expectRevision + ' not found in: ' + appsText.slice(0,500));
       }
-      setResult(true, 'verified active/revision after restart');
+      setResult(true, 'verified active/revision after restart + browser negative auth');
       return;
     }
 

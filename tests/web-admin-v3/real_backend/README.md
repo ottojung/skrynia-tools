@@ -29,9 +29,10 @@ Run:
 node tests/web-admin-v3/real_backend/run.mjs
 ```
 
-The run verifies authenticated/unauthenticated gateway access, immutable ready
-release history, ABA-safe constant-work pointer CAS activation/rollback,
-Chromium UI flows, and persistence across restart.
+The run verifies authenticated/unauthenticated gateway access (including
+browser-side negative auth), immutable ready release history, ABA-safe
+constant-work pointer CAS activation/rollback, Chromium UI flows, and
+persistence across restart.
 
 This is a protocol/reference backend integration harness; it does not run the
 registry service as a WASM guest inside a Skrynia kernel/Program 0 stack.

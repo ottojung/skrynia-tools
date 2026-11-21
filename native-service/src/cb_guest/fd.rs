@@ -1,4 +1,6 @@
 use super::cap::{call, wire};
+const MAX_REQ: usize = 16 * 1024 * 1024;
+
 pub fn read_all(fd: i32) -> Result<Vec<u8>, i32> {
     let mut out = Vec::new();
     loop {
@@ -12,7 +14,11 @@ pub fn read_all(fd: i32) -> Result<Vec<u8>, i32> {
         if n == 0 {
             return Ok(out);
         }
-        out.extend_from_slice(&b[..n as usize]);
+        let n = n as usize;
+        if out.len().saturating_add(n) > MAX_REQ {
+            return Err(-11);
+        }
+        out.extend_from_slice(&b[..n]);
     }
 }
 pub fn write_all(fd: i32, data: &[u8]) -> Result<(), i32> {

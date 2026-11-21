@@ -30,7 +30,11 @@ pub fn sync_dir(dir: &str) -> Result<(), i32> {
     }
     let mut s = vec![wire::SYNC];
     wire::put_u32(&mut s, fd as u32);
-    let (n, _) = call::call(&s)?;
-    let _ = close(fd);
-    if n < 0 { Err(n) } else { Ok(()) }
+    let sync = call::call(&s);
+    let close_res = close(fd);
+    let (n, _) = sync?;
+    if n < 0 {
+        return Err(n);
+    }
+    close_res
 }

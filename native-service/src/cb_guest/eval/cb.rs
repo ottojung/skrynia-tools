@@ -1,6 +1,3 @@
-use super::super::cap::{CbDisk, CbLock};
-use crate::registry::appdata;
-
 static mut INVOKE_ID: Option<Vec<u8>> = None;
 const DIR: &str = "programs";
 
@@ -28,7 +25,9 @@ pub extern "C" fn skrynia_mediator_cb(rp: u32, rl: u32, dp: u32, dc: u32) -> i32
         return -13;
     };
     let req = unsafe { core::slice::from_raw_parts(rp as *const u8, rl as usize) };
-    let res = match appdata::cb::guest_callback(&CbDisk, &CbLock, DIR, &iid, req) {
+    let disk = crate::cb_guest::cap::CbDisk;
+    let lock = crate::cb_guest::cap::CbLock;
+    let res = match crate::registry::appdata::cb::guest_callback(&disk, &lock, DIR, &iid, req) {
         Ok(v) => v,
         Err(e) => return e,
     };

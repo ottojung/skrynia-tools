@@ -1,8 +1,6 @@
 use super::{call, wire};
-use crate::MutLock;
-use crate::cap::Random;
 pub struct CbLock;
-impl MutLock for CbLock {
+impl crate::MutLock for CbLock {
     type Err = i32;
     fn try_acquire(&self) -> Result<bool, i32> {
         let (n, _) = call::call(&[wire::TRY_LOCK])?;
@@ -19,7 +17,7 @@ impl MutLock for CbLock {
     }
 }
 pub struct CbRandom;
-impl Random for CbRandom {
+impl crate::cap::Random for CbRandom {
     type Err = i32;
     fn fill(&self, out: &mut [u8]) -> Result<(), i32> {
         let bits = (out.len() as u32).saturating_mul(8);

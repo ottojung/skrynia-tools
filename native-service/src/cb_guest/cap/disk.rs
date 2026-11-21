@@ -1,7 +1,6 @@
 use super::{disk_atom, disk_ls, disk_read, disk_rm};
-use crate::cap::Disk;
 pub struct CbDisk;
-impl Disk for CbDisk {
+impl crate::cap::Disk for CbDisk {
     type Err = i32;
     fn read_all(&self, path: &str) -> Result<Option<Vec<u8>>, i32> {
         disk_read::read_all(path)

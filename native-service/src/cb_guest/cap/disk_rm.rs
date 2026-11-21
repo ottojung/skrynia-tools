@@ -1,14 +1,5 @@
 use super::disk_read::close;
 use super::{call, wire};
-pub fn hex(b: &[u8]) -> String {
-    const H: &[u8; 16] = b"0123456789abcdef";
-    let mut s = String::with_capacity(b.len() * 2);
-    for &x in b {
-        s.push(H[(x >> 4) as usize] as char);
-        s.push(H[(x & 0x0f) as usize] as char);
-    }
-    s
-}
 pub fn remove(path: &str) -> Result<(), i32> {
     let mut r = vec![wire::DELETE];
     wire::put_bytes(&mut r, path.as_bytes());
@@ -37,4 +28,19 @@ pub fn sync_dir(dir: &str) -> Result<(), i32> {
         return Err(n);
     }
     close_res
+}
+pub fn rename_sync(tmp: &str, path: &str, dir: &str) -> Result<(), i32> {
+    let mut rn = vec![wire::RENAME];
+    wire::put_bytes(&mut rn, tmp.as_bytes());
+    wire::put_bytes(&mut rn, path.as_bytes());
+    match call::call(&rn) {
+        Ok((n, _)) if n < 0 => {
+            let mut d = vec![wire::DELETE];
+            wire::put_bytes(&mut d, tmp.as_bytes());
+            let _ = call::call(&d);
+            Err(n)
+        }
+        Ok(_) => sync_dir(dir),
+        Err(e) => Err(e),
+    }
 }

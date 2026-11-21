@@ -23,14 +23,17 @@ unsafe extern "C" {
     pub fn sync(fd: i32) -> i32;
     pub fn now() -> i64;
     pub fn secure_random_bits(dst_ptr: u32, bits: u32) -> i32;
-    pub fn eval(
+    // Kernel buffered child-eval ABI (skrynia #118). Linked only when the
+    // invoking guest was created via skrynia.eval_delegate; argument order is
+    // (code, req, res, cb_idx), with cb_idx last.
+    pub fn eval_buffered(
         code_ptr: u32,
         code_len: u32,
-        input_ptr: u32,
-        input_len: u32,
-        cb_table_idx: i32,
-        out_ptr: u32,
-        out_cap: u32,
+        req_ptr: u32,
+        req_len: u32,
+        res_ptr: u32,
+        res_cap: u32,
+        cb_idx: i32,
     ) -> i32;
     pub fn eval_output_len() -> i32;
 }

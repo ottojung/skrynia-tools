@@ -1,0 +1,20 @@
+use super::ExecError;
+use crate::decode_status;
+use alloc::vec::Vec;
+use sha2::{Digest, Sha256};
+
+pub fn hash32(bytes: &[u8]) -> [u8; 32] {
+    Sha256::digest(bytes).into()
+}
+pub fn invoke_req<F>(invoke: &mut F, req: &[u8]) -> Result<(u8, Vec<u8>), ExecError>
+where
+    F: FnMut(&[u8], &mut [u8]) -> i32,
+{
+    let mut out = alloc::vec![0u8; 1024 * 1024];
+    let n = invoke(req, &mut out);
+    if n < 0 || n as usize > out.len() {
+        return Err(ExecError::Io);
+    }
+    let (status, body) = decode_status(&out[..n as usize]).map_err(|_| ExecError::Io)?;
+    Ok((status, body.to_vec()))
+}

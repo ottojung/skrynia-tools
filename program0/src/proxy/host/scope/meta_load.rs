@@ -1,4 +1,5 @@
-use super::{super::abi, meta_dec};
+use super::meta_dec;
+use crate::proxy::abi;
 
 pub fn load(program: &[u8]) -> Option<super::meta::Policy> {
     let mpath = meta_dec::meta_path(program)?;

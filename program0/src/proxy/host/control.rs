@@ -1,4 +1,5 @@
-use super::{abi, scope, wire};
+use super::{scope, wire};
+use crate::proxy::abi;
 pub fn sync(req: &[u8]) -> Vec<u8> {
     if !scope::allowed(scope::op::SYNC) {
         return wire::reply(wire::DENIED, &[]);

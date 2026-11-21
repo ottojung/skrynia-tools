@@ -326,33 +326,54 @@ def main():
         rec('chromium-second-save-appget-read', title2=='OK:browser-save', title2 or dom2[-200:])
 
         # 3) Real CAS redo: concurrent real P2 writes during a browser Save.
-        #    Launch a background direct P2 invoke with a different id so the
-        #    kernel-level CAS contention is genuine (edge does not touch appdata).
-        def racer():
+        #    The racers are direct P2 invokes through the same kernel/P1 path as
+        #    the browser, with distinct entry ids. Contention is genuine: the
+        #    edge neither parses application JSON nor touches appdata.
+        RACER_IDS = ['real-racer-%d' % i for i in range(8)]
+        def racer_one(rid):
             cmd = {'v':1,'op':1,'invokeId':iid.hex(),
-                   'entry':{'id':'real-racer','comment':'real-racer','pageUrl':'https://x','htmlChain':[]},
+                   'entry':{'id':rid,'comment':rid,'pageUrl':'https://x','htmlChain':[]},
                    'fragments':{},'updatedAt':'2026-11-21T00:00:01Z'}
             return kernel.send(bytes([1,OP_INVOKE])+put_id(iid)+put_blob(json.dumps(cmd,separators=(',',':')).encode()))[0]
+        def racer_burst():
+            out = [None]*len(RACER_IDS)
+            def work(i): out[i] = racer_one(RACER_IDS[i])
+            ts = [threading.Thread(target=work, args=(i,)) for i in range(len(RACER_IDS))]
+            for t in ts: t.start()
+            for t in ts: t.join()
+            return out
         race_page = make_page(tp, iid.hex(), session, FEEDBACK_JS.read_text(),
                               BROWSER_SAVE.replace("'actual-P2-feedback-A'","'actual-P2-feedback-B'"), read_cap=True)
         (work/'index.html').write_text(race_page)
         udir3 = work/'chrome-3'; udir3.mkdir()
-        edge.racer = racer
+        edge.racer = racer_burst
         edge.browser_invoke_hashes = []
         edge.race_on_next_invoke = True
         title3, dom3 = run_chrome(chrome, url, udir3)
-        time.sleep(0.5)
+        time.sleep(1.0)
         rec('chromium-cas-redo', title3=='OK:browser-save', title3 or dom3[-200:])
-        rr = edge.race_result or {}
-        m = re.search(rb'"retries":(\d+)', rr.get('body', b''))
-        racer_retries = int(m.group(1)) if m else 0
+        rr = edge.race_result or []
+        if isinstance(rr, dict): rr = [rr]
+        busy = any(b'"error":"busy"' in (x.get('body') or b'') for x in rr)
+        racer_retries = max([int(m.group(1)) for x in rr
+                             for m in [re.search(rb'"retries":(\d+)', x.get('body') or b'')] if m] or [0])
+        browser_invokes = len(edge.browser_invoke_hashes)
         rec('real-cas-conflict-retry-observed',
-            len(edge.browser_invoke_hashes) > 1 or racer_retries > 0,
-            'browser invokes=%d real-p2-racer retries=%d' % (len(edge.browser_invoke_hashes), racer_retries))
+            browser_invokes > 1 or busy or racer_retries > 0,
+            'browser invokes=%d busy-racers=%s max-racer-retries=%d' %
+            (browser_invokes, busy, racer_retries))
         st3 = kernel.app_get(iid, KEY)
         s3 = json.loads(st3['body']) if st3.get('kind')=='ok' else {}
-        ids3 = [e.get('id') for e in s3.get('feedback',[])]
-        rec('concurrent-no-lost-update', 'real-racer' in ids3 and len(ids3)==len(set(ids3)), ids3)
+        entries3 = s3.get('feedback',[])
+        ids3 = [e.get('id') for e in entries3]
+        # A `busy` response is an explicit bounded-CAS rejection, not a silent
+        # lost write: only accepted submits must be present exactly once.
+        ok_racers = {rid for rid, x in zip(RACER_IDS, rr)
+                     if b'"ok":true' in (x.get('body') or b'')}
+        browser_persisted = any(e.get('comment')=='actual-P2-feedback-B' for e in entries3)
+        rec('concurrent-no-lost-update',
+            ok_racers.issubset(set(ids3)) and browser_persisted and len(ids3)==len(set(ids3)),
+            'accepted-racers=%s browser-saved=%s ids=%s' % (sorted(ok_racers), browser_persisted, ids3))
 
         # 4) Restart persistence.
         kernel.stop(); kernel.start()

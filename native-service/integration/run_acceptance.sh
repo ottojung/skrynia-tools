@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 KIT="/workspace/skrynia-v3-integration-kit"
 
 KERNEL="${KERNEL:-$KIT/wasm-build-record/main-secure-pr122-20261121/skrynia-server}"
-P0="${P0:-$KIT/artifacts/skrynia_program0_pr53_rebuild_d57ab27a.wasm}"
+P0="${P0:-$KIT/artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm}"
 P1="${P1:-$KIT/artifacts/skrynia_native_service_p1clean_83a65a2f.wasm}"
 ECHO="${ECHO:-$KIT/tests/guests/echo_guest.wasm}"
 

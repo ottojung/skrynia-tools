@@ -1,5 +1,4 @@
-use super::{scope, wire};
-use crate::proxy::abi;
+use super::{abi, scope, wire};
 pub fn read(req: &[u8], capacity: usize) -> Vec<u8> {
     if !scope::allowed(scope::op::READ) {
         return wire::reply(wire::DENIED, &[]);

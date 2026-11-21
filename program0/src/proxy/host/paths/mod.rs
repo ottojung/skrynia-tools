@@ -1,5 +1,4 @@
-use super::{scope, wire};
-use crate::proxy::abi;
+use super::{abi, scope, wire};
 mod delete;
 mod exists;
 mod mkdir;

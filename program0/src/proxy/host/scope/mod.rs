@@ -1,4 +1,8 @@
+use super::abi;
+
 mod fd;
+#[cfg(test)]
+mod fd_test;
 pub mod meta;
 mod meta_dec;
 mod meta_load;

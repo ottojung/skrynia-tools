@@ -88,7 +88,9 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
       const actions = el('div', undefined, 'version-actions');
       const inspect = el('button', 'Inspect manifest');
       inspect.type = 'button';
-      inspect.disabled = busy || !version.usable;
+      // Buttons are created while the initial render is in flight; gate on
+      // release usability, not the transient render flag, so they stay usable.
+      inspect.disabled = !version.usable;
       inspect.addEventListener('click', async () => {
         try {
           status('Loading manifest ' + version.id + '…');
@@ -104,7 +106,7 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
       if (appState.active !== version.id && version.usable) {
         const activate = el('button', appState.active ? 'Activate this version' : 'Activate');
         activate.type = 'button';
-        activate.disabled = busy;
+        activate.disabled = false;
         activate.addEventListener('click', async () => {
           try {
             const plan = activationPlan(appState, version.id);

@@ -52,7 +52,29 @@ this directory contains only the app).
   (host-local HTTP, disposable token); see that harness README for exact scope
   and the still-open native admin API qualification gate.
 
-## Integration contract (pending native service qualification)
+## Integration contract (wired adapter)
+
+`native_bootstrap.js` (loaded before `main.js`) installs
+`window.__skryniaV3AdminCapabilities` from operator-provisioned runtime session
+authority `window.__skryniaNativeSession = {endpoint, readCap, adminCap}`. With
+no such session the shipped UI keeps its fail-closed default. The authority is
+never stored in a static bundle, URL, release manifest or log; the trusted
+static origin's reverse proxy adds the gateway edge capability server-side.
+
+`native_capabilities.js` implements the four semantic operations over the
+pinned ordinary-service wire ABI through `createBinaryPostTransport`:
+
+- `listApps()` / `getAppState()` / `getReleaseManifest()` use opaque native
+  `AppGet` reads and fail closed on malformed, denied or unsealed data.
+- `activateRelease()` issues exactly one native `AppCas` on a fixed-size state
+  pointer. Its precondition is `SHA256` of the canonical expected pointer
+  bytes, so activation and A-B-A rollback are O(1) in release count and asset
+  size, conflict on a stale revision, and are never silently replayed.
+  Unsealed or malformed releases are rejected before the CAS is spent.
+
+The native admin service API is still exercised through the ordinary guest's
+proven `AppGet`/`AppPut`/`AppCas` ABI; no Program 0 opcodes, v2 facade or CLI
+were added. This front-end adapter does not claim new WASM service semantics.
 
 `window.__skryniaV3AdminCapabilities` may be injected as an object or factory
 returning a semantic capability adapter:
@@ -112,6 +134,7 @@ node tests/web-admin-v3/app_history_activation.mjs
 node tests/web-admin-v3/fail_closed.mjs
 node tests/web-admin-v3/browser_vault_lock.mjs
 node tests/web-admin-v3/p0_framing_decode.mjs
+node tests/web-admin-v3/native_capabilities.mjs
 ```
 
 Real native HTTP qualification against the pinned compiled kernel + P0 +
@@ -119,6 +142,13 @@ ordinary service + trusted gateway (host-local, not run by default):
 
 ```sh
 node tests/web-admin-v3/real_native_e2e/run.mjs
+
+Real Chromium UI-to-native end-to-end against the same pinned compiled stack,
+from an independently hosted static origin (no simulator or fake adapter):
+
+```sh
+node tests/web-admin-v3/real_native_e2e/chromium.mjs
+```
 ```
 
 ## Native release identity and ABA safety

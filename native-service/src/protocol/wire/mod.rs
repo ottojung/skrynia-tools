@@ -22,6 +22,8 @@ pub const OP_ACTIVATE_CODE: u8 = 11;
 pub const OP_GET_ACTIVE: u8 = 12;
 pub const OP_LIST_VERSIONS: u8 = 13;
 pub const OP_LIST_PROGRAMS: u8 = 14;
+pub const OP_PUSH_SUBSCRIBE: u8 = 16;
+pub const OP_PUSH_UNSUBSCRIBE: u8 = 17;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 

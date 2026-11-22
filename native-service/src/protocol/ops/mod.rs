@@ -1,13 +1,11 @@
 mod admin;
 mod app;
 mod operator;
+mod push;
 mod res;
 use super::cap::{Disk, Eval, Random};
-use crate::MutLock;
-use crate::reg::Registry;
-use crate::wire::Request;
+use crate::{MutLock, reg::Registry, wire::Request};
 use res::{map_res, ok as resp_ok};
-
 pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
     reg: &Registry,
     disk: &D,
@@ -19,15 +17,14 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
     if let Some(out) = app::handle(reg, disk, lock, eval, req.clone()) {
         return out;
     }
+    if let Some(out) = push::handle(reg, disk, lock, req.clone()) {
+        return out;
+    }
     if let Some(out) = admin::handle(reg, disk, lock, req.clone()) {
         return out;
     }
     match req {
-        Request::Register {
-            operator_cap,
-            admin_cap,
-            code,
-        } => match operator::check(disk, &reg.dir, &operator_cap) {
+        Request::Register { operator_cap, admin_cap, code } => match operator::check(disk, &reg.dir, &operator_cap) {
             Ok(true) => map_res(reg.register(disk, lock, &admin_cap, code).map(resp_ok), 2),
             Ok(false) => res::mk_err(9),
             Err(_) => res::mk_err(7),

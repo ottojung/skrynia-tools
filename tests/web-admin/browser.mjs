@@ -10,17 +10,34 @@ const chrome = spawn(browser, ['--headless=new', '--no-sandbox',
   '--user-data-dir=/tmp/skrynia-admin-chromium-' + process.pid,
   origin + '/'], {stdio:['ignore','ignore','pipe']});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+let chromeStderr = '';
+let chromeError = '';
+chrome.stderr.on('data', chunk => {
+  chromeStderr = (chromeStderr + chunk.toString()).slice(-4096);
+});
+chrome.on('error', error => { chromeError = String(error); });
 async function target() {
-  for (let i = 0; i < 100; i++) {
+  let lastError = '';
+  let lastPages = [];
+  // Chromium startup is sometimes slower than 10s on busy CI runners.
+  for (let i = 0; i < 300; i++) {
     try {
       const response = await fetch('http://127.0.0.1:' + port + '/json/list');
+      if (!response.ok) throw Error('CDP HTTP ' + response.status);
       const pages = await response.json();
+      lastPages = pages.map(p => ({type:p.type, url:p.url}));
       const page = pages.find(p => p.type === 'page' && p.url?.startsWith(origin));
       if (page?.webSocketDebuggerUrl) return page.webSocketDebuggerUrl;
-    } catch {}
+    } catch (error) { lastError = String(error); }
+    if (chromeError || chrome.exitCode !== null || chrome.signalCode !== null) break;
     await sleep(100);
   }
-  throw Error('Browser app target unavailable');
+  const detail = JSON.stringify({
+    exitCode:chrome.exitCode, signal:chrome.signalCode, spawnError:chromeError,
+    lastError, pages:lastPages, stderr:chromeStderr
+  });
+  throw Error('Browser app target unavailable: '
+    + (password ? detail.replaceAll(password, '[redacted]') : detail));
 }
 function evaluator(socket) {
   let next = 0;

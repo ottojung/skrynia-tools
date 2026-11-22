@@ -40,6 +40,28 @@ jobs:
       - name: Clippy (zero warnings)
         run: cargo clippy --locked --all-targets -- -D warnings
 
+  webpush-sender:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            webpush-sender -> webpush-sender/target
+      - name: Check isolated sender rustfmt
+        run: cargo fmt --manifest-path webpush-sender/Cargo.toml --all -- --check
+      - name: Sender normal security and protocol tests
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets
+      - name: Sender pinned-IP TLS loopback acceptance
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport
+      - name: Sender zero-warning Clippy (normal and test-only transport)
+        run: |
+          cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets -- -D warnings
+          cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport -- -D warnings
+
   wasm:
     runs-on: ubuntu-latest
     steps:

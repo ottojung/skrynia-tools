@@ -35,11 +35,20 @@ sha256-pinned inputs:
 
 - kernel: secure PR122 bridge `8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f`
 - P0: clean PR53 dumb proxy rebuilt from PR53 source in this recovered environment `d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa` (the earlier `ec74523b...` artifact lived under `/tmp` and was lost in the container restart; exact byte reproduction was not possible here because the isolated sysroot snapshot was also lost, but this PR53-source rebuild passes the same acceptance unchanged).
-- P1: this branch `83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a`
+- P1: sized file-read callback rebuild from the `a1cca7b` source (this branch) `6fb58853c908a9265c7ec0425cba2d75e74d0f34b3c9ee822d5be104f47b3699`. The earlier `83a65a2f...` pin predates the `a1cca7b` read-callback sizing fix and fails the 256,605-byte `appdata-large-get-exact` check; do not reuse it for acceptance.
 - P2 echo: `dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5`
 
-Covered: register + lookup + P1-mediated P2 invoke, AppPut/AppGet, CAS,
-wrong-operator denial, sibling appdata isolation, restart durability,
-wrong/missing/shadow bearer denial.
+Rebuild the P1 from its pinned source with the indirect function table export
+preserved (`--export-table`), using the reproducible build-std procedure in
+`wasm-build-record/README.md` of the integration kit:
+
+    RUSTC=/workspace/skrynia-buildstd-sysroot/bin/rustc RUSTC_BOOTSTRAP=1 \
+    CARGO_BUILD_JOBS=2 CARGO_ENCODED_RUSTFLAGS=$'-Clinker=<wasm-ld>\x1f-Clink-arg=--export-table' \
+    cargo build -Z build-std=std,panic_abort --target wasm32-unknown-unknown \
+      --release -p skrynia-native-service --features cb-guest --locked
+
+Covered: register + lookup + P1-mediated P2 invoke, AppPut/AppGet, 256 KB
+large-object byte-exact read, CAS, wrong-operator denial, sibling appdata
+isolation, restart durability, wrong/missing/shadow bearer denial.
 
 No production, DNS/TLS, real credentials, user private data or Ivanka changes.

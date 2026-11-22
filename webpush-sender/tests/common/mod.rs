@@ -11,7 +11,7 @@ mod ssrf_cases;
 pub mod tls;
 
 pub use build::build;
-pub use claims::jwt_aud;
+pub use claims::{jwt_aud, jwt_claims};
 pub use fakes::{FakeP1, FakeResolver, FixedRng, ManualClock, ScriptedTransport, one, resolver};
 pub use fixtures::{CAP, HINT, KEY, NS, PRIV, config, frame, sub_json, vapid_key};
 pub use res::res;

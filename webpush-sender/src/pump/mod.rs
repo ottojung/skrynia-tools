@@ -21,7 +21,7 @@ pub(super) use step::process_seq;
 pub(super) use super::config::{Config, MAX_HINTS};
 pub(super) use super::error::{Error, Result};
 pub(super) use super::p1::{Client, P1Transport};
-pub(super) use super::push::{PushRequest, PushTransport, Rng, build, encrypt};
+pub(super) use super::push::{PushRequest, PushTransport, Rng, build, encrypt, topic_for};
 pub(super) use super::sub::{
     Resolver, Subscription, check_scope, parse_frame_isolated, validate_url,
 };

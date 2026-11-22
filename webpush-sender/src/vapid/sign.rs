@@ -21,7 +21,9 @@ impl VapidKey {
 
     pub fn sign(&self, aud: &str, exp: u64, sub: &str) -> Result<String> {
         let header = Base64UrlUnpadded::encode_string(br#"{"alg":"ES256","typ":"JWT"}"#);
-        let payload = format!(r#"{{"aud":"{aud}","exp":{exp},"sub":"{sub}"}}"#);
+        // Serialize claims, never interpolate wire strings into JSON: a quoted
+        // `sub` or `aud` must not be able to add or override JWT claims.
+        let payload = serde_json::json!({"aud": aud, "exp": exp, "sub": sub}).to_string();
         let claims = Base64UrlUnpadded::encode_string(payload.as_bytes());
         let input = format!("{header}.{claims}");
         let sig: p256::ecdsa::Signature = self.0.sign(input.as_bytes());

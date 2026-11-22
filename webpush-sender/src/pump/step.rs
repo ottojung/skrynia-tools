@@ -18,7 +18,7 @@ where
     let mut sent = 0;
     let mut failure = None;
     for sub in &subs {
-        match deliver_one(pump, &hint, sub) {
+        match deliver_one(pump, seq, &hint, sub) {
             Ok(()) => sent += 1,
             // Genuine delivery failure: never ACK this hint, but keep trying
             // the remaining subscriptions and the remaining queue entries.

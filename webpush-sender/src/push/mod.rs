@@ -2,6 +2,7 @@
 mod encrypt;
 mod keys;
 mod request;
+mod topic;
 mod transport;
 
 pub use encrypt::{Rng, encrypt};
@@ -12,3 +13,4 @@ pub(super) use super::error::{Error, IoFailure, Result};
 pub(super) use super::sub::{Subscription, Target};
 pub(super) use super::vapid::{VapidKey, authorization};
 pub(super) use request::build;
+pub use topic::topic_for;

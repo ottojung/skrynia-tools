@@ -35,7 +35,10 @@ fn delivers_opaque_hint_after_authoritative_reread() {
     assert_eq!(calls[0].host, "fresh.example");
     assert_eq!(calls[0].ip.to_string(), "8.8.8.8");
     assert_eq!(calls[0].path, "/push");
-    assert_eq!(calls[0].topic, [2u8; 16]);
+    assert_eq!(
+        calls[0].topic,
+        webpush_sender::push::topic_for(&cfg.topic, 1, &HINT)
+    );
     assert!(calls[0].authorization.starts_with("vapid t="));
     let expected = encrypt(&HINT, &Subscription::parse(&fresh).unwrap(), &rng).unwrap();
     assert_eq!(calls[0].body, expected);

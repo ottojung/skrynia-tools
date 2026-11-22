@@ -27,9 +27,20 @@ pub fn binding(cap: &[u8], ns: &[u8], key: &[u8], epoch: u64) -> [u8; 32] {
     h.finalize().into()
 }
 
-pub fn digest(src: &[u8]) -> [u8; 32] {
+/// Single public derivation used by both the durable ledger and the
+/// production store, so the filename and the in-file header cannot diverge.
+pub fn ledger_binding(cfg: &crate::Config) -> [u8; 32] {
+    binding(&cfg.sender_cap, &cfg.ns, &cfg.key, cfg.ledger_epoch)
+}
+
+/// Keyed integrity tag (secret-prefix SHA-256 MAC). The 32-byte sender bearer
+/// capability is the key; it never appears in the path or the file, so an
+/// actor with only ledger-directory write access cannot forge or copy a tag
+/// from another scope. The domain prefix separates this from `binding`.
+pub fn tag(src: &[u8], cap: &[u8; 32]) -> [u8; 32] {
     let mut h = Sha256::new();
-    h.update(b"skrynia-ledger-digest-v1");
+    h.update(b"skrynia-ledger-mac-v1");
+    h.update(cap);
     h.update(src);
     h.finalize().into()
 }

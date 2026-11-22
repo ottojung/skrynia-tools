@@ -1,6 +1,6 @@
 //! One bounded consumption cycle. A hint only wakes the sender; endpoint
 //! material is re-read after the hint (never treated as commit proof).
-use super::{Decision, Pump, Report, Result, process_seq, seqs};
+use super::{Decision, Error, Pump, Report, Result, process_seq, seqs};
 
 impl<P, O, R, G, C> Pump<'_, P, O, R, G, C>
 where
@@ -18,7 +18,17 @@ where
         };
         let mut failure = None;
         for seq in seqs {
-            match self.ledger.decide(seq)? {
+            // The P1 hint queue is authoritative for liveness. An unseen seq
+            // at or below the recorded max is an out-of-order *unacked* hint
+            // (e.g. a lower seq that transiently failed while a higher seq
+            // succeeded), not a reason to abort the whole cycle and starve
+            // every later seq forever. Isolate this single soft signal here;
+            // corruption/quota still fail closed in open() and mark_*().
+            let decision = match self.ledger.decide(seq) {
+                Err(Error::Wire("ledger-reuse")) => Decision::Fresh,
+                other => other?,
+            };
+            match decision {
                 Decision::Acked => {
                     report.skipped += 1;
                     continue;
@@ -44,9 +54,6 @@ where
                 Err(e) => failure = Some(e),
             }
         }
-        match failure {
-            Some(e) => Err(e),
-            None => Ok(report),
-        }
+        failure.map_or(Ok(report), Err)
     }
 }

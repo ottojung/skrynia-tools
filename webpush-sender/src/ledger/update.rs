@@ -30,7 +30,7 @@ impl DurableLedger {
             seq,
             state: State::Delivered,
         });
-        self.store.save(&encode(&self.binding, MAX_HINTS, &next))?;
+        self.store.save(&encode(&self.binding, MAX_HINTS, &next, &self.mac_key))?;
         self.records = next;
         Ok(())
     }
@@ -44,7 +44,7 @@ impl DurableLedger {
             .find(|r| r.seq == seq)
             .ok_or(Error::Wire("ledger-missing"))?;
         record.state = State::Acked;
-        self.store.save(&encode(&self.binding, MAX_HINTS, &next))?;
+        self.store.save(&encode(&self.binding, MAX_HINTS, &next, &self.mac_key))?;
         self.records = next;
         Ok(())
     }

@@ -10,11 +10,14 @@ code" boundary. P1 already owns the authoritative hint queue and an idempotent
 and persisted proof before I claimed the ACK". Keeping the ledger here means no
 P0/P1/kernel/main changes and no shared mutable state.
 
-No unsecured shared path: the production store is constructed from an
-**operator-supplied directory capability** and a filename derived from a SHA-256
-grant binding. Raw `sender_cap`, `ns` and `key` never appear in a path or log.
-`Pump::new` uses an in-memory store for hermetic tests only; production must
-inject `FileLedgerStore` through `Pump::with_ledger` / `with_https_transport`.
+No unsecured shared path: the production store is constructed by
+`FileLedgerStore::from_config(dir, cfg)` from an **operator-supplied directory
+capability** and the one public `ledger_binding(cfg)` derivation used by both
+the filename and the in-file header, so they cannot diverge. Raw `sender_cap`,
+`ns` and `key` never appear in a path or log. `dir` must be private (0700) and
+single-writer; it is never shared with another sender instance. `Pump::new`
+uses an in-memory store for hermetic tests only; production must inject
+`FileLedgerStore` through `Pump::with_ledger` / `with_https_transport`.
 
 ## Binding and boundedness
 
@@ -24,10 +27,13 @@ it when P1 hint highwater is reset/migrated. A different grant or epoch fails
 `open()` with `Config("ledger-binding")` instead of inheriting stale state.
 
 The file is `magic || binding || cap || count || [seq:u64,state:u8,pad:7] ||
-SHA256(body)`. It is bounded to `MAX_HINTS` (1024) records; at cap the oldest
-record is evicted, so recording never silently stops. A SHA-256 trailer, magic,
-binding, shape and duplicate-seq checks make corruption and foreign files fail
-closed (never "treated as empty").
+tag`, where `tag = SHA256("skrynia-ledger-mac-v1" || sender_cap || body)` is a
+**keyed** integrity tag: the 32-byte sender bearer capability is the MAC key and
+never appears in the path or the file, so directory write alone cannot forge or
+copy a valid image from another scope. It is bounded to `MAX_HINTS` (1024)
+records; at cap the oldest record is evicted, so recording never silently stops.
+Magic, binding, keyed-tag, shape and duplicate-seq checks make corruption,
+forgery and foreign files fail closed (never "treated as empty").
 
 Commit is atomic: write temp, `fsync` file, `rename`, `fsync` parent directory.
 `save` returns only after durability; ENOSPC maps to `Error::Quota`.
@@ -43,7 +49,7 @@ Commit is atomic: write temp, `fsync` file, `rename`, `fsync` parent directory.
 | `Delivered` -> `Acked` committed | `Acked` | `Decision::Acked` -> skip | no duplicate |
 | restart, same grant | loaded and checksum-verified | state restored; no duplicate | safe |
 | corrupt file / quota full | load/save error | `open` or `mark_*` fails closed; **no ACK without a durable marker** | safe, possible duplicate |
-| seq wrap/reuse under same binding | seq <= max but unknown | `Error::Wire("ledger-reuse")`, fail closed | no false suppression |
+| seq wrap/reuse under same binding | seq <= max but unknown | ledger reports `Error::Wire("ledger-reuse")`; the pump isolates it **per hint** and treats the still-listed hint as `Fresh`, re-delivering it (at-least-once) instead of aborting the queue | no false suppression, no queue stall |
 | P1 highwater reset/migration | epoch bumped -> new binding | old file refused; new file starts empty, hints delivered anew | no false suppression |
 | unrelated sender grant | different cap/ns/key/epoch | binding mismatch, fail closed | no cross-grant poison |
 
@@ -62,5 +68,9 @@ marker and no replay-ACK path.
 GREEN at this branch: 9 unit invariants (bounded growth, restart, corruption,
 foreign grant, seq reuse, epoch migration, quota/load faults, real atomic
 fsync+rename commit) plus 2 end-to-end fault cases (quota-withholds-ACK,
-lost-ACK replay without re-send). Each `#[test]` is independently executable
-by name.
+lost-ACK replay without re-send), plus the re-review fixes: a multi-hint
+out-of-order regression (seq 5 fails, seq 6 succeeds, then seq 5 recovers with
+zero starvation — `tests/retry.rs`), a real `FileLedgerStore` write/restart
+round trip with an unkeyed-checksum forgery rejection (`src/ledger/wire.rs`),
+and public `ledger_binding(cfg)` / `FileLedgerStore::from_config` constructors.
+Each `#[test]` is independently executable by name.

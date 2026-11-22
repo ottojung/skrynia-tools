@@ -13,14 +13,12 @@ mod update;
 mod wire;
 
 pub use fake::{Faults, MemoryLedgerStore};
-pub use model::{Record, State};
+pub use model::{Record, State, ledger_binding};
 pub use store::FileLedgerStore;
 
-use super::Config;
-use super::config::MAX_HINTS;
+use super::{Config, config::MAX_HINTS};
 use super::error::{Error, Result};
 use format::decode;
-use model::binding;
 use wire::encode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +38,7 @@ pub trait LedgerStore {
 pub struct DurableLedger {
     pub(super) store: Box<dyn LedgerStore>,
     pub(super) binding: [u8; 32],
+    pub(super) mac_key: [u8; 32],
     pub(super) records: Vec<Record>,
 }
 
@@ -47,14 +46,15 @@ impl DurableLedger {
     /// Load and validate before any delivery. Corruption or a foreign grant
     /// binding fails closed; an absent file starts an empty bounded ledger.
     pub fn open<S: LedgerStore + 'static>(store: S, cfg: &Config) -> Result<Self> {
-        let binding = binding(&cfg.sender_cap, &cfg.ns, &cfg.key, cfg.ledger_epoch);
+        let binding = ledger_binding(cfg);
         let records = match store.load()? {
             None => Vec::new(),
-            Some(bytes) => decode(&bytes, &binding, MAX_HINTS)?,
+            Some(bytes) => decode(&bytes, &binding, MAX_HINTS, &cfg.sender_cap)?,
         };
         Ok(Self {
             store: Box::new(store),
             binding,
+            mac_key: cfg.sender_cap,
             records,
         })
     }

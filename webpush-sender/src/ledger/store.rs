@@ -11,6 +11,13 @@ pub struct FileLedgerStore {
 }
 
 impl FileLedgerStore {
+    /// Production entry point: derive the binding from the exact `Config` so
+    /// the filename and the in-file header cannot diverge. `dir` must be a
+    /// private (0700), single-writer operator capability; it is never shared.
+    pub fn from_config(dir: &Path, cfg: &crate::Config) -> Result<Self> {
+        Self::new(dir, &super::ledger_binding(cfg))
+    }
+
     /// `dir` is an injected capability. The file name is a one-way grant
     /// binding, never raw cap/ns/key; separate grants never share a file.
     pub fn new(dir: &Path, binding: &[u8; 32]) -> Result<Self> {

@@ -20,6 +20,9 @@ pub struct Config {
     pub ttl_secs: u32,
     pub topic: [u8; TOPIC_LEN],
     pub vapid_sub: String,
+    /// Bump when P1 hint highwater is reset/migrated: the durable ledger is
+    /// re-bound and cannot suppress freshly reissued hints.
+    pub ledger_epoch: u64,
 }
 
 impl Config {

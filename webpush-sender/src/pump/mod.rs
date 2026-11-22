@@ -1,18 +1,27 @@
 //! Bounded pump: hint -> authoritative re-read -> deliver -> ACK.
-mod clock;
+mod construct;
 mod cycle;
 mod deliver;
-mod ledger;
+mod parts;
 mod report;
 mod retry;
 mod run;
 mod seqs;
 mod step;
 
-pub use clock::Clock;
+pub use parts::Parts;
+
+/// Injected clock: tests advance time without sleeping.
+pub trait Clock {
+    fn now_ms(&self) -> u64;
+    fn sleep_ms(&self, ms: u64);
+}
+
 pub(super) use deliver::deliver_one;
-pub use ledger::Ledger;
 pub use report::Report;
+
+pub(super) use super::ledger::LedgerStore;
+pub use super::ledger::{Decision, DurableLedger as Ledger, FileLedgerStore, MemoryLedgerStore};
 pub use retry::Backoff;
 pub(super) use retry::send_with_retry;
 pub use run::Pump;
@@ -33,15 +42,10 @@ pub(super) use super::vapid::VapidKey;
 /// adapter. The caller owns the transport so its lifetime is explicit; no
 /// operator policy, token or injected CA is embedded in the pump.
 impl<'a, P: P1Transport, R: Resolver, G: Rng, C: Clock> Pump<'a, P, HttpsTransport, R, G, C> {
-    pub fn with_https_transport(
-        cfg: &'a Config,
-        p1_io: &'a P,
-        out: &'a HttpsTransport,
-        resolver: &'a R,
-        key: &'a VapidKey,
-        rng: &'a G,
-        clock: &'a C,
+    pub fn with_https_transport<S: LedgerStore + 'static>(
+        parts: Parts<'a, P, HttpsTransport, R, G, C>,
+        store: S,
     ) -> Result<Self> {
-        Self::new(cfg, p1_io, out, resolver, key, rng, clock)
+        Self::with_ledger(parts, store)
     }
 }

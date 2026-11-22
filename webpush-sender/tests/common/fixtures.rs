@@ -21,6 +21,7 @@ pub fn config() -> Config {
         ttl_secs: 60,
         topic: [2u8; 16],
         vapid_sub: "mailto:ops@example.invalid".to_owned(),
+        ledger_epoch: 0,
     }
 }
 

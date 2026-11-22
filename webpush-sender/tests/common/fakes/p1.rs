@@ -9,6 +9,7 @@ pub struct FakeP1 {
     pub subs: Vec<u8>,
     pub alternate_subs: Option<Vec<u8>>,
     pub calls: RefCell<Vec<Vec<u8>>>,
+    pub fail_ack: Cell<bool>,
     hint_seen: Cell<bool>,
 }
 
@@ -19,6 +20,7 @@ impl FakeP1 {
             subs,
             alternate_subs: None,
             calls: RefCell::new(Vec::new()),
+            fail_ack: Cell::new(false),
             hint_seen: Cell::new(false),
         }
     }
@@ -37,6 +39,7 @@ impl P1Transport for FakeP1 {
                 self.hint_seen.set(true);
                 HINT.to_vec()
             }
+            Some(22) if self.fail_ack.get() => return Err(IoFailure),
             Some(22) => Vec::new(),
             Some(23) if self.hint_seen.get() => {
                 self.alternate_subs.as_ref().unwrap_or(&self.subs).clone()

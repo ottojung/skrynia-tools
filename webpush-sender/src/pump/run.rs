@@ -1,7 +1,7 @@
 //! Pump state. Every side effect is an injected capability reference.
 use super::{
-    Backoff, Client, Clock, Config, Ledger, MAX_HINTS, P1Transport, PushTransport, Resolver,
-    Result, Rng, VapidKey, check_scope,
+    Backoff, Client, Clock, Config, Ledger, MemoryLedgerStore, P1Transport, Parts, PushTransport,
+    Resolver, Result, Rng, VapidKey,
 };
 
 pub struct Pump<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Clock> {
@@ -17,6 +17,7 @@ pub struct Pump<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Cl
 }
 
 impl<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Clock> Pump<'a, P, O, R, G, C> {
+    /// Hermetic test constructor: in-memory store, not durable across runs.
     pub fn new(
         cfg: &'a Config,
         p1_io: &'a P,
@@ -26,21 +27,9 @@ impl<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Clock> Pump<'
         rng: &'a G,
         clock: &'a C,
     ) -> Result<Self> {
-        cfg.validate()?;
-        check_scope(&cfg.sender_cap, &cfg.ns, &cfg.key)?;
-        Ok(Self {
-            cfg,
-            p1: Client::new(cfg, p1_io)?,
-            out,
-            resolver,
-            key,
-            rng,
-            clock,
-            ledger: Ledger::new(MAX_HINTS),
-            backoff: Backoff {
-                base_ms: cfg.base_backoff_ms,
-                max_ms: cfg.max_backoff_ms,
-            },
-        })
+        Self::with_ledger(
+            Parts::new(cfg, p1_io, out, resolver, key, rng, clock),
+            MemoryLedgerStore::new(),
+        )
     }
 }

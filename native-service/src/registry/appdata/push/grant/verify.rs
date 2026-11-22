@@ -1,8 +1,9 @@
 //! Verify a presented narrow grant and recover its durable namespace binding.
 //! A broad write capability presented here has no matching grant record.
 use super::Disk;
+use super::by_hash;
 use super::err::PushErr;
-use super::fmt::{Kind, decode, grant_path};
+use super::fmt::Kind;
 use super::path;
 use crate::{CAP_LEN, hash_bytes};
 
@@ -17,10 +18,5 @@ pub fn verify<D: Disk, X>(
     if grant_cap.len() != CAP_LEN || !path::valid_key(key) {
         return Err(PushErr::BadAuth);
     }
-    let path = grant_path(base, kind, &hash_bytes(grant_cap), key);
-    let bytes = disk
-        .read_all(&path)
-        .map_err(PushErr::Disk)?
-        .ok_or(PushErr::BadAuth)?;
-    decode(&bytes, key, subject).ok_or(PushErr::BadAuth)
+    Ok(by_hash(disk, base, kind, &hash_bytes(grant_cap), key, subject)?.0)
 }

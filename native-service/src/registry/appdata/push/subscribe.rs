@@ -3,11 +3,11 @@
 //! bound to this exact key and this subscriber.
 use super::Disk;
 use super::err::PushErr;
-use super::grant::{Kind, verify};
-use super::id;
+use super::grant::{Kind, by_hash};
 use super::lock::with_lock;
 use super::path::valid_key as valid_object_key;
-use super::paths::{sub_path, subs_dir};
+use super::paths::sub_path;
+use super::stored;
 use super::{MAX_SUB_BYTES, MAX_SUBS};
 use crate::{CAP_LEN, MutLock, hash_bytes};
 
@@ -30,24 +30,17 @@ pub fn subscribe<D: Disk, L: MutLock>(
         return Err(PushErr::BadKey);
     }
     with_lock(lock, || {
-        let ns = verify(
-            disk,
-            base,
-            &Kind::Subscribe,
-            grant_cap,
-            key,
-            &hash_bytes(subscriber),
-        )?;
-        let dir = subs_dir(base, &ns, key);
+        let grant_hash = hash_bytes(grant_cap);
+        let subject = hash_bytes(subscriber);
+        let (ns, generation) = by_hash(disk, base, &Kind::Subscribe, &grant_hash, key, &subject)?;
         let file = sub_path(base, &ns, key, subscriber);
         let exists = disk.read_all(&file).map_err(PushErr::Disk)?.is_some();
-        let count = disk.list(&dir).map_err(PushErr::Disk)?.len();
+        let count = stored::prune(disk, base, &ns, key)?;
         if !exists && count >= MAX_SUBS {
             return Err(PushErr::Quota);
         }
-        disk.write_atomic(&file, subscription)
-            .map_err(PushErr::Disk)?;
-        let _ = id::validate(&ns);
+        let body = stored::encode(&grant_hash, generation, &subject, subscription);
+        disk.write_atomic(&file, &body).map_err(PushErr::Disk)?;
         Ok(Vec::new())
     })
 }

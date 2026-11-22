@@ -1,7 +1,7 @@
 //! Bounded, sender-scoped read of stored push subscription material.
 //! Endpoint/p256dh/auth bytes go ONLY to a sender holding a matching
 //! (namespace, key) Kind::Sender grant — never to a public/browser caller.
-use super::{Disk, MAX_SUB_BYTES, MAX_SUBS, MutLock, PushErr, scope, with_lock};
+use super::{Disk, MAX_SUBS, MutLock, PushErr, scope, stored, with_lock};
 
 pub fn sub_fetch<D: Disk, L: MutLock>(
     disk: &D,
@@ -23,12 +23,11 @@ pub fn sub_fetch<D: Disk, L: MutLock>(
                 .read_all(&format!("{dir}/{name}"))
                 .map_err(PushErr::Disk)?
                 .ok_or(PushErr::Missing)?;
-            if bytes.is_empty() || bytes.len() > MAX_SUB_BYTES {
-                return Err(PushErr::BadKey);
-            }
-            blobs.push(bytes);
-            if blobs.len() >= MAX_SUBS {
-                break;
+            if let Some(endpoint) = stored::active(disk, base, ns, key, &name, &bytes)? {
+                blobs.push(endpoint.to_vec());
+                if blobs.len() >= MAX_SUBS {
+                    break;
+                }
             }
         }
         blobs.sort();

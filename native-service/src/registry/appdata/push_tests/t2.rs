@@ -41,7 +41,12 @@ fn register_survives_reopen_and_unregister_removes() {
     )
     .unwrap();
     let file = push::sub_path("d", &crate::read_cap(&writer), key, &subscriber);
-    assert_eq!(disk.read_all(&file).unwrap().unwrap(), b"endpoint-2");
+    assert!(
+        disk.read_all(&file)
+            .unwrap()
+            .unwrap()
+            .ends_with(b"endpoint-2")
+    );
     push::unsubscribe(&disk, &crate::NoLock, "d", &grant, key, &subscriber).unwrap();
     assert!(disk.read_all(&file).unwrap().is_none());
     assert!(push::unsubscribe(&disk, &crate::NoLock, "d", &grant, key, &subscriber).is_err());

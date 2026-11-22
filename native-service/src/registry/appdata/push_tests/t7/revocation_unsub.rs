@@ -14,5 +14,10 @@ fn unsubscribe_cannot_delete_after_grant_rotates_before_lock() {
         got.is_err(),
         "revoked subscriber deleted after issuer rotation"
     );
-    assert_eq!(disk.read_all(&path).unwrap().unwrap(), b"endpoint");
+    assert!(
+        disk.read_all(&path)
+            .unwrap()
+            .unwrap()
+            .ends_with(b"endpoint")
+    );
 }

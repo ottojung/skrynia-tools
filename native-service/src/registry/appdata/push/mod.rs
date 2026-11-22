@@ -4,6 +4,7 @@ mod hints;
 mod lock;
 mod paths;
 mod sender;
+mod stored;
 mod subscribe;
 mod unsubscribe;
 

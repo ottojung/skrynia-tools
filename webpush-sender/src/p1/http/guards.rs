@@ -24,6 +24,10 @@ fn oversized_and_non_ok_statuses_fail_closed() {
     let mut cfg = edge(mock.port, HOST, ORIGIN, CAP);
     cfg.max_response_bytes = 32;
     assert!(HttpP1::new(cfg).unwrap().call(&[20]).is_err());
+    let ok = MockEdge::start(Reply::Oversized, HOST, ORIGIN, CAP, 1);
+    let mut roomy = edge(ok.port, HOST, ORIGIN, CAP);
+    roomy.max_response_bytes = 16_384;
+    assert!(HttpP1::new(roomy).unwrap().call(&[20]).is_ok());
     for status in [302, 401, 500] {
         let mock = MockEdge::start(Reply::Status(status), HOST, ORIGIN, CAP, 1);
         assert!(

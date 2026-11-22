@@ -44,7 +44,7 @@ fn read(response: Response, max: usize) -> core::result::Result<Vec<u8>, IoFailu
     }
     let mut body = Vec::new();
     response
-        .take(bound + 1)
+        .take(bound.saturating_add(1))
         .read_to_end(&mut body)
         .map_err(|_| IoFailure)?;
     if body.is_empty() || body.len() > max {

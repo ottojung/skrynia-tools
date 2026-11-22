@@ -36,10 +36,6 @@ impl HttpP1 {
             edge,
         })
     }
-
-    pub fn edge(&self) -> &Edge {
-        &self.edge
-    }
 }
 
 impl super::P1Transport for HttpP1 {

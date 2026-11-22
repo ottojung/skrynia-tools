@@ -5,6 +5,7 @@ use std::net::IpAddr;
 
 pub const PATH: &str = "/_skrynia/";
 const MAX_HEADER: usize = 256;
+const MAX_BODY: usize = 16 * 1024 * 1024;
 
 pub struct Edge {
     pub ip: IpAddr,
@@ -33,7 +34,11 @@ impl Edge {
         if self.capability.len() < 16 {
             return Err(Error::Config("edge-cap"));
         }
-        if self.timeout_ms == 0 || self.max_request_bytes == 0 || self.max_response_bytes == 0 {
+        let limits = [self.max_request_bytes, self.max_response_bytes];
+        if self.timeout_ms == 0
+            || self.timeout_ms > 60_000
+            || limits.iter().any(|n| *n == 0 || *n > MAX_BODY)
+        {
             return Err(Error::Config("edge-bound"));
         }
         Ok(())

@@ -34,9 +34,9 @@ impl MockEdge {
                     && field(&request, "origin") == origin
                     && field(&request, "content-type") == "application/octet-stream";
                 let failure = status(auth, route);
+                sink.lock().unwrap().push(request);
                 let bytes = respond(&reply, failure);
                 let _ = stream.write_all(&bytes);
-                sink.lock().unwrap().push(request);
             }
         });
         Self { port, seen }

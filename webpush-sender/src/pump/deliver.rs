@@ -1,26 +1,36 @@
-//! Retry only transient failures; never retry auth/SSRF/malformed responses.
-use super::{Backoff, Clock, Error, PushRequest, PushTransport, Result};
+//! One subscription: validate, encrypt, build, send. Structural errors let the
+//! caller fail closed for just this item; delivery errors withhold the ACK.
+use super::{Pump, Result, Subscription, build, encrypt, send_with_retry, validate_url};
 
-pub fn send_with_retry(
-    req: &PushRequest,
-    out: &impl PushTransport,
-    clock: &impl Clock,
-    backoff: &Backoff,
-    max_attempts: u8,
-) -> Result<()> {
-    let mut attempt = 0u8;
-    loop {
-        match out.send(req) {
-            Ok(reply) if (200..300).contains(&reply.status) => return Ok(()),
-            Ok(reply) if reply.status == 429 || reply.status >= 500 => {}
-            Ok(_) => return Err(Error::Transport("status")),
-            Err(_) => {}
-        }
-        attempt += 1;
-        if attempt >= max_attempts {
-            return Err(Error::Exhausted);
-        }
-        let jitter = (clock.now_ms() & 0xff) as u8;
-        clock.sleep_ms(backoff.delay(attempt, jitter));
-    }
+pub fn deliver_one<P, O, R, G, C>(
+    pump: &mut Pump<'_, P, O, R, G, C>,
+    hint: &[u8],
+    sub: &Subscription,
+) -> Result<()>
+where
+    P: super::P1Transport,
+    O: super::PushTransport,
+    R: super::Resolver,
+    G: super::Rng,
+    C: super::Clock,
+{
+    let target = validate_url(&sub.endpoint, pump.resolver)?;
+    let body = encrypt(hint, sub, pump.rng)?;
+    let exp = pump.clock.now_ms() / 1000 + u64::from(pump.cfg.ttl_secs);
+    let req = build(
+        &target,
+        body,
+        pump.key,
+        exp,
+        &pump.cfg.vapid_sub,
+        pump.cfg.ttl_secs,
+        pump.cfg.topic,
+    )?;
+    send_with_retry(
+        &req,
+        pump.out,
+        pump.clock,
+        &pump.backoff,
+        pump.cfg.max_attempts,
+    )
 }

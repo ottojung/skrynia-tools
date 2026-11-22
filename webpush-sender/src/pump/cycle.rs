@@ -17,17 +17,32 @@ where
             hints: seqs.len(),
             ..Report::default()
         };
+        let mut failure = None;
         for seq in seqs {
             if self.ledger.seen(seq) {
                 report.skipped += 1;
                 continue;
             }
-            let sent = process_seq(self, seq)?;
-            self.p1.hint_ack(seq)?;
-            self.ledger.mark(seq);
-            report.delivered += sent;
-            report.acked += 1;
+            match process_seq(self, seq) {
+                Ok(sent) => {
+                    // All structurally valid subscriptions were handled. ACK even
+                    // when unsafe records were dropped: otherwise one bad sub
+                    // would starve every later seq forever with no ACK.
+                    self.p1.hint_ack(seq)?;
+                    self.ledger.mark(seq);
+                    report.delivered += sent;
+                    report.acked += 1;
+                }
+                Err(e) => {
+                    // A deliverable subscription failed: no ACK for this seq,
+                    // but keep draining later hints before surfacing the error.
+                    failure = Some(e);
+                }
+            }
         }
-        Ok(report)
+        match failure {
+            Some(e) => Err(e),
+            None => Ok(report),
+        }
     }
 }

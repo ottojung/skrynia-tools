@@ -10,7 +10,7 @@ fn jwt_is_real_es256_and_verifiable() {
     let key = vapid_key();
     let jwt = key
         .sign(
-            "https://push.example:443",
+            "https://push.example",
             1_799_999_999,
             "mailto:ops@example.invalid",
         )
@@ -23,7 +23,8 @@ fn jwt_is_real_es256_and_verifiable() {
     assert_eq!(header["typ"], "JWT");
     let claims: serde_json::Value =
         serde_json::from_slice(&Base64UrlUnpadded::decode_vec(parts[1]).unwrap()).unwrap();
-    assert_eq!(claims["aud"], "https://push.example:443");
+    assert_eq!(claims["aud"], "https://push.example");
+    assert_ne!(claims["aud"], "https://push.example:443");
     assert_eq!(claims["exp"], 1_799_999_999);
     let sig = Base64UrlUnpadded::decode_vec(parts[2]).unwrap();
     let verifier = VerifyingKey::from_sec1_bytes(&key.public_bytes()).unwrap();
@@ -39,7 +40,7 @@ fn jwt_is_real_es256_and_verifiable() {
 fn authorization_exposes_only_public_key() {
     let key = vapid_key();
     let jwt = key
-        .sign("https://push.example:443", 1, "mailto:x@example.invalid")
+        .sign("https://push.example", 1, "mailto:x@example.invalid")
         .unwrap();
     let header = authorization(&key, &jwt);
     assert!(header.starts_with("vapid t="));

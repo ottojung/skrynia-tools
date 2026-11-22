@@ -10,7 +10,14 @@ pub fn ns_dir(base: &str, read_cap: &[u8]) -> Option<String> {
 }
 
 pub fn valid_key(key: &[u8]) -> bool {
-    !key.is_empty() && key.len() <= 256
+    !key.is_empty()
+        && key.len() <= 255
+        && key.split(|&b| b == b'/').all(|part| {
+            !part.is_empty()
+                && part.iter().enumerate().all(|(i, c)| {
+                    c.is_ascii_alphanumeric() || *c == b'_' || *c == b'-' || (i > 0 && *c == b'.')
+                })
+        })
 }
 
 pub fn data_path(base: &str, read_cap: &[u8], key: &[u8]) -> Option<String> {
@@ -18,7 +25,5 @@ pub fn data_path(base: &str, read_cap: &[u8], key: &[u8]) -> Option<String> {
         return None;
     }
     let dir = ns_dir(base, read_cap)?;
-    // Hash opaque object-key bytes before pathname encoding: raw hex could
-    // exceed a filesystem's 255-byte component limit even for valid keys.
     Some(format!("{dir}/{}.bin", id::to_hex(&crate::hash_bytes(key))))
 }

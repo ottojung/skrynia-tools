@@ -1,0 +1,23 @@
+[package]
+name = "webpush-loopback-integration"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Disposable loopback integration harness for the draft outbound WebPush + native P1 subscription flow"
+
+# Standalone disposable harness. Not a member of the tools workspace, not a
+# production artifact, never published. Reuses the sender crate as a path
+# dependency so the real HTTPS transport / VAPID / encryption / ledger code is
+# exercised; only the P1 and the remote push service are local loopback fakes.
+[workspace]
+
+[dependencies]
+webpush-sender = { path = "../webpush-sender", features = ["test-transport"] }
+base64ct = { version = "1.8", features = ["alloc"] }
+p256 = { version = "0.13", features = ["ecdh", "ecdsa"] }
+sha2 = "0.10"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = "1"
+tokio = { version = "1", features = ["rt", "net", "io-util", "sync", "time"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }

@@ -1,0 +1,11 @@
+pinned_p1_push_opcode_audit v1
+checked_opcodes=16:OP_PUSH_SUBSCRIBE,17:OP_PUSH_UNSUBSCRIBE,20:OP_HINT_LIST,21:OP_HINT_READ,22:OP_HINT_ACK,23:OP_PUSH_SUB_FETCH
+NO_PUSH_SIGNATURES sha256=ba6753519aafefcfdb1e11ef892911e763a114062ee8a4e494d38a29a2a30fec bytes=133198 sigs=[] e2e-aND9NUduGFHjshzPKhHuox-20261122/p1_fresh_ba675351.wasm
+NO_PUSH_SIGNATURES sha256=6fb58853c908a9265c7ec0425cba2d75e74d0f34b3c9ee822d5be104f47b3699 bytes=133213 sigs=[] skrynia-v3-integration-kit/artifacts/skrynia_native_service_p1_sizedread_6fb58853.wasm
+NO_PUSH_SIGNATURES sha256=83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a bytes=133168 sigs=[] skrynia-v3-integration-kit/artifacts/skrynia_native_service_p1clean_83a65a2f.wasm
+NO_PUSH_SIGNATURES sha256=d3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2 bytes=133129 sigs=[] skrynia-v3-integration-kit/artifacts/skrynia_native_service_aa6333a.wasm
+NO_PUSH_SIGNATURES sha256=882fe38434d136b9434ace26e987c2caa324583cfa9a3200262cbaddb17fd562 bytes=133101 sigs=[] skrynia-v3-integration-kit/artifacts/skrynia_native_service_kit_current_882fe384.wasm
+NO_PUSH_SIGNATURES sha256=7ce4cac5ac69a21084e3f0eb3b9861d6914f511f7bd075d64a1931553e18c4e5 bytes=124409 sigs=[] skrynia-tools-v3-crossbuild/wasm32-unknown-unknown/release/skrynia_native_service.wasm
+NO_PUSH_SIGNATURES sha256=32225284344bd209f55d440b264659be79b836e59b9908956eb82b9094871e0d bytes=65807 sigs=[] skrynia-tools/target/wasm32-unknown-unknown/release/deps/skrynia_native_service.wasm
+VERDICT=BLOCKER: no pinned P1 WASM contains push opcodes 16/17/20-23
+audit_rc=2

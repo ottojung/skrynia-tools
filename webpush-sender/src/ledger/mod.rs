@@ -16,8 +16,8 @@ pub use fake::{Faults, MemoryLedgerStore};
 pub use model::{Record, State, ledger_binding};
 pub use store::FileLedgerStore;
 
-use super::{Config, config::MAX_HINTS};
 use super::error::{Error, Result};
+use super::{Config, config::MAX_HINTS};
 use format::decode;
 use wire::encode;
 

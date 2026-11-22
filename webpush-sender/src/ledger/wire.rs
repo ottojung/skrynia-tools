@@ -39,7 +39,8 @@ mod test {
         assert_eq!(b.decide(7), Ok(Decision::Acked));
         // A directory writer can recompute the OLD unkeyed checksum, but not
         // the keyed tag: this forged image must still fail closed.
-        let path = std::fs::read_dir(&dir).unwrap().next().unwrap().unwrap().path();
+        let mut entries = std::fs::read_dir(&dir).unwrap();
+        let path = entries.next().unwrap().unwrap().path();
         let mut bytes = std::fs::read(&path).unwrap();
         let split = bytes.len() - 32;
         bytes[super::HEAD] ^= 1;

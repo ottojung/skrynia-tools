@@ -34,7 +34,7 @@ pub fn decode(src: &[u8], binding: &[u8; 32], cap: usize, key: &[u8; 32]) -> Res
 
 fn records(body: &[u8]) -> Result<Vec<Record>> {
     let mut out: Vec<Record> = Vec::new();
-    for chunk in body[HEAD..].chunks_exact(16) {
+    for chunk in body[HEAD..].as_chunks::<16>().0 {
         let seq = u64::from_le_bytes(chunk[..8].try_into().expect("8"));
         let state = match chunk[8] {
             1 => State::Delivered,

@@ -1,9 +1,9 @@
 use super::admin;
 use super::app;
-use super::cap::{Disk, Eval, Random};
 use super::operator;
 use super::push;
 use super::res::{map_res, ok as resp_ok};
+use super::{Disk, Eval, Random};
 use crate::{MutLock, reg::Registry, wire::Request};
 
 pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(

@@ -1,5 +1,6 @@
 use super::encode_app::encode_app;
-use super::encode_push::encode_push;
+use super::encode_push::{encode_push, is_push};
+use super::encode_sender::{encode_sender, is_sender};
 use super::helpers::{put_blob, put_id, put_precond};
 use crate::wire::{OP_INVOKE, OP_LOOKUP, OP_REGISTER_AUTH, OP_REVOKE, OP_SET, Request};
 
@@ -39,7 +40,8 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
             put_id(out, admin_cap);
             put_precond(out, expect);
         }
-        Request::PushSubscribe { .. } | Request::PushUnsubscribe { .. } => encode_push(out, req),
+        req if is_push(req) => encode_push(out, req),
+        req if is_sender(req) => encode_sender(out, req),
         Request::Admin(admin) => super::encode_admin::encode_admin(out, admin),
         _ => encode_app(out, req),
     }

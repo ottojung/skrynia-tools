@@ -40,4 +40,10 @@ pub enum Request {
     },
     PushSubscribe(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>),
     PushUnsubscribe(Vec<u8>, Vec<u8>, Vec<u8>),
+    PushGrant(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>),
+    PushSenderGrant(Vec<u8>, Vec<u8>, Vec<u8>),
+    HintList(Vec<u8>, Vec<u8>, Vec<u8>),
+    HintRead(Vec<u8>, Vec<u8>, Vec<u8>, u64),
+    HintAck(Vec<u8>, Vec<u8>, Vec<u8>, u64),
+    SubFetch(Vec<u8>, Vec<u8>, Vec<u8>),
 }

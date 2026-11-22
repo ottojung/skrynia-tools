@@ -23,3 +23,7 @@ pub fn put_blob(out: &mut Vec<u8>, data: &[u8]) {
     out.extend_from_slice(&(data.len() as u32).to_le_bytes());
     out.extend_from_slice(data);
 }
+
+pub fn put_u64(out: &mut Vec<u8>, n: u64) {
+    out.extend_from_slice(&n.to_le_bytes());
+}

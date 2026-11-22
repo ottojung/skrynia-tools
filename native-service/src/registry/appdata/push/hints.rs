@@ -43,7 +43,7 @@ pub fn enqueue_hints<D: Disk>(
     Ok(())
 }
 
-fn parse_seq(name: &str) -> Option<u64> {
+pub(crate) fn parse_seq(name: &str) -> Option<u64> {
     let stem = name.strip_suffix(".bin")?;
     stem.parse::<u64>().ok()
 }

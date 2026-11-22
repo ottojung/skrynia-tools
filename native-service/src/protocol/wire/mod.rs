@@ -24,6 +24,12 @@ pub const OP_LIST_VERSIONS: u8 = 13;
 pub const OP_LIST_PROGRAMS: u8 = 14;
 pub const OP_PUSH_SUBSCRIBE: u8 = 16;
 pub const OP_PUSH_UNSUBSCRIBE: u8 = 17;
+pub const OP_PUSH_GRANT: u8 = 18;
+pub const OP_PUSH_SENDER_GRANT: u8 = 19;
+pub const OP_HINT_LIST: u8 = 20;
+pub const OP_HINT_READ: u8 = 21;
+pub const OP_HINT_ACK: u8 = 22;
+pub const OP_PUSH_SUB_FETCH: u8 = 23;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 

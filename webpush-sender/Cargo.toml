@@ -18,6 +18,12 @@ serde_json = "1"
 sha2 = "0.10"
 reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 
+# Non-default, test-only. Enables the loopback TLS adapter that injects a
+# disposable CA/connect port. NEVER enable in a production/release build: the
+# production path must keep the built-in webpki roots and global-IP pinning.
+[features]
+test-transport = []
+
 [dev-dependencies]
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pki-types = "1"

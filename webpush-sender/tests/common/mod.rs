@@ -8,6 +8,7 @@ mod fixtures;
 mod res;
 mod scan;
 mod ssrf_cases;
+#[cfg(feature = "test-transport")]
 pub mod tls;
 
 pub use build::build;

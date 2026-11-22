@@ -24,3 +24,18 @@ pub struct Seen {
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
 }
+
+#[cfg(test)]
+mod proofs {
+    use super::cases;
+
+    #[test]
+    fn pinned_ip_tls_transport() {
+        cases::happy();
+        cases::pinned();
+        cases::wrong_trust();
+        cases::redirects_and_status();
+        cases::limits();
+        cases::production();
+    }
+}

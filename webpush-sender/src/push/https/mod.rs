@@ -7,7 +7,7 @@ mod request;
 mod trust;
 
 use super::transport::{PushTransport, Reply};
-use super::{IoFailure, PushRequest};
+use super::{IoFailure, PushRequest, is_global};
 use client::client_for;
 use reply::reply_for;
 use request::build;
@@ -19,6 +19,7 @@ pub struct HttpsTransport {
     trust: Trust,
     connect_port: u16,
     timeout_ms: u64,
+    ip_policy: guard::IpPolicy,
 }
 
 impl HttpsTransport {
@@ -27,23 +28,27 @@ impl HttpsTransport {
             trust: Trust::production(),
             connect_port: 443,
             timeout_ms: client::TOTAL_MS,
+            ip_policy: guard::IpPolicy::GlobalOnly,
         }
     }
 
-    /// Test adapter only: injects a disposable CA and a localhost connect port.
-    /// The production constructor and normal callers never reach this path.
+    /// Loopback fixture only, behind the non-default `test-transport` feature.
+    /// Operator and production configuration cannot reach this trust-widening
+    /// constructor; they must use `production()` with built-in webpki roots.
+    #[cfg(feature = "test-transport")]
     pub fn for_test(ca_der: &[u8], connect_port: u16, timeout_ms: u64) -> Self {
         Self {
             trust: Trust::test(ca_der),
             connect_port,
             timeout_ms,
+            ip_policy: guard::IpPolicy::Fixture,
         }
     }
 }
 
 impl PushTransport for HttpsTransport {
     fn send(&self, req: &PushRequest) -> Result<Reply, IoFailure> {
-        if !guard::valid(req) {
+        if !guard::valid(req, self.ip_policy) {
             return Err(IoFailure);
         }
         let addr = SocketAddr::new(req.ip, self.connect_port);

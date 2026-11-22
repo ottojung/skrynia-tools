@@ -91,3 +91,95 @@ max code LOC file: 48 ./tests/ssrf.rs
 ## Negative/legacy-route scan
 grep -r "_skrynia/push|push/subscriptions|configure-push-rules" src => no matches
 clean
+
+---
+
+# Pinned-IP HTTPS transport — agent 3TvdurdpEuUtq9syXuqPtg-seizes
+
+Base: PR67 exact tip `460f2762278a13f61b7e09b6656d51bef76f0359`
+(branch `security/skrynia-webpush-sender-fixes-20261122`); PR66 exact
+`0c340b9684df9532f1f375d37b96f03ec89d4b2c` was read only. Host marceline-dev
+verified. Own isolated clone/branch
+`security/skrynia-webpush-https-transport-20261122`. No PR66/PR67 source,
+kernel, Program0, P1, v2, main, production, DNS, real credential or
+subscriber endpoint touched. No real VAPID secret: tests use the literal
+public-only header `vapid t=test.jwt, k=public-key`.
+
+## Library semantics actually checked (not assumed)
+- reqwest 0.12.28 `ClientBuilder::resolve` / `resolve_to_addrs` install a
+  `DnsResolverWithOverrides` wrapping the chosen resolver
+  (`async_impl/client.rs:2270-2283, 439-443`) — it replaces only TCP name
+  resolution; `hyper-rustls 0.27.10` `DefaultServerNameResolver::resolve`
+  derives SNI from `uri.host()` (`connector.rs:104, 157-168`), so cert
+  verification uses the URL host, not the pinned IP.
+- `no_proxy()` plus reqwest built with `default-features = false` (so the
+  `system-proxy` feature is absent) prevent proxy/environment egress.
+  A `dns::Resolve` implementation that always errors (`NoDns`) is installed
+  under the override, so any lookup not covered by the single pin fails closed.
+- `redirect(Policy::none())` is set on the per-request client.
+- TLS uses rustls/ring only (`aws-lc-sys` was traced to a dev-dep default and
+  removed); built-in roots stay on in production and are disabled only in the
+  test adapter.
+
+## Commands and results (one bounded build; CARGO_BUILD_JOBS=2; target in /tmp/opencode)
+```
+cargo generate-lockfile                      # crates.io index only; no subscriber traffic
+cargo fmt --all && cargo fmt --all -- --check
+cargo test --locked --all-targets            # 8 unit + 29 integration PASS, 0 FAIL
+rustc --test src/source_lints/mod.rs -o /tmp/opencode/skrynia-lint-tests-3Tvd && /tmp/opencode/skrynia-lint-tests-3Tvd   # 7/7 PASS
+cargo clippy --locked --all-targets -- -D warnings -D clippy::correctness -D clippy::suspicious -D clippy::perf -D clippy::complexity   # PASS
+HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=... ALL_PROXY=... \
+  cargo test --locked --offline --test https pinned_ip_defeats_bad_dns_and_proxy_env  # PASS
+```
+All seven canonical structural lints pass (<=50 nonblank/noncomment LOC per
+.rs after rustfmt, <=10 direct entries per directory, sibling-only imports).
+Disk stayed 32-33 GiB free (>20 GiB hard floor). doc-tests NOT RUN (no rustdoc
+on host); no doctest examples exist. GitHub CI NOT yet observed for the new
+commit at review time.
+
+## Live transport proofs (`tests/https.rs`, 6/6 PASS)
+Disposable CA + SAN-bound leaf generated per service by the openssl CLI in a
+unique temp dir; loopback `127.0.0.1:0` only; SNI captured in a rustls
+`ResolvesServerCert` implementation. Trust and connect port are injected only
+via `HttpsTransport::for_test`, never in production. Proofs:
+1. live 201 with correct Host, SNI, SAN-verified certificate, POST target,
+   Authorization/Content-Encoding aes128gcm/TTL/Topic/base64 body and no
+   unexpected header (no secret leakage);
+2. pinned IP wins; a different pinned IP fails; hostile proxy env cannot
+   redirect egress;
+3. foreign CA and hostname outside SAN both fail closed with no request seen;
+4. 302 is returned, never followed (exactly one request); 201/403/429/500 are
+   surfaced verbatim;
+5. Retry-After capped to 60000 ms, short overall timeout fails, oversized
+   response body fails;
+6. production constructor refuses port != 443, rejects non-lowercase host,
+   and needs no injected trust.
+
+## Source hashes (sha256)
+```
+e42720f0d10c79b8b376fdd8d8e718165ba7cd6cd74b2aceea737ddc3b7e2a34  Cargo.toml
+d7df34193cf9520d26cac0e0da300ae93d1d09deddbee6cf4449827dfe3ee4bd  src/push/https/client.rs
+d1dedf090d0d1b93e1199342c37ea6664cc8dcea0447bef0c5681a3975a3e4f1  src/push/https/guard.rs
+3f27d53c632620138487907d29eb234952a8c2199d61cfc3bac39e2445a44cd7  src/push/https/mod.rs
+e8ec25061b45896472b2efc749d77cda8482509325d9ba7463fdb55637d989c7  src/push/https/reply.rs
+cdbd7af9bc8eb027d3df9a269d6124b9a52547084475c1fd75cfed9668bfcbd9  src/push/https/request.rs
+8daf2d651894c1a57b8de1a3ce876da3e4ff2b6a08e44ffacb6f302f3c02f42d  src/push/https/trust.rs
+12bdc38aee59ac1acd1a8aad75aed60389710038bf036cb57f3f6b58663fe73e  tests/common/tls/mod.rs
+b19b6140b505a0cd304f4aceb63d80f9d64d06b371b699d6a1febebe89c3c918  tests/common/tls/probe.rs
+e16669cacee3d6e75c0a6415903176e9d76ae6fdb896c2c60ed2458ad4d119f8  tests/common/tls/server.rs
+f5e597170616e83b13d300fddc0c482282642d131858a15b212a13685abc6113  tests/common/tls/accept.rs
+71ad5eb636d7bc62bd1c42e3030301bc6bc69836a5df78e00bf0b86f6c6600c5  tests/common/tls/handshake.rs
+dd56e788c18760fc404a17ffed870e584a3705399c68cd46acb1779ce5df2450  tests/https.rs
+```
+
+## Separate blockers (documented, deliberately NOT fixed here)
+Out of scope for this narrowly scoped transport change and left for their own
+reviewed fixes: VAPID `sub` claim JSON escaping, TTL > 24h bound, single fixed
+Topic / dedupe, `Reply.retry_after_ms` ignored by the pump, and the in-memory
+replay Ledger ceiling. These are P1/pump business logic, not transport.
+
+## Gate status
+This is source + localhost fake-endpoint evidence only. It is NOT actual FCM
+production acceptance, NOT a real VAPID credential delivery, and NOT a whole
+release GO. PR67 remains under independent audit; keep all PRs DRAFT and do
+not merge without that audit and fresh pinned-SHA CI.

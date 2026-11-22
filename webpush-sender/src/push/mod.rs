@@ -1,10 +1,12 @@
 //! Outbound WebPush request construction and injected transport.
 mod encrypt;
+mod https;
 mod keys;
 mod request;
 mod transport;
 
 pub use encrypt::{Rng, encrypt};
+pub use https::HttpsTransport;
 pub use request::PushRequest;
 pub use transport::{FakeTransport, PushTransport, Reply};
 

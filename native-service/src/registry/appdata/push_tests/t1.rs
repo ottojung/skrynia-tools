@@ -28,7 +28,17 @@ fn foreign_writer_cannot_reuse_another_namespaces_grant() {
     let key = b"apps/demo/notice";
     let subject = [1u8; 32];
     let kind = push::Kind::Subscribe;
-    push::issue_grant::<MemDisk, ()>(&disk, "d", &kind, &writer, &grant, key, &subject).unwrap();
+    push::issue_grant::<MemDisk, crate::NoLock>(
+        &disk,
+        &crate::NoLock,
+        "d",
+        &kind,
+        &writer,
+        &grant,
+        key,
+        &subject,
+    )
+    .unwrap();
     let verify = |cap: &[u8]| {
         push::verify_grant::<MemDisk, ()>(&disk, "d", &kind, cap, key, &subject).is_ok()
     };

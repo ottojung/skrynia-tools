@@ -8,6 +8,7 @@ mod verify;
 pub(super) use super::Disk;
 pub(super) use super::err;
 pub(super) use super::id;
+pub(super) use super::lock::with_lock;
 pub(super) use super::path;
 pub use fmt::Kind;
 pub use issue::issue;

@@ -28,10 +28,10 @@ pub fn enqueue_hints<D: Disk>(
     }
     let mut max_seq = 0u64;
     for name in &existing {
-        if let Some(seq) = parse_seq(name) {
-            if seq > max_seq {
-                max_seq = seq;
-            }
+        if let Some(seq) = parse_seq(name)
+            && seq > max_seq
+        {
+            max_seq = seq;
         }
     }
     let seq = max_seq.saturating_add(1);

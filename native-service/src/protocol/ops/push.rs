@@ -31,12 +31,12 @@ pub fn handle<D: super::Disk, L: MutLock>(
             7,
         ),
         Request::PushGrant(write_cap, grant_cap, key, subscriber) => map_res(
-            reg.push_grant(disk, &write_cap, &grant_cap, &key, &subscriber)
+            reg.push_grant(disk, lock, &write_cap, &grant_cap, &key, &subscriber)
                 .map(|_| ok(Vec::new())),
             7,
         ),
         Request::PushSenderGrant(write_cap, sender_cap, key) => map_res(
-            reg.push_sender_grant(disk, &write_cap, &sender_cap, &key)
+            reg.push_sender_grant(disk, lock, &write_cap, &sender_cap, &key)
                 .map(|_| ok(Vec::new())),
             7,
         ),

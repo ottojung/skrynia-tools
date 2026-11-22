@@ -49,3 +49,12 @@ pub fn decode(bytes: &[u8], key: &[u8], subject: &[u8]) -> Option<[u8; CAP_LEN]>
     }
     bytes[..CAP_LEN].try_into().ok()
 }
+
+/// Existing grant may only be updated by its original namespace writer.
+pub fn owned_by(bytes: &[u8], ns: &[u8], key: &[u8]) -> bool {
+    let end = CAP_LEN + 1 + key.len();
+    bytes.len() == end + CAP_LEN
+        && bytes[CAP_LEN] as usize == key.len()
+        && &bytes[..CAP_LEN] == ns
+        && &bytes[CAP_LEN + 1..end] == key
+}

@@ -9,8 +9,9 @@ fn no_matching_grant_means_no_subscribe() {
     let key = b"apps/demo/notice";
     assert!(push::subscribe(&disk, &crate::NoLock, "d", &writer, key, &subscriber, b"x").is_err());
     assert!(push::subscribe(&disk, &crate::NoLock, "d", &grant, key, &subscriber, b"x").is_err());
-    push::issue_grant::<MemDisk, ()>(
+    push::issue_grant::<MemDisk, crate::NoLock>(
         &disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &writer,

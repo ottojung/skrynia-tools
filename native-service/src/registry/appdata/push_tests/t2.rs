@@ -8,8 +8,9 @@ fn register_survives_reopen_and_unregister_removes() {
     let (writer, grant, subscriber) = caps();
     let key = b"apps/demo/notice";
     let subject = crate::hash_bytes(&subscriber);
-    push::issue_grant::<MemDisk, ()>(
+    push::issue_grant::<MemDisk, crate::NoLock>(
         &disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &writer,

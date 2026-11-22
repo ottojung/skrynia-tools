@@ -7,6 +7,7 @@ mod t3;
 mod t4;
 mod t5;
 mod t6;
+mod t7;
 
 pub(super) use super::cap::Disk;
 pub(super) use super::path;

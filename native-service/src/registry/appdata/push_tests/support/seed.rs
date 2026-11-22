@@ -3,8 +3,9 @@ use super::{MemDisk, caps, push};
 
 pub(crate) fn seed_sender(disk: &MemDisk, sender: &[u8], key: &[u8]) {
     let (writer, grant, subscriber) = caps();
-    push::issue_grant::<MemDisk, ()>(
+    push::issue_grant::<MemDisk, crate::NoLock>(
         disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &writer,
@@ -23,12 +24,13 @@ pub(crate) fn seed_sender(disk: &MemDisk, sender: &[u8], key: &[u8]) {
         b"endpoint",
     )
     .unwrap();
-    push::issue_grant::<MemDisk, ()>(
+    push::issue_grant::<MemDisk, crate::NoLock>(
         disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Sender,
         &writer,
-        &sender,
+        sender,
         key,
         &[0u8; 32],
     )

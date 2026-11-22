@@ -8,8 +8,9 @@ fn only_writer_issues_and_remove_errors_surface() {
     let disk = MemDisk::default();
     let (writer, grant, subscriber) = caps();
     let key = b"k";
-    let bad = push::issue_grant::<MemDisk, ()>(
+    let bad = push::issue_grant::<MemDisk, crate::NoLock>(
         &disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &[0u8; 3],
@@ -18,8 +19,9 @@ fn only_writer_issues_and_remove_errors_surface() {
         &[1u8; 32],
     );
     assert!(bad.is_err());
-    let wildcard = push::issue_grant::<MemDisk, ()>(
+    let wildcard = push::issue_grant::<MemDisk, crate::NoLock>(
         &disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &writer,
@@ -28,8 +30,9 @@ fn only_writer_issues_and_remove_errors_surface() {
         &[1u8; 32],
     );
     assert!(wildcard.is_err());
-    push::issue_grant::<MemDisk, ()>(
+    push::issue_grant::<MemDisk, crate::NoLock>(
         &disk,
+        &crate::NoLock,
         "d",
         &push::Kind::Subscribe,
         &writer,

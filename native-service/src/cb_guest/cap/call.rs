@@ -26,7 +26,11 @@ pub fn raw(req: &[u8], cap: usize) -> Result<Vec<u8>, i32> {
     }
 }
 pub fn call(req: &[u8]) -> Result<(i32, Vec<u8>), i32> {
-    let res = raw(req, 256)?;
+    call_with_capacity(req, 256)
+}
+
+pub fn call_with_capacity(req: &[u8], capacity: usize) -> Result<(i32, Vec<u8>), i32> {
+    let res = raw(req, capacity)?;
     if res.len() < 4 {
         return Err(-1);
     }

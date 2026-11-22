@@ -15,7 +15,7 @@ pub fn read_all(path: &str) -> Result<Option<Vec<u8>>, i32> {
         let mut r = vec![wire::READ];
         wire::put_u32(&mut r, fd as u32);
         wire::put_u32(&mut r, 8192);
-        let read = call::call(&r);
+        let read = call::call_with_capacity(&r, 8192 + 4);
         let (n, b) = match read {
             Ok(v) => v,
             Err(e) => {

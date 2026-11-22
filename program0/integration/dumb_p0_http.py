@@ -162,6 +162,13 @@ def run(work, kernel, p0, p1, echo_wasm, results):
         srv.send(b'\x01\x06' + put_id(admin) + put_blob(b'k') + b'\x00' + put_blob(b'v1'), 'put1')
         d, _, _ = srv.send(b'\x01\x07' + put_id(iid) + put_blob(b'k'), 'get1')
         assert_ok(results, 'appdata-write-read', d, lambda d: d.get('body') == b'v1')
+        # The real full-catalogue-sized object must read byte-exact under bounded VM fuel.
+        large = bytes((i * 13) % 251 for i in range(256605))
+        d, _, _ = srv.send(b'\x01\x06' + put_id(admin) + put_blob(b'large') + b'\x00' + put_blob(large))
+        assert_ok(results, 'appdata-large-put', d)
+        d, _, _ = srv.send(b'\x01\x07' + put_id(iid) + put_blob(b'large'))
+        rec(results, 'appdata-large-get-exact', d.get('kind') == 'ok' and d.get('body') == large,
+            {'kind': d.get('kind'), 'bytes': len(d.get('body', b''))})
         # CAS
         h = hashlib.sha256(b'v1').digest()
         srv.send(b'\x01\x06' + put_id(admin) + put_blob(b'k') + b'\x01' + h + put_blob(b'v2'), 'cas')

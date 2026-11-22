@@ -40,3 +40,16 @@ Optional: `--workdir /tmp/opencode/dumb-p0-http` to keep logs in a bounded dispo
 
 - Do **not** claim security-qualified/release acceptance on 4389433 until hQ PR119 security patches land and are qualified.
 - Run only against trusted/canonical artifacts; this fixture executes the supplied kernel binary.
+
+## Bounded native-service large-read regression
+
+The fixture additionally checks a 256,605-byte AppPut/AppGet round trip over
+real HTTP, kernel, dumb Program0 and ordinary native P1, with fake data.
+Each 8,192-byte file READ needs 8,196 bytes of provider callback capacity
+(4-byte status plus data). A default 256-byte buffer clamps each read to
+252 bytes and repeated callbacks can exhaust bounded Wasmtime fuel.
+
+This optimizes the ordinary P1 guest, NOT kernel fuel or Program0 authority.
+Pin the compiled kernel/P0/P1 artifact hashes and run the same fixture against
+both old and new P1 binaries. Preserve the WASM indirect callback table export
+(--export-table) when building P1; without it nested child invocation fails.

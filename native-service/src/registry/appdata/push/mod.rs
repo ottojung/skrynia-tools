@@ -5,13 +5,13 @@ mod paths;
 mod subscribe;
 mod unsubscribe;
 
+pub(crate) use super::cap::Disk;
+pub(crate) use super::id;
+pub(crate) use super::path;
 pub use err::PushErr;
 pub use hints::enqueue_hints;
 pub use lock::with_lock;
 pub use paths::*;
-pub(crate) use super::path;
-pub(crate) use super::id;
-pub(crate) use super::cap::Disk;
 pub use subscribe::subscribe;
 pub use unsubscribe::unsubscribe;
 

@@ -1,8 +1,12 @@
-use super::id;
+// External sender consumption: hints are durable files under
+// pushsub/<target read cap>/<key hash>/hints/<seq>.bin. A narrowly scoped
+// sender with read/write access to that subtree lists, reads, and deletes
+// (acks) hint files; delivery uses independent VAPID/anti-SSRF outside P1.
+use super::Disk;
 use super::MAX_HINTS;
 use super::err::PushErr;
+use super::id;
 use super::paths::{hint_path, hints_root, subs_dir};
-use super::Disk;
 use crate::hash_bytes;
 
 pub fn enqueue_hints<D: Disk>(

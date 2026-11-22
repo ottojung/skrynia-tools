@@ -1,12 +1,12 @@
-use super::id;
+use super::Disk;
 use super::err::PushErr;
+use super::id;
 use super::lock::with_lock;
 use super::path::valid_key as valid_object_key;
 use super::paths::{sub_path, subs_dir};
 use super::{MAX_SUB_BYTES, MAX_SUBS};
 use crate::CAP_LEN;
 use crate::MutLock;
-use super::Disk;
 use crate::read_cap;
 
 pub fn subscribe<D: Disk, L: MutLock>(

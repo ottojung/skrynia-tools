@@ -26,15 +26,11 @@ pub fn put<D: Disk, L: MutLock>(
             return Err(AppErr::Conflict(state.hash()));
         }
         let hash = io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)?;
-        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(
-            |e| match e {
-                super::push::PushErr::Disk(d) => AppErr::Disk(d),
-                super::push::PushErr::Busy | super::push::PushErr::Quota => {
-                    AppErr::Busy
-                }
-                _ => AppErr::BadAuth,
-            },
-        )?;
+        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(|e| match e {
+            super::push::PushErr::Disk(d) => AppErr::Disk(d),
+            super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
+            _ => AppErr::BadAuth,
+        })?;
         Ok(hash)
     })
 }

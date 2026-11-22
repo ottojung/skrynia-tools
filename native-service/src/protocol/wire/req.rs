@@ -38,11 +38,6 @@ pub enum Request {
         key: Vec<u8>,
         expect: Vec<u8>,
     },
-    PushSubscribe {
-        write_cap: Vec<u8>,
-        key: Vec<u8>,
-        subscriber: Vec<u8>,
-        subscription: Vec<u8>,
-    },
-    PushUnsubscribe { write_cap: Vec<u8>, key: Vec<u8>, subscriber: Vec<u8> },
+    PushSubscribe(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>),
+    PushUnsubscribe(Vec<u8>, Vec<u8>, Vec<u8>),
 }

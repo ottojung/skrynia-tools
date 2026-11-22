@@ -1,10 +1,10 @@
+use super::Disk;
 use super::err::PushErr;
 use super::lock::with_lock;
 use super::path::valid_key as valid_object_key;
 use super::paths::sub_path;
 use crate::CAP_LEN;
 use crate::MutLock;
-use super::Disk;
 use crate::read_cap;
 
 pub fn unsubscribe<D: Disk, L: MutLock>(

@@ -1,6 +1,6 @@
 //! Reclaim stale endpoints under caller's shared mutation lock.
 use super::subs_dir;
-use super::{Disk, PushErr, active};
+use super::{Disk, PushErr, active, codec};
 
 pub fn prune<D: Disk, X>(
     disk: &D,
@@ -18,6 +18,11 @@ pub fn prune<D: Disk, X>(
         let Some(bytes) = disk.read_all(&path).map_err(PushErr::Disk)? else {
             continue;
         };
+        // Legacy/corrupt files are not eligible for implicit destructive cleanup.
+        // They are excluded from active quotas until an explicit migration.
+        if codec::parts(&bytes).is_none() {
+            continue;
+        }
         if active(disk, base, ns, key, &name, &bytes)?.is_some() {
             live += 1;
         } else {

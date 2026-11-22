@@ -5,6 +5,7 @@ mod write;
 use super::cap::Disk;
 use super::io::{self, State};
 use super::path::valid_key;
+pub(crate) use super::push;
 use super::store_io::StoreErr;
 use crate::CAP_LEN;
 use crate::MutLock;

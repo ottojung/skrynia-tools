@@ -15,5 +15,5 @@ pub use host::{
 };
 pub use mlock::MutLock;
 pub use protocol::{handle, wdec, wenc, wire};
-pub use registry::appdata::{AppErr, WriteAuth};
+pub use registry::appdata::{AppErr, PushErr, WriteAuth};
 pub use registry::{id, rcache, reg, reg_ops, store, store_io, store_ls};

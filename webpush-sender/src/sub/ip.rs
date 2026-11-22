@@ -12,7 +12,8 @@ pub fn is_global(ip: IpAddr) -> bool {
 
 fn v4_blocked(v: Ipv4Addr) -> bool {
     let [a, b, c, _] = v.octets();
-    v.is_unspecified()
+    a == 0 // 0.0.0.0/8 ("this network") — not just the exact unspecified address
+        || v.is_unspecified()
         || v.is_loopback()
         || v.is_private()
         || v.is_link_local()
@@ -31,6 +32,9 @@ fn v6_blocked(v: Ipv6Addr) -> bool {
         || v.is_multicast()
         || v.is_unicast_link_local()
         || v.is_unique_local()
-        || (s[0] == 0x2001 && s[1] == 0xdb8)
+        || (s[0] == 0x2001 && s[1] == 0xdb8) // documentation
+        || (s[0] == 0x0064 && s[1] == 0xff9b) // 64:ff9b::/96 NAT64 (to_ipv4() is None)
+        || s[0] == 0x2002 // 2002::/16 6to4
+        || (s[0] == 0x2001 && s[1] == 0x0000) // 2001::/32 Teredo
         || v.to_ipv4().is_some()
 }

@@ -7,7 +7,7 @@ use common::{
 use webpush_sender::{Error, Pump};
 
 #[test]
-fn private_endpoint_aborts_before_any_send() {
+fn private_endpoint_is_dropped_and_hint_acked() {
     let cfg = config();
     let p1 = FakeP1::new(vec![1], frame(&[sub_json("https://push.example/p")]));
     let r = resolver(&[("push.example", "10.1.2.3")]);
@@ -16,9 +16,13 @@ fn private_endpoint_aborts_before_any_send() {
     let clock = ManualClock::new(0);
     let key = vapid_key();
     let mut pump = build(&cfg, &p1, &out, &r, &key, &rng, &clock);
-    assert!(matches!(pump.run_once(), Err(Error::Ssrf("address"))));
+    // The unsafe subscription is dropped for this hint only (no send), and the
+    // hint is ACKed so it cannot starve every later seq in the queue.
+    let report = pump.run_once().unwrap();
+    assert_eq!(report.delivered, 0);
+    assert_eq!(report.acked, 1);
     assert!(out.calls.borrow().is_empty());
-    assert!(!p1.opcodes().contains(&22));
+    assert!(p1.opcodes().contains(&22));
 }
 
 #[test]

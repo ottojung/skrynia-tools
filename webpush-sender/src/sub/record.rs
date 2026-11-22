@@ -1,7 +1,7 @@
 //! SubFetch frame: u32 count, then repeated u32 length + subscription bytes.
 use super::{Error, MAX_SUBS, Result, Subscription};
 
-pub fn parse_frame(src: &[u8]) -> Result<Vec<Subscription>> {
+fn items(src: &[u8]) -> Result<Vec<&[u8]>> {
     if src.len() < 4 {
         return Err(Error::Wire("frame"));
     }
@@ -20,11 +20,26 @@ pub fn parse_frame(src: &[u8]) -> Result<Vec<Subscription>> {
         if len == 0 || len > 4096 || at + len > src.len() {
             return Err(Error::Wire("frame-body"));
         }
-        out.push(Subscription::parse(&src[at..at + len])?);
+        out.push(&src[at..at + len]);
         at += len;
     }
     if at != src.len() {
         return Err(Error::Wire("frame-tail"));
     }
     Ok(out)
+}
+
+pub fn parse_frame(src: &[u8]) -> Result<Vec<Subscription>> {
+    items(src)?.into_iter().map(Subscription::parse).collect()
+}
+
+/// Frame structure is still strict, but a single malformed subscription body
+/// is dropped instead of poisoning the batch: P1 stores raw subscriber bytes
+/// with only a length check, so one bad record must not starve other people's
+/// notifications.
+pub fn parse_frame_isolated(src: &[u8]) -> Result<Vec<Subscription>> {
+    Ok(items(src)?
+        .into_iter()
+        .filter_map(|raw| Subscription::parse(raw).ok())
+        .collect())
 }

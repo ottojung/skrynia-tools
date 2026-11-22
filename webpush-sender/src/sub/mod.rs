@@ -7,7 +7,7 @@ mod scope;
 mod subscription;
 
 pub use endpoint::{Resolver, Target, validate_url};
-pub use record::parse_frame;
+pub use record::{parse_frame, parse_frame_isolated};
 pub use scope::check_scope;
 pub use subscription::Subscription;
 

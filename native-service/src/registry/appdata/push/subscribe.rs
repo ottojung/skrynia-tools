@@ -29,15 +29,15 @@ pub fn subscribe<D: Disk, L: MutLock>(
     if subscription.is_empty() || subscription.len() > MAX_SUB_BYTES {
         return Err(PushErr::BadKey);
     }
-    let ns = verify(
-        disk,
-        base,
-        &Kind::Subscribe,
-        grant_cap,
-        key,
-        &hash_bytes(subscriber),
-    )?;
     with_lock(lock, || {
+        let ns = verify(
+            disk,
+            base,
+            &Kind::Subscribe,
+            grant_cap,
+            key,
+            &hash_bytes(subscriber),
+        )?;
         let dir = subs_dir(base, &ns, key);
         let file = sub_path(base, &ns, key, subscriber);
         let exists = disk.read_all(&file).map_err(PushErr::Disk)?.is_some();

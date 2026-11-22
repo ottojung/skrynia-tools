@@ -22,15 +22,15 @@ pub fn unsubscribe<D: Disk, L: MutLock>(
     if subscriber.is_empty() || subscriber.len() > 256 {
         return Err(PushErr::BadKey);
     }
-    let ns = verify(
-        disk,
-        base,
-        &Kind::Subscribe,
-        grant_cap,
-        key,
-        &hash_bytes(subscriber),
-    )?;
     with_lock(lock, || {
+        let ns = verify(
+            disk,
+            base,
+            &Kind::Subscribe,
+            grant_cap,
+            key,
+            &hash_bytes(subscriber),
+        )?;
         let file = sub_path(base, &ns, key, subscriber);
         if disk.read_all(&file).map_err(PushErr::Disk)?.is_none() {
             return Err(PushErr::Missing);

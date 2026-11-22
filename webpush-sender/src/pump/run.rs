@@ -1,0 +1,46 @@
+//! Pump state. Every side effect is an injected capability reference.
+use super::{
+    Backoff, Client, Clock, Config, Ledger, MAX_HINTS, P1Transport, PushTransport, Resolver,
+    Result, Rng, VapidKey, check_scope,
+};
+
+pub struct Pump<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Clock> {
+    pub cfg: &'a Config,
+    pub p1: Client<'a, P>,
+    pub out: &'a O,
+    pub resolver: &'a R,
+    pub key: &'a VapidKey,
+    pub rng: &'a G,
+    pub clock: &'a C,
+    pub ledger: Ledger,
+    pub backoff: Backoff,
+}
+
+impl<'a, P: P1Transport, O: PushTransport, R: Resolver, G: Rng, C: Clock> Pump<'a, P, O, R, G, C> {
+    pub fn new(
+        cfg: &'a Config,
+        p1_io: &'a P,
+        out: &'a O,
+        resolver: &'a R,
+        key: &'a VapidKey,
+        rng: &'a G,
+        clock: &'a C,
+    ) -> Result<Self> {
+        cfg.validate()?;
+        check_scope(&cfg.sender_cap, &cfg.ns, &cfg.key)?;
+        Ok(Self {
+            cfg,
+            p1: Client::new(cfg, p1_io)?,
+            out,
+            resolver,
+            key,
+            rng,
+            clock,
+            ledger: Ledger::new(MAX_HINTS),
+            backoff: Backoff {
+                base_ms: cfg.base_backoff_ms,
+                max_ms: cfg.max_backoff_ms,
+            },
+        })
+    }
+}

@@ -20,12 +20,11 @@ pub fn delete<D: Disk, L: MutLock>(
             State::Present(v) if hash_bytes(v).as_slice() == expect => {}
             _ => return Err(AppErr::Conflict(state.hash())),
         }
-        io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)?;
         super::push::enqueue_hints(disk, base, &ns, key, None).map_err(|e| match e {
             super::push::PushErr::Disk(d) => AppErr::Disk(d),
             super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
             _ => AppErr::BadAuth,
         })?;
-        Ok(())
+        io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)
     })
 }

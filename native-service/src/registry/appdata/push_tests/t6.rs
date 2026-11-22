@@ -11,13 +11,13 @@ fn sender_scoped_sub_fetch_is_exact() {
     let key = b"apps/demo/notice";
     let ns = crate::read_cap(&caps().0);
     seed_sender(&disk, &sender, key);
-    let out = push::sub_fetch(&disk, "d", &sender, &ns, key).unwrap();
+    let out = push::sub_fetch(&disk, &crate::NoLock, "d", &sender, &ns, key).unwrap();
     assert_eq!(u32::from_le_bytes(out[0..4].try_into().unwrap()), 1);
     let len = u32::from_le_bytes(out[4..8].try_into().unwrap()) as usize;
     assert_eq!(&out[8..8 + len], b"endpoint");
-    assert!(push::sub_fetch(&disk, "d", &caps().1, &ns, key).is_err());
-    assert!(push::sub_fetch(&disk, "d", &sender, &[9u8; 32], key).is_err());
-    assert!(push::sub_fetch(&disk, "d", &sender, &ns, b"other").is_err());
+    assert!(push::sub_fetch(&disk, &crate::NoLock, "d", &caps().1, &ns, key).is_err());
+    assert!(push::sub_fetch(&disk, &crate::NoLock, "d", &sender, &[9u8; 32], key).is_err());
+    assert!(push::sub_fetch(&disk, &crate::NoLock, "d", &sender, &ns, b"other").is_err());
 }
 
 #[test]

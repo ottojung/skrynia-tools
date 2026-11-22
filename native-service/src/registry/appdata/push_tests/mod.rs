@@ -8,10 +8,14 @@ mod t4;
 mod t5;
 mod t6;
 mod t7;
+mod t8;
 
 pub(super) use super::cap::Disk;
+pub(super) use super::io::{self, State};
+pub(super) use super::ops::{self, WriteAuth};
 pub(super) use super::path;
 pub(super) use super::push;
+pub(super) use crate::wire::AppPrecond;
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 

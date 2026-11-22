@@ -17,7 +17,7 @@ pub fn handle<D: super::Disk, L: MutLock>(
             | Request::HintAck { .. }
             | Request::SubFetch { .. }
     ) {
-        return super::sender::handle(reg, disk, req);
+        return super::sender::handle(reg, disk, lock, req);
     }
     Some(match req {
         Request::PushSubscribe(grant_cap, key, subscriber, subscription) => map_res(

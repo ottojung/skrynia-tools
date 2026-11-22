@@ -39,3 +39,8 @@ pub fn hints_root(base: &str, read_cap: &[u8], key: &[u8]) -> String {
 pub fn hint_path(base: &str, read_cap: &[u8], key: &[u8], seq: u64) -> String {
     format!("{}/{:020}.bin", hints_root(base, read_cap, key), seq)
 }
+
+/// Monotone high-water mark is distinct from deletable pending hints.
+pub fn hint_counter_path(base: &str, read_cap: &[u8], key: &[u8]) -> String {
+    format!("{}/hint-sequence.bin", object_dir(base, read_cap, key))
+}

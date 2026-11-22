@@ -33,3 +33,21 @@ fn has_root_token_marker(s: &Seen) -> bool {
         .any(|(k, _)| k.contains("operator") || k.contains("p0-token"));
     planted || labeled
 }
+
+#[test]
+fn token_leak_detector_is_non_vacuous() {
+    let mock = MockEdge::start(Reply::Ok(res(0, b"ok")), HOST, ORIGIN, CAP, 1);
+    let io = HttpP1::new(edge(mock.port, HOST, ORIGIN, CAP)).unwrap();
+    let config = cfg();
+    let client = super::Client::new(&config, &io).unwrap();
+    client.hint_list().unwrap();
+    let mut seen = mock.seen().pop().unwrap();
+    assert!(!has_root_token_marker(&seen));
+    seen.raw.extend_from_slice(&[0x01]);
+    seen.raw.extend_from_slice(&super::cases::SENTINEL);
+    assert!(has_root_token_marker(&seen));
+    seen.raw.truncate(seen.raw.len() - 33);
+    assert!(!has_root_token_marker(&seen));
+    seen.headers.push(("x-p0-token".into(), "value".into()));
+    assert!(has_root_token_marker(&seen));
+}

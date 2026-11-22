@@ -10,6 +10,7 @@ pub enum Reply {
     Status(u16),
     Oversized,
     Hang,
+    Redirect(u16),
 }
 
 pub struct MockEdge {

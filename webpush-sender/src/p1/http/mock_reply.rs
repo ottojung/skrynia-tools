@@ -16,8 +16,12 @@ pub fn respond(reply: &Reply, failure: u16) -> Vec<u8> {
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
     let (code, body) = outcome(reply, failure);
+    let location = match reply {
+        Reply::Redirect(port) => format!("Location: http://127.0.0.1:{port}/_skrynia/\r\n"),
+        _ => String::new(),
+    };
     let head = format!(
-        "HTTP/1.1 {code} X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {code} X\r\nContent-Length: {}\r\n{location}Connection: close\r\n\r\n",
         body.len()
     );
     head.into_bytes().into_iter().chain(body).collect()
@@ -32,5 +36,6 @@ fn outcome(reply: &Reply, failure: u16) -> (u16, Vec<u8>) {
         Reply::Status(code) => (*code, Vec::new()),
         Reply::Oversized => (200, vec![7u8; 9000]),
         Reply::Hang => (200, b"late".to_vec()),
+        Reply::Redirect(_) => (302, Vec::new()),
     }
 }

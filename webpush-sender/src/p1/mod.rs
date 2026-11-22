@@ -2,6 +2,8 @@
 mod client;
 mod decode;
 mod http;
+#[cfg(test)]
+mod negatives;
 mod wire;
 
 pub use client::{Client, P1Transport};

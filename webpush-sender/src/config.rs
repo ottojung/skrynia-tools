@@ -36,10 +36,19 @@ impl Config {
         if self.max_attempts == 0 || self.max_attempts > 5 {
             return Err(Error::Config("attempts"));
         }
-        if self.ttl_secs == 0 {
+        // RFC 8292 §2: VAPID `exp` may be at most 24 hours in the future.
+        if self.ttl_secs == 0 || self.ttl_secs > 86_400 {
             return Err(Error::Config("ttl"));
         }
-        if !self.vapid_sub.starts_with("mailto:") || self.vapid_sub.len() > 254 {
+        // Reject JSON metacharacters and controls: claims are serialized, but a
+        // malformed contact address must fail closed instead of being signed.
+        if !self.vapid_sub.starts_with("mailto:")
+            || self.vapid_sub.len() > 254
+            || self
+                .vapid_sub
+                .bytes()
+                .any(|b| b < 0x20 || b == 0x7f || b == b'"' || b == b'\\')
+        {
             return Err(Error::Config("sub"));
         }
         Ok(())

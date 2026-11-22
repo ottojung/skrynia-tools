@@ -1,9 +1,10 @@
 //! One subscription: validate, encrypt, build, send. Structural errors let the
 //! caller fail closed for just this item; delivery errors withhold the ACK.
-use super::{Pump, Result, Subscription, build, encrypt, send_with_retry, validate_url};
+use super::{Pump, Result, Subscription, build, encrypt, send_with_retry, topic_for, validate_url};
 
 pub fn deliver_one<P, O, R, G, C>(
     pump: &mut Pump<'_, P, O, R, G, C>,
+    seq: u64,
     hint: &[u8],
     sub: &Subscription,
 ) -> Result<()>
@@ -24,7 +25,7 @@ where
         exp,
         &pump.cfg.vapid_sub,
         pump.cfg.ttl_secs,
-        pump.cfg.topic,
+        topic_for(&pump.cfg.topic, seq, hint),
     )?;
     send_with_retry(
         &req,

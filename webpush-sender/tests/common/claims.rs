@@ -13,3 +13,9 @@ pub fn jwt_aud(header: &str) -> String {
     let value: serde_json::Value = serde_json::from_slice(&raw).unwrap();
     value["aud"].as_str().unwrap().to_owned()
 }
+
+/// Decode all claims from a compact JWT (no Authorization wrapper).
+pub fn jwt_claims(jwt: &str) -> serde_json::Value {
+    let raw = Base64UrlUnpadded::decode_vec(jwt.split('.').nth(1).unwrap()).unwrap();
+    serde_json::from_slice(&raw).unwrap()
+}

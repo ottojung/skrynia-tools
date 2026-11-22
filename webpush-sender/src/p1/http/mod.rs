@@ -45,6 +45,8 @@ impl super::P1Transport for HttpP1 {
 }
 
 #[cfg(test)]
+pub(super) use cases::{CAP, HOST, ORIGIN, edge, res};
+#[cfg(test)]
 pub(super) use mock::{MockEdge, Reply};
 #[cfg(test)]
 pub(super) use mock_io::Seen;

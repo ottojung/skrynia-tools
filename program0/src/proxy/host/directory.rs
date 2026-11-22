@@ -1,13 +1,13 @@
-use super::{abi, wire};
+use super::{abi, path, wire};
 pub fn open(req: &[u8]) -> Vec<u8> {
     let mut at = 1;
-    let Some(path) = wire::bytes(req, &mut at) else {
+    let Some(p) = wire::bytes(req, &mut at) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() {
-        return wire::reply(wire::INVALID, &[]);
+    if at != req.len() || !path::valid(p) {
+        return wire::reply(wire::DENIED, &[]);
     }
-    let fd = unsafe { abi::open_directory(path.as_ptr() as u32, path.len() as u32) };
+    let fd = unsafe { abi::open_directory(p.as_ptr() as u32, p.len() as u32) };
     wire::reply(fd, &[])
 }
 pub fn next(req: &[u8], capacity: usize) -> Vec<u8> {

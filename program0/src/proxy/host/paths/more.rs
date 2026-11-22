@@ -1,14 +1,11 @@
-use super::{abi, wire};
+use super::{abi, path, wire};
 pub fn rename(req: &[u8]) -> Vec<u8> {
     let mut at = 1;
-    let Some(old) = wire::bytes(req, &mut at) else {
+    let (Some(old), Some(newp)) = (wire::bytes(req, &mut at), wire::bytes(req, &mut at)) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    let Some(newp) = wire::bytes(req, &mut at) else {
-        return wire::reply(wire::INVALID, &[]);
-    };
-    if at != req.len() {
-        return wire::reply(wire::INVALID, &[]);
+    if at != req.len() || !path::valid(old) || !path::valid(newp) {
+        return wire::reply(wire::DENIED, &[]);
     }
     let n = unsafe {
         abi::rename(
@@ -22,14 +19,14 @@ pub fn rename(req: &[u8]) -> Vec<u8> {
 }
 pub fn exists(req: &[u8]) -> Vec<u8> {
     let mut at = 1;
-    let Some(path) = wire::bytes(req, &mut at) else {
+    let Some(p) = wire::bytes(req, &mut at) else {
         return wire::reply(wire::INVALID, &[]);
     };
-    if at != req.len() {
-        return wire::reply(wire::INVALID, &[]);
+    if at != req.len() || !path::valid(p) {
+        return wire::reply(wire::DENIED, &[]);
     }
     wire::reply(
-        unsafe { abi::exists(path.as_ptr() as u32, path.len() as u32) },
+        unsafe { abi::exists(p.as_ptr() as u32, p.len() as u32) },
         &[],
     )
 }

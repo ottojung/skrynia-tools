@@ -34,7 +34,7 @@ pub fn random(req: &[u8], capacity: usize) -> Vec<u8> {
         .saturating_mul(8)
         .min(wire::LIMIT * 8) as u32;
     let bits = bits.min(max_bits);
-    let bytes_len = ((bits as usize) + 7) / 8;
+    let bytes_len = (bits as usize).div_ceil(8);
     let mut out = vec![0u8; bytes_len];
     let n = unsafe { abi::secure_random_bits(out.as_mut_ptr() as u32, bits) };
     let data = if n >= 0 { &out[..n as usize] } else { &[] };

@@ -1,17 +1,43 @@
-use super::wire::*;
+use super::{open, paths, wire::*};
+fn code(out: Vec<u8>) -> i32 {
+    i32::from_le_bytes(out[..4].try_into().unwrap())
+}
+fn req(op: u8, path: &[u8], tail: &[u8]) -> Vec<u8> {
+    let mut r = vec![op];
+    r.extend_from_slice(&(path.len() as u32).to_le_bytes());
+    r.extend_from_slice(path);
+    r.extend_from_slice(tail);
+    r
+}
+fn open_req(p: &[u8]) -> Vec<u8> {
+    req(OPEN_DISK, p, &1u32.to_le_bytes())
+}
+fn del_req(p: &[u8]) -> Vec<u8> {
+    req(DELETE, p, &[])
+}
+fn rename_req(old: &[u8], newp: &[u8]) -> Vec<u8> {
+    let mut r = req(RENAME, old, &[]);
+    r.extend_from_slice(&(newp.len() as u32).to_le_bytes());
+    r.extend_from_slice(newp);
+    r
+}
+const BAD: &[&[u8]] = &[
+    b"",
+    b"/security/program0.sha256",
+    b"a/../b",
+    b"a\\b",
+    b"a//b",
+    b"a/",
+    b"a\0b",
+    b"\xff",
+];
 #[test]
-fn pr49_opcodes_frozen() {
-    assert_eq!(OPEN_DISK, 1);
-    assert_eq!(READ, 2);
-    assert_eq!(WRITE, 3);
-    assert_eq!(CLOSE, 4);
-    assert_eq!(MKDIR, 5);
-    assert_eq!(DELETE, 6);
-    assert_eq!(RENAME, 7);
-    assert_eq!(OPEN_DIRECTORY, 8);
-    assert_eq!(NEXT_ENTRY, 9);
-    assert_eq!(SYNC, 10);
-    assert_eq!(RANDOM_FILL, 11);
-    assert_eq!(TRY_LOCK, 12);
-    assert_eq!(RELEASE_LOCK, 13);
+fn unsafe_open_delete_rename_paths_denied_before_abi() {
+    for p in BAD {
+        assert_eq!(code(open::call(&open_req(p))), DENIED);
+        assert_eq!(code(paths::delete(&del_req(p))), DENIED);
+        assert_eq!(code(paths::rename(&rename_req(p, b"data/ok"))), DENIED);
+        assert_eq!(code(paths::rename(&rename_req(b"data/ok", p))), DENIED);
+    }
+    assert_ne!(code(open::call(&open_req(b"data/ok"))), DENIED);
 }

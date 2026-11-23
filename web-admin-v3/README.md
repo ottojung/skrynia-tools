@@ -29,13 +29,13 @@ this directory contains only the app).
   the gateway performs the pinned Program 0 token framing server-side. This
   build does not guess or implement native opcodes, admin instructions or token
   handling inside Program 0.
-- **Capabilities implemented in front-end logic:** list all applications, list
-  all historical/ready releases, inspect historical release manifests, and
+- **Capabilities implemented in front-end logic:** list all application IDs,
+  list all sealed ready releases, inspect sealed release identity, and
   atomically activate or roll back to any ready release by compare-and-swap of a
-  single active-release pointer only (O(1) in version count and asset bytes).
+  single fixed-size active pointer only (O(1) in version count and asset bytes).
   Conflicts are reported explicitly; no release assets or application data are
-  copied or migrated. These operations are implemented by the ordinary nonzero
-  service, not by Program 0.
+  copied or migrated. These operations are enforced by the compiled ordinary
+  nonzero service, not by Program 0.
 - **Vault:** encrypted local/browser vault (PBKDF2-SHA256 + AES-256-GCM, vault
   context bound as AAD). The access secret is never sent to a server, stored in
   public release assets or logged. It is a local UI secret, **not** the Program 0
@@ -61,25 +61,40 @@ no such session the shipped UI keeps its fail-closed default. The authority is
 never stored in a static bundle, URL, release manifest or log; the trusted
 static origin's reverse proxy adds the gateway edge capability server-side.
 
-`native_capabilities.js` implements the four semantic operations over the
-pinned ordinary-service wire ABI through `createBinaryPostTransport`:
+`native_capabilities.js` implements the semantic operations over the compiled
+ordinary-P1 admin ABI through `createBinaryPostTransport`. Opcodes 6/7
+(`AppPut`/`AppGet`) are **never** emitted; releases are no longer simulated with
+client-side appdata JSON:
 
-- `listApps()` / `getAppState()` / `getReleaseManifest()` use opaque native
-  `AppGet` reads and fail closed on malformed, denied or unsealed data.
-- `activateRelease()` issues exactly one native `AppCas` on a fixed-size state
-  pointer. Its precondition is `SHA256` of the canonical expected pointer
-  bytes, so activation and A-B-A rollback are O(1) in release count and asset
-  size, conflict on a stale revision, and are never silently replayed.
-  Unsealed or malformed releases are rejected before the CAS is spent.
+- `listApps()` sends `LIST_PROGRAMS` (14), paginated, and returns the sealed
+  service's 32-byte application/invoke IDs as lowercase hex. There is no app
+  listing among opcodes 9-13, so 14 is the native app-ID operation.
+- `getAppState()` sends `GET_ACTIVE` (12) for the 42-byte live pointer record
+  (`version=3 || live || 32-byte hash || u64 LE revision`) and `LIST_VERSIONS`
+  (13), paginated, for all ready content hashes.
+- `getReleaseManifest()` exposes an **identity-only** manifest: the compiled
+  service stores sealed code hashes, not static file metadata, so no commit,
+  repository or file list is fabricated. The UI labels it accordingly.
+- `stageRelease()` / `sealRelease()` send `STAGE` (9) and `SEAL` (10) for the
+  operator provisioning flow. An unstaged or unsealed hash is absent from the
+  ready list and cannot be activated.
+- `activateRelease()` issues exactly one `ACTIVATE` (11) frame: 32-byte admin
+  capability, `u64 LE` expected revision and 32-byte target hash. The compiled
+  service enforces the O(1) CAS on the fixed-size pointer, so A-B-A rollback to
+  any earlier/later ready version advances the revision and rejects stale or
+  replayed revisions. A malformed plan is rejected locally before the CAS.
   A lost ACK, gateway 5xx or malformed 2xx response is reported with
-  `code: 'uncertain'`, distinct from a definitive `conflict` or `unauthorized`
-  denial. The controller then blocks further activation for that app until an
-  explicit refresh of authoritative state; it never auto-retries or spends a
-  second CAS on an unknown outcome.
+  `code: 'uncertain'`, distinct from a definitive `conflict`, `invalid_state`
+  or `unauthorized` service/gateway denial. The controller blocks further
+  activation for that app until an explicit refresh of authoritative state;
+  it never auto-retries or spends a second CAS on an unknown outcome.
 
-The native admin service API is still exercised through the ordinary guest's
-proven `AppGet`/`AppPut`/`AppCas` ABI; no Program 0 opcodes, v2 facade or CLI
-were added. This front-end adapter does not claim new WASM service semantics.
+No Program 0 opcodes, v2 facade or CLI were added; Program 0 remains a dumb
+token relay and the kernel remains generic. The trusted origin provisions the
+32-byte invoke/read ID and admin capability out of band; optional
+`session.adminCaps` maps invoke-ID hex to admin-capability hex for
+multi-application administration. Root/issuer/operator/P0 tokens never enter
+the browser.
 
 `window.__skryniaV3AdminCapabilities` may be injected as an object or factory
 returning a semantic capability adapter:
@@ -143,11 +158,17 @@ node tests/web-admin-v3/native_capabilities.mjs
 node tests/web-admin-v3/uncertain_activation.mjs
 ```
 
+The last two are deterministic wire-contract tests for the real admin opcodes
+and fail-closed reconciliation; they use injected fakes and prove no backend.
+
 Real native HTTP qualification against the pinned compiled kernel + P0 +
 ordinary service + trusted gateway (host-local, not run by default):
 
 ```sh
-node tests/web-admin-v3/real_native_e2e/run.mjs
+node tests/web-admin-v3/real_native_e2e/run.mjs          # transport/P0 framing
+node tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs  # shipped adapter -> real P1 admin ABI
+SKRYNIA_P1_WASM=/path/to/p1-83a65a2f.wasm node tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs
+```
 
 Real Chromium UI-to-native end-to-end against the same pinned compiled stack,
 from an independently hosted static origin (no simulator or fake adapter):

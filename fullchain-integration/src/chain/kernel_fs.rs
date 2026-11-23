@@ -17,7 +17,7 @@ pub(super) fn prepare(base: &Path, art: &Path, token: &[u8; 32]) -> io::Result<(
     fs::write(op.join("security/program0.sha256"), sha256(token))?;
     fs::write(
         op.join("programs/root.wasm"),
-        fs::read(art.join("p1_wake_18f9123a.wasm"))?,
+        fs::read(art.join("p1_hintbudget_bounded_20261123.wasm"))?,
     )?;
     fs::write(us.join("programs/operator.cap"), crate::op_cap())?;
     Ok(())

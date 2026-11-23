@@ -10,8 +10,8 @@ pub const PINS: [(&str, &str); 5] = [
         "d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa",
     ),
     (
-        "p1_wake_18f9123a.wasm",
-        "d47f824f6c3d1630e67bba93ff2b6c829b9c685d12e17fe2b765fccd668a595b",
+        "p1_hintbudget_bounded_20261123.wasm",
+        "e9e5e1f3543bfbfabce1788a6a9535bed37ef15187ffb50a5aa714d27775ca41",
     ),
     (
         "trusted_edge_9fa4df14",

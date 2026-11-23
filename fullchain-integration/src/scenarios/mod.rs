@@ -1,6 +1,7 @@
 //! Full-chain acceptance scenarios against real compiled artifacts.
 pub(crate) mod keys;
 mod negative;
+mod ordinary;
 mod p1;
 mod positive;
 pub(crate) mod transport;
@@ -9,6 +10,7 @@ mod wake;
 
 pub use keys::fixture;
 pub use negative::run as run_negative;
+pub use ordinary::run as run_ordinary;
 pub use p1::{call, must};
 pub use positive::run_positive;
 pub use transport::LoopbackPush;

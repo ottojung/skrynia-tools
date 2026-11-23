@@ -21,6 +21,7 @@ pub fn execute() {
     let mut ev = crate::scenarios::run_positive(&art, &tmp.join("pos"));
     ev.extend(crate::scenarios::run_negative(&art, &tmp.join("neg")));
     ev.extend(crate::scenarios::run_wake(&art, &tmp.join("wake")));
+    ev.extend(crate::scenarios::run_ordinary(&art, &tmp.join("ordinary")));
     for e in &ev {
         crate::evidence::line("EVIDENCE", e);
     }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 license = "AGPL-3.0-or-later"
-description = "Disposable full-chain WebPush acceptance harness: real kernel PR125 + dumb P0 + push P1 WASM via trusted edge + real sender"
+description = "Disposable full-chain WebPush acceptance harness: current v3 kernel + dumb P0 + fixed-slot P1 WASM via trusted edge + real sender"
 
 [workspace]
 

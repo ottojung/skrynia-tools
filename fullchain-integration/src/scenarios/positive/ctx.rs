@@ -5,8 +5,8 @@ use webpush_sender::p1::HttpP1;
 pub struct Ctx {
     pub art: PathBuf,
     pub tmp: PathBuf,
-    pub kernel: Kernel,
-    pub edge: EdgeProc,
+    _kernel: Kernel,
+    _edge: EdgeProc,
     pub io: HttpP1,
     pub push: FakePush,
     pub sub_keys: SubKeys,
@@ -14,8 +14,6 @@ pub struct Ctx {
     pub sender_cap: [u8; 32],
     pub ns: [u8; 32],
     pub key: Vec<u8>,
-    pub last_clock_sleeps: Vec<u64>,
-    pub last_push_sent: usize,
 }
 impl Ctx {
     pub fn new(art: &Path, tmp: &Path) -> Self {
@@ -28,8 +26,8 @@ impl Ctx {
         Self {
             art: art.into(),
             tmp: tmp.into(),
-            kernel,
-            edge,
+            _kernel: kernel,
+            _edge: edge,
             io,
             push,
             sub_keys,
@@ -37,8 +35,6 @@ impl Ctx {
             sender_cap: [7u8; 32],
             ns: [9u8; 32],
             key: b"notice/alpha".to_vec(),
-            last_clock_sleeps: Vec::new(),
-            last_push_sent: 0,
         }
     }
 }

@@ -3,9 +3,7 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use p256::ecdsa::{Signature, VerifyingKey, signature::Verifier};
 
 pub struct VapidInfo {
-    pub aud: String,
     pub sub: String,
-    pub exp: u64,
     pub k_b64: String,
 }
 
@@ -26,14 +24,12 @@ pub fn verify(authz: &str, expected_aud: &str) -> Result<VapidInfo, &'static str
             .map_err(|_| "claims json")?;
     let aud = claims["aud"].as_str().ok_or("aud")?.to_owned();
     let sub = claims["sub"].as_str().ok_or("sub")?.to_owned();
-    let exp = claims["exp"].as_u64().ok_or("exp")?;
+    let _exp = claims["exp"].as_u64().ok_or("exp")?;
     if aud != expected_aud {
         return Err("aud mismatch");
     }
     Ok(VapidInfo {
-        aud,
         sub,
-        exp,
         k_b64: k.to_owned(),
     })
 }

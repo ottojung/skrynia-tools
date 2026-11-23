@@ -25,3 +25,9 @@ impl Clock for TestClock {
         self.sleeps.lock().unwrap().push(ms);
     }
 }
+
+impl Default for TestClock {
+    fn default() -> Self {
+        Self::new()
+    }
+}

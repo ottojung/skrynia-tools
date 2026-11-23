@@ -1,4 +1,4 @@
-//! Spawns the real compiled kernel PR125 with dumb P0 and push P1 WASM.
+//! Spawns pinned v3 main kernel with dumb operator P0 and native push P1.
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -42,7 +42,7 @@ pub fn op_cap() -> [u8; 32] {
 }
 
 fn spawn(art: &Path, base: &Path, port: u16, log: fs::File) -> io::Result<Child> {
-    Command::new(art.join("kernel_PR125_856c029"))
+    Command::new(art.join("kernel_v3_main_1c5639d"))
         .env("SKRYNIA_ROOT_WASM", art.join("p0_d57ab27a.wasm"))
         .env("SKRYNIA_OPERATOR_DIR", base.join("operator"))
         .env("SKRYNIA_USER_DIR", base.join("user"))

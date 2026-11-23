@@ -8,7 +8,12 @@ use crate::{
 use std::path::Path;
 use webpush_sender::pump::{Parts, Pump};
 
-pub fn one(art: &Path, tmp: &Path, sub_json: &[u8], plan: ReplyPlan) -> String {
+pub fn one(
+    art: &Path,
+    tmp: &Path,
+    sub_json: &[u8],
+    plan: ReplyPlan,
+) -> (webpush_sender::Error, usize) {
     let k = Kernel::start(art, &tmp.join("k")).expect("k");
     let e = EdgeProc::start(art, &tmp.join("e"), k.port, &k.token).expect("e");
     let io = transport(&e);
@@ -27,5 +32,5 @@ pub fn one(art: &Path, tmp: &Path, sub_json: &[u8], plan: ReplyPlan) -> String {
     let mut p =
         Pump::with_ledger(Parts::new(&cfg, &io, &out, &res, &vk, &rng, &clock), store).unwrap();
     let err = p.run_once().unwrap_err();
-    format!("{err:?}/seen={}", push.seen().len())
+    (err, push.seen().len())
 }

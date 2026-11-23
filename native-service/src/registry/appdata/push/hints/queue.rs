@@ -29,11 +29,9 @@ pub fn enqueue_hints<D: Disk>(
         .map_err(PushErr::Disk)
 }
 
-/// Coalesced durable dirty generation for a wake key, called under the same
-/// mutation lock as the object write. The generation IS the hint seq: it is
-/// monotone, so an ACK(g) can only remove the hint at g and can never clear a
-/// newer generation at g' > g. Exactly one hint is pending per wake key, so
-/// storage is O(1) and MAX_HINTS can never block an ordinary data-plane write.
+/// Mark the reserved wake key dirty under the caller's mutation lock. The
+/// fixed slot is the only durable wake state: generation advances before the
+/// source commit, and no hint files are created or removed. See hints/wake.rs.
 pub fn mark_wake_dirty<D: Disk>(
     disk: &D,
     base: &str,
@@ -46,18 +44,5 @@ pub fn mark_wake_dirty<D: Disk>(
     if entries.is_empty() {
         return Ok(());
     }
-    let hdir = hints_root(base, read_cap, key);
-    let existing = disk.list(&hdir).map_err(PushErr::Disk)?;
-    let generation = super::seq::reserve(disk, base, read_cap, key, &existing)?;
-    // New generation is durable before any older hint is dropped. A crash in
-    // between leaves only extra spurious hints, never a lost wake.
-    disk.write_atomic(&hint_path(base, read_cap, key, generation), &[0u8; 32])
-        .map_err(PushErr::Disk)?;
-    for name in existing.iter().filter_map(|n| super::seq::parse_seq(n)) {
-        if name != generation {
-            disk.remove(&hint_path(base, read_cap, key, name))
-                .map_err(PushErr::Disk)?;
-        }
-    }
-    Ok(())
+    super::wake::mark_dirty(disk, base, read_cap, key).map(|_| ())
 }

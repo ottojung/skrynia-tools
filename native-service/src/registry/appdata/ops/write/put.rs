@@ -31,11 +31,13 @@ pub fn put<D: Disk, L: MutLock>(
             super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
             _ => AppErr::BadAuth,
         };
-        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
-        // Same lock/commit as the object write: if the write lands, the dirty
-        // generation is durable. A coalesced generation keeps wake storage O(1)
-        // so a full wake queue can never fail an ordinary data-plane write.
-        if key != super::push::WAKE_KEY {
+        if key == super::push::WAKE_KEY {
+            // The reserved wake key uses the fixed dirty slot, even when a
+            // client writes the key itself; legacy per-seq hint files would be
+            // invisible to the WAKE_KEY sender special-case.
+            super::push::mark_wake_dirty(disk, base, &ns, key).map_err(hint)?;
+        } else {
+            super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
             super::push::mark_wake_dirty(disk, base, &ns, super::push::WAKE_KEY).map_err(hint)?;
         }
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)

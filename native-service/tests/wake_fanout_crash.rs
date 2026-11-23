@@ -1,4 +1,4 @@
-//! Crash-before-commit gate: a failed value write leaves only a spurious wake.
+//! Crash gates: failed data commit leaves spurious wake; failed slot aborts.
 mod common;
 use common::*;
 use skrynia_native_service::NoLock;
@@ -31,6 +31,7 @@ impl Disk for FailData {
 fn crash_before_value_commit_leaves_only_spurious_wake() {
     let mem = Mem::default();
     subscribe(&mem, WAKE);
+    seed_sender(&mem, &SENDER_A);
     let d = FailData(mem);
     let res = ops::put(
         &d,
@@ -42,9 +43,24 @@ fn crash_before_value_commit_leaves_only_spurious_wake() {
         b"x",
     );
     assert!(res.is_err(), "value write must fail closed");
-    assert!(hints(&d.0, WAKE) >= 1, "wake hint durable before commit");
-    assert!(
-        !data_exists(&d.0, b"thread-001-vitalik-v1"),
-        "no data without wake"
+    assert_eq!(list(&d.0), vec![1], "dirty slot durable before commit");
+    assert!(!data_exists(&d.0, b"thread-001-vitalik-v1"));
+}
+
+#[test]
+fn slot_write_failure_aborts_the_source_commit() {
+    let mem = Mem::default();
+    subscribe(&mem, WAKE);
+    let d = NoSlotWrite(mem);
+    let res = ops::put(
+        &d,
+        &NoLock,
+        "d",
+        WriteAuth::External(&caps().0),
+        b"no-slot-v1",
+        &AppPrecond::Absent,
+        b"x",
     );
+    assert!(res.is_err(), "source must not commit without durable slot");
+    assert!(!data_exists(&d.0, b"no-slot-v1"));
 }

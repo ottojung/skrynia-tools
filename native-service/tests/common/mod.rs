@@ -1,13 +1,16 @@
 //! Shared P1 appdata helpers for the wake fan-out integration tests.
 #![allow(dead_code)]
+mod fault;
 mod memdisk;
 mod queries;
 mod wake;
+#[allow(unused_imports)]
+pub use fault::{NoRemove, NoSlotWrite};
 pub use memdisk::Mem;
 #[allow(unused_imports)]
 pub use queries::{data_exists, hints};
 #[allow(unused_imports)]
-pub use wake::{SENDER_A, SENDER_B, ack, ns, pending, put_ok, seed_sender};
+pub use wake::{SENDER_A, SENDER_B, ack, list, ns, put_ok, read_ok, seed_sender};
 
 use skrynia_native_service::registry::appdata::{WriteAuth, ops, push};
 use skrynia_native_service::wire::AppPrecond;

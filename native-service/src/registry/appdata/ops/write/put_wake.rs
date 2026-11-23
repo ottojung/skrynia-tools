@@ -37,7 +37,9 @@ pub fn put_wake<D: Disk, L: MutLock>(
             &ns,
         )
         .map_err(hint_err)?;
-        super::wake_hint::stage(disk, base, &ns, key, Some(hash), &wake_ns).map_err(hint_err)?;
-        io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)
+        super::wake_hint::precommit(disk, base, &ns, &wake_ns).map_err(hint_err)?;
+        io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)?;
+        super::wake_hint::postcommit(disk, base, &ns, key, Some(hash));
+        Ok(hash)
     })
 }

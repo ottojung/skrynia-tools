@@ -1,15 +1,15 @@
-//! Full outbox must reject CAS delete before durable object deletion.
+//! A full outbox must not abort an authorized durable object deletion.
 use super::{AppPrecond, MemDisk, State, WriteAuth, caps, io, ops, push, seed_sender};
 
 #[test]
-fn full_queue_cannot_report_failed_delete_after_commit() {
+fn full_queue_never_aborts_committed_delete() {
     let disk = MemDisk::default();
     let (writer, _, _) = caps();
     let sender = [21u8; 32];
     let key = b"apps/demo/notice";
     let ns = crate::read_cap(&writer);
     seed_sender(&disk, &sender, key);
-    let initial = b"must-survive".to_vec();
+    let initial = b"must-be-deleted".to_vec();
     ops::put(
         &disk,
         &crate::NoLock,
@@ -31,9 +31,10 @@ fn full_queue_cannot_report_failed_delete_after_commit() {
         key,
         &crate::hash_bytes(&initial),
     );
-    assert!(got.is_err(), "queue quota must fail before deleting");
+    assert!(got.is_ok(), "queue quota must not abort the delete");
     assert_eq!(
         io::read_state(&disk, "d", &ns, key).unwrap(),
-        State::Present(initial)
+        State::Absent,
+        "source deletion must commit"
     );
 }

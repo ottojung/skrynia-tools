@@ -35,7 +35,9 @@ pub fn delete_wake<D: Disk, L: MutLock>(
             &ns,
         )
         .map_err(hint_err)?;
-        super::wake_hint::stage(disk, base, &ns, key, None, &wake_ns).map_err(hint_err)?;
-        io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)
+        super::wake_hint::precommit(disk, base, &ns, &wake_ns).map_err(hint_err)?;
+        io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)?;
+        super::wake_hint::postcommit(disk, base, &ns, key, None);
+        Ok(())
     })
 }

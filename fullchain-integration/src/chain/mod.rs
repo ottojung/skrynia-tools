@@ -1,4 +1,4 @@
-//! Process lifecycle for the real full chain: kernel PR125, trusted edge.
+//! Process lifecycle for the real full chain: current v3 kernel, trusted edge.
 mod edge;
 mod edge_cfg;
 mod kernel;

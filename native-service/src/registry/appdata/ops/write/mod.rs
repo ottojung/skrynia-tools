@@ -1,7 +1,11 @@
 mod del;
+mod del_wake;
 mod put;
+mod put_wake;
 mod util;
 pub(crate) use super::push;
 use super::{AppErr, CAP_LEN, Disk, MutLock, State, WriteAuth, io, valid_key};
 pub use del::delete;
+pub use del_wake::delete_wake;
 pub use put::put;
+pub use put_wake::put_wake;

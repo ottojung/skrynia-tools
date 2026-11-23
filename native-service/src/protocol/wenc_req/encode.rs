@@ -31,7 +31,7 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
             put_id(out, invoke_id);
             put_blob(out, input);
         }
-        Request::Lookup { invoke_id } => {
+        Request::Lookup(invoke_id) => {
             out.push(OP_LOOKUP);
             put_id(out, invoke_id);
         }
@@ -43,6 +43,9 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
         req if is_push(req) => encode_push(out, req),
         req if is_sender(req) => encode_sender(out, req),
         Request::Admin(admin) => super::encode_admin::encode_admin(out, admin),
+        req @ (Request::AppPutWake(..) | Request::AppDeleteWake(..)) => {
+            super::encode_app_wake::encode_app_wake(out, req)
+        }
         _ => encode_app(out, req),
     }
 }

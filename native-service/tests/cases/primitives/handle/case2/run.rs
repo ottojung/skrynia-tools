@@ -16,14 +16,7 @@ pub fn run() {
         code: b"code".to_vec(),
     };
     assert_eq!(util::call(&r, &d, &l, reg_req).body, iid);
-    let got = util::call(
-        &r,
-        &d,
-        &l,
-        Request::Lookup {
-            invoke_id: iid.clone(),
-        },
-    );
+    let got = util::call(&r, &d, &l, Request::Lookup(iid.clone()));
     assert_eq!(got.body, b"code");
     let bad = Request::Revoke {
         admin_cap: vec![0; 32],

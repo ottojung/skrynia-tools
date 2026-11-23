@@ -1,5 +1,6 @@
 use super::admin;
 use super::app;
+use super::app_wake;
 use super::operator;
 use super::push;
 use super::res::{map_res, ok as resp_ok};
@@ -14,16 +15,11 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
     eval: &E,
     req: Request,
 ) -> Vec<u8> {
-    if let Some(out) = app::handle(reg, disk, lock, eval, req.clone()) {
-        return out;
-    }
-    if let Some(out) = push::handle(reg, disk, lock, req.clone()) {
-        return out;
-    }
-    if let Some(out) = admin::handle(reg, disk, lock, req.clone()) {
-        return out;
-    }
-    match req {
+    let out = app::handle(reg, disk, lock, eval, req.clone())
+        .or_else(|| app_wake::handle(reg, disk, lock, req.clone()))
+        .or_else(|| push::handle(reg, disk, lock, req.clone()))
+        .or_else(|| admin::handle(reg, disk, lock, req.clone()));
+    out.unwrap_or_else(|| match req {
         Request::Register {
             operator_cap,
             admin_cap,
@@ -47,5 +43,5 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
             6,
         ),
         _ => unreachable!(),
-    }
+    })
 }

@@ -17,6 +17,21 @@ pub fn parse(op: u8, src: &mut &[u8]) -> Result<Request, DecodeErr> {
             key: blob(src)?,
             expect: hash(src)?,
         }),
+        OP_APP_PUT_WAKE => Ok(Request::AppPutWake(
+            id(src)?,
+            blob(src)?,
+            parse_precond(src)?,
+            blob(src)?,
+            id(src)?,
+            blob(src)?,
+        )),
+        OP_APP_DELETE_WAKE => Ok(Request::AppDeleteWake(
+            id(src)?,
+            blob(src)?,
+            hash(src)?,
+            id(src)?,
+            blob(src)?,
+        )),
         _ => Err(DecodeErr::Op),
     }
 }

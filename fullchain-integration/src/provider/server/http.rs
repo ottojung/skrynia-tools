@@ -1,5 +1,7 @@
+//! Bounded HTTP/1.1 request head and body reader for the fake provider.
+use super::http_reply::content_len;
 use std::io;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 pub async fn read_req<S: AsyncRead + Unpin>(s: &mut S) -> io::Result<(String, Vec<u8>)> {
     let mut data = Vec::new();
@@ -30,33 +32,4 @@ pub async fn read_req<S: AsyncRead + Unpin>(s: &mut S) -> io::Result<(String, Ve
         body.extend_from_slice(&buf[..got]);
     }
     Ok((head, body))
-}
-fn content_len(head: &str) -> usize {
-    head.lines()
-        .find_map(|l| {
-            let (n, v) = l.split_once(':')?;
-            n.trim()
-                .eq_ignore_ascii_case("content-length")
-                .then(|| v.trim().parse().unwrap_or(0))
-        })
-        .unwrap_or(0)
-}
-pub async fn write_reply<S: AsyncWrite + Unpin>(
-    s: &mut S,
-    status: u16,
-    hdrs: &[(String, String)],
-    body: &[u8],
-) -> io::Result<()> {
-    let mut out = format!(
-        "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n",
-        body.len()
-    )
-    .into_bytes();
-    for (n, v) in hdrs {
-        out.extend_from_slice(format!("{n}: {v}\r\n").as_bytes());
-    }
-    out.extend_from_slice(b"\r\n");
-    out.extend_from_slice(body);
-    s.write_all(&out).await?;
-    s.flush().await
 }

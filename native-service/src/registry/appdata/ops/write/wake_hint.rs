@@ -8,20 +8,41 @@ pub fn precommit<D: Disk>(
     disk: &D,
     base: &str,
     ns: &[u8],
+    key: &[u8],
     wake_ns: &[u8],
-) -> Result<(), push::PushErr<D::Err, ()>> {
+) -> Result<Option<u64>, push::PushErr<D::Err, ()>> {
+    // Every exact subscribed data key gets a durable fallback BEFORE commit.
+    // Successful legacy hint enqueue clears it; a full/corrupt queue or
+    // crash before enqueue leaves one discoverable coalesced invalidation.
+    let slot = if key == push::WAKE_KEY {
+        None
+    } else {
+        push::stage_data_slot(disk, base, ns, key)?
+    };
     push::mark_wake_dirty(disk, base, ns, push::WAKE_KEY)?;
     if wake_ns != ns {
         push::mark_wake_dirty(disk, base, wake_ns, push::WAKE_KEY)?;
     }
-    Ok(())
+    Ok(slot)
 }
 
-/// Best-effort per-key hint after the source CAS committed. A full queue is
-/// degraded notification, never a data error: the precommit wake slot is
-/// already durable, so no wake is lost and no hint names uncommitted data.
-pub fn postcommit<D: Disk>(disk: &D, base: &str, ns: &[u8], key: &[u8], hash: Option<[u8; 32]>) {
-    if key != push::WAKE_KEY {
-        let _ = push::enqueue_hints(disk, base, ns, key, hash);
+/// The original per-key hash hint is preferred when durably staged post-CAS.
+/// If unavailable, keep the precommit dirty slot: a sender which already
+/// read old hints may then ACK those without losing this newer change.
+pub fn postcommit<D: Disk>(
+    disk: &D,
+    base: &str,
+    ns: &[u8],
+    key: &[u8],
+    hash: Option<[u8; 32]>,
+    slot: Option<u64>,
+) {
+    if key == push::WAKE_KEY {
+        return;
+    }
+    if push::enqueue_hints(disk, base, ns, key, hash).is_ok()
+        && let Some(g) = slot
+    {
+        let _ = push::wake_ack::<D, ()>(disk, base, ns, key, g);
     }
 }

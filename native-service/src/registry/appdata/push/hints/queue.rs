@@ -1,8 +1,7 @@
-//! Stage a durable change hint before the related object CAS commit.
-//! Readers only inspect hints under the same mutation lock.
-//! A hint is an invalidation, not proof of a committed value: if the following
-//! object write fails, a spurious hint may remain. Senders MUST re-read the
-//! authoritative object state after receiving a hint.
+//! Legacy exact-key hash/delete hint queue, staged after committed source CAS.
+//! The durable dirty-generation fallback is staged BEFORE commit so that
+//! quota/corruption cannot abort a data write or lose a newer invalidation.
+//! Senders MUST re-read authoritative state; hints are not event logs.
 use super::{Disk, MAX_HINTS, PushErr, hint_path, hints_root, subs_dir};
 
 pub fn enqueue_hints<D: Disk>(

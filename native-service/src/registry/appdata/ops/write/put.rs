@@ -26,9 +26,9 @@ pub fn put<D: Disk, L: MutLock>(
             return Err(AppErr::Conflict(state.hash()));
         }
         let hash = crate::hash_bytes(value);
-        super::wake_hint::precommit(disk, base, &ns, &ns).map_err(hint_err)?;
+        let slot = super::wake_hint::precommit(disk, base, &ns, key, &ns).map_err(hint_err)?;
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)?;
-        super::wake_hint::postcommit(disk, base, &ns, key, Some(hash));
+        super::wake_hint::postcommit(disk, base, &ns, key, Some(hash), slot);
         Ok(hash)
     })
 }

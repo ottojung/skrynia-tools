@@ -5,6 +5,8 @@ mod list;
 mod read;
 mod scope;
 mod sub_fetch;
+/// Reserved high bit distinguishes a fallback dirty generation from legacy queue IDs.
+pub(super) const DATA_SLOT_FLAG: u64 = 1u64 << 63;
 
 pub(super) use super::Disk;
 pub(super) use super::MAX_HINTS;

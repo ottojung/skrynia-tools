@@ -20,9 +20,9 @@ pub fn delete<D: Disk, L: MutLock>(
             State::Present(v) if hash_bytes(v).as_slice() == expect => {}
             _ => return Err(AppErr::Conflict(state.hash())),
         }
-        super::wake_hint::precommit(disk, base, &ns, &ns).map_err(hint_err)?;
+        let slot = super::wake_hint::precommit(disk, base, &ns, key, &ns).map_err(hint_err)?;
         io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)?;
-        super::wake_hint::postcommit(disk, base, &ns, key, None);
+        super::wake_hint::postcommit(disk, base, &ns, key, None, slot);
         Ok(())
     })
 }

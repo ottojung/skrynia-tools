@@ -1,7 +1,7 @@
 use super::common::Mem;
-use skrynia_native_service::registry::appdata::{AppErr, WriteAuth, ops, push};
+use skrynia_native_service::NoLock;
+use skrynia_native_service::registry::appdata::{AppErr, WriteAuth, ops};
 use skrynia_native_service::wire::AppPrecond;
-use skrynia_native_service::{NoLock, read_cap};
 type R = Result<[u8; 32], AppErr<(), ()>>;
 pub fn pw(d: &Mem, w: &[u8; 32], k: &[u8], v: &[u8], g: &[u8; 32], wk: &[u8]) -> R {
     ops::put_wake(

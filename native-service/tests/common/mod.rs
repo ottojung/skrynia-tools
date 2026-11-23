@@ -3,6 +3,7 @@
 mod memdisk;
 mod queries;
 pub use memdisk::Mem;
+#[allow(unused_imports)] // Shared across independent integration-test binaries.
 pub use queries::{data_exists, hints};
 
 use skrynia_native_service::registry::appdata::{WriteAuth, ops, push};

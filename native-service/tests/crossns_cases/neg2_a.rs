@@ -1,23 +1,8 @@
 use super::common::Mem;
-use super::setup::{hints, iw, wake_setup};
+use super::setup::{Revoke, hints, iw, wake_setup};
 use skrynia_native_service::registry::appdata::{AppErr, WriteAuth, ops};
 use skrynia_native_service::wire::AppPrecond;
-use skrynia_native_service::{MutLock, NoLock, hash_bytes, read_cap};
-struct Revoke<'a>(&'a Mem, String, Vec<u8>);
-impl MutLock for Revoke<'_> {
-    type Err = ();
-    fn try_acquire(&self) -> Result<bool, ()> {
-        self.0
-            .0
-            .lock()
-            .unwrap()
-            .insert(self.1.clone(), self.2.clone());
-        Ok(true)
-    }
-    fn release(&self) -> Result<(), ()> {
-        Ok(())
-    }
-}
+use skrynia_native_service::{MutLock, hash_bytes, read_cap};
 fn hex(b: &[u8; 32]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }

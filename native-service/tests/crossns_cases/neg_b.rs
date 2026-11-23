@@ -1,9 +1,7 @@
 use super::common::Mem;
-use super::setup::{hints, wake_setup};
+use skrynia_native_service::registry::appdata::push;
 use skrynia_native_service::registry::appdata::push::PushErr;
-use skrynia_native_service::registry::appdata::{WriteAuth, ops, push};
-use skrynia_native_service::wire::AppPrecond;
-use skrynia_native_service::{NoLock, hash_bytes, read_cap};
+use skrynia_native_service::{NoLock, read_cap};
 #[test]
 fn unauthorized_grant_issuance_rejected() {
     let d = Mem::default();

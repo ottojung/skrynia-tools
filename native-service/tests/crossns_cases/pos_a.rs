@@ -1,7 +1,7 @@
 use super::setup::{hints, wake_setup};
 use skrynia_native_service::registry::appdata::{WriteAuth, ops};
 use skrynia_native_service::wire::AppPrecond;
-use skrynia_native_service::{NoLock, hash_bytes, read_cap};
+use skrynia_native_service::{NoLock, read_cap};
 #[test]
 fn disjoint_namespaces_wake_shared_key() {
     let (d, wa, wb, ga, gb) = wake_setup();

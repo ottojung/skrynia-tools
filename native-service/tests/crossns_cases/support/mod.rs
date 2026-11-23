@@ -45,3 +45,6 @@ pub fn iw(d: &Mem, ww: &[u8; 32], gc: &[u8; 32], wk: &[u8], src: &[u8; 32]) {
     )
     .unwrap();
 }
+
+mod revoke;
+pub use revoke::Revoke;

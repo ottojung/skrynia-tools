@@ -28,8 +28,7 @@ pub fn delete<D: Disk, L: MutLock>(
         super::push::enqueue_hints(disk, base, &ns, key, None).map_err(hint)?;
         // Same lock as the object delete; see put.rs for the crash argument.
         if key != super::push::WAKE_KEY {
-            super::push::enqueue_hints(disk, base, &ns, super::push::WAKE_KEY, None)
-                .map_err(hint)?;
+            super::push::mark_wake_dirty(disk, base, &ns, super::push::WAKE_KEY).map_err(hint)?;
         }
         io::delete_value(disk, base, &ns, key).map_err(AppErr::from_store)
     })

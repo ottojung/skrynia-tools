@@ -27,7 +27,7 @@ fn delete_also_fans_out_to_wake_key() {
     let d = Mem::default();
     subscribe(&d, WAKE);
     put(&d, b"traveller-tes-v1", b"v");
-    let n = hints(&d, WAKE);
+    let before = pending(&d);
     ops::delete(
         &d,
         &NoLock,
@@ -37,5 +37,9 @@ fn delete_also_fans_out_to_wake_key() {
         &hash_bytes(b"v"),
     )
     .unwrap();
-    assert!(hints(&d, WAKE) > n, "delete must also invalidate wake key");
+    assert_eq!(hints(&d, WAKE), 1, "delete keeps wake coalesced");
+    assert!(
+        pending(&d)[0] > before[0],
+        "delete must also advance the wake generation"
+    );
 }

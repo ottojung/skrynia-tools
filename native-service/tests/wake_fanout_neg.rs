@@ -9,7 +9,8 @@ fn fanout_covers_113_dynamic_thread_keys_with_one_subscription() {
     for i in 0..113 {
         put(&d, format!("thread-{i:03}-tes-v1").as_bytes(), b"msg");
     }
-    assert!(hints(&d, WAKE) >= 113, "every dynamic key must wake");
+    assert_eq!(hints(&d, WAKE), 1, "all 113 keys coalesce to one wake");
+    assert_eq!(pending(&d), vec![113], "generation counts every mutation");
     assert_eq!(hints(&d, b"thread-000-tes-v1"), 0, "no per-key subs");
 }
 

@@ -32,12 +32,11 @@ pub fn put<D: Disk, L: MutLock>(
             _ => AppErr::BadAuth,
         };
         super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
-        // Same lock/commit as the object write: if the write lands, this hint
-        // is durable. A crash before the write leaves only a spurious wake,
-        // which a sender discards after re-reading authoritative state.
+        // Same lock/commit as the object write: if the write lands, the dirty
+        // generation is durable. A coalesced generation keeps wake storage O(1)
+        // so a full wake queue can never fail an ordinary data-plane write.
         if key != super::push::WAKE_KEY {
-            super::push::enqueue_hints(disk, base, &ns, super::push::WAKE_KEY, None)
-                .map_err(hint)?;
+            super::push::mark_wake_dirty(disk, base, &ns, super::push::WAKE_KEY).map_err(hint)?;
         }
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)
     })

@@ -25,8 +25,10 @@ fn wake_object_is_invalidated_for_every_mutation() {
     ] {
         put(&d, key, b"v");
     }
-    assert!(
-        hints(&d, WAKE) >= 3,
-        "wake object must fan out all mutations"
+    assert_eq!(hints(&d, WAKE), 1, "wake stays coalesced to one hint");
+    assert_eq!(
+        pending(&d),
+        vec![3],
+        "generation must reflect all three mutations"
     );
 }

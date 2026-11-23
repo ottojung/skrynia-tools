@@ -1,0 +1,38 @@
+# FULLCHAIN_OK durable evidence — skrynia-tools native WebPush full chain
+# repository: https://github.com/ottojung/skrynia-tools
+# branch: antonina/pr79-evidence-fix-marceline-dev-20261123 (DRAFT, stacked from PR79 30bb38ca)
+# PR79 head this stacks on: 30bb38caf26f737e6330dddece82eaf1984a34c0
+# source commit that produced this run: 2bc4a2040aa2571ed9ebbb43df3e1b3331b173ca
+# harness: fullchain-integration/target/debug/fullchain (standalone crate, built from source commit)
+# artifacts: pinned files in ../artifacts (gitignored); SHA256 lines below computed AT RUN TIME from bytes actually consumed
+# environment: marceline-dev, disposable loopback only; no real VAPID credential/push service/Chromium/DNS/TLS/production/customer data
+# command: FC_ARTIFACTS=<clone>/artifacts FC_TMP=<tmp> ./target/debug/fullchain
+# ---- begin captured stdout ----
+pin_verify=ok
+SHA256 kernel_PR125_856c029 4c6d34f93f59a5377e64fdeae319a200d358b7ca5290162ad0a6b618f62954dc
+SHA256 p0_d57ab27a.wasm d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa
+SHA256 p1_push_efe6117.wasm cf1322c3d41009c19c65771b353259b5f9c0d98157ec9075513edcd390c3477a
+SHA256 trusted_edge_9fa4df14 9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f
+SHA256 echo_dc28e490.wasm dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5
+EVIDENCE report=1/1/1/0
+EVIDENCE plaintext_hex=3bfc269594ef649228e9a74bab00f042efc91d5acc6fbee31a382e80d42388fe
+EVIDENCE vapid_sub=mailto:ops@example.invalid
+EVIDENCE vapid_es256_verify=ok
+EVIDENCE aes128gcm_decrypt=ok
+EVIDENCE push_seen=1
+EVIDENCE hint_list_empty=true
+EVIDENCE restart_no_duplicate=true
+EVIDENCE revoke_stops_delivery=true
+EVIDENCE neg_wrong_grant=9
+EVIDENCE neg_sibling_key=9
+EVIDENCE neg_bad_sender=9
+EVIDENCE neg_bad_fetch=9
+EVIDENCE neg_malformed=1
+EVIDENCE neg_wrong_version=1
+EVIDENCE neg_edge_bad_cap=401
+EVIDENCE neg_edge_bad_host=403
+EVIDENCE neg_edge_bad_origin=403
+EVIDENCE neg_redirect_err=Transport("status")/seen=1
+EVIDENCE neg_backoff_attempts=Exhausted/seen=3
+FULLCHAIN_OK
+# ---- end captured stdout ----

@@ -1,6 +1,8 @@
 //! Process lifecycle for the real full chain: kernel PR125, trusted edge.
 mod edge;
+mod edge_cfg;
 mod kernel;
+mod kernel_prepare;
 mod p1;
 mod port;
 pub use edge::EdgeProc;

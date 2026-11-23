@@ -1,7 +1,10 @@
-use super::super::p1::{call, must};
+//! Wrong-capability and malformed-wire negatives against the real chain.
+use super::super::p1::call;
 use super::super::wire::{blb, idb, req};
-use crate::chain::{EdgeProc, Kernel, op_cap, transport};
+use super::p1_caps_seed::{Caps, install};
+use crate::chain::{EdgeProc, Kernel, transport};
 use sha2::{Digest, Sha256};
+
 fn h(b: &[u8]) -> [u8; 32] {
     Sha256::digest(b).into()
 }
@@ -10,34 +13,11 @@ pub fn run(art: &std::path::Path, tmp: &std::path::Path) -> Vec<String> {
     let k = Kernel::start(art, &tmp.join("k")).expect("kernel");
     let e = EdgeProc::start(art, &tmp.join("e"), k.port, &k.token).expect("edge");
     let io = transport(&e);
-    let admin = h(b"fc-admin-cap");
-    let grant = h(b"fc-grant-cap");
+    let Caps { admin, grant, .. } = install(&io, art);
     let bad = h(b"fc-bad-grant");
-    let sender = h(b"fc-sender-cap");
     let bad_s = h(b"fc-bad-sender");
     let sub = b"sub-a";
     let key = b"notice/alpha";
-    let echo = std::fs::read(art.join("echo_dc28e490.wasm")).unwrap();
-    must(
-        &io,
-        &req(15, &[&idb(&op_cap()), &idb(&admin), &blb(&echo)]),
-        "reg",
-    );
-    must(
-        &io,
-        &req(18, &[&idb(&admin), &idb(&grant), &blb(key), &blb(sub)]),
-        "grant",
-    );
-    must(
-        &io,
-        &req(16, &[&idb(&grant), &blb(key), &blb(sub), &blb(b"{}")]),
-        "sub",
-    );
-    must(
-        &io,
-        &req(19, &[&idb(&admin), &idb(&sender), &blb(key)]),
-        "sgrant",
-    );
     let bad_grant = call(
         &io,
         &req(16, &[&idb(&bad), &blb(key), &blb(sub), &blb(b"{}")]),

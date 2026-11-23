@@ -26,11 +26,19 @@ pub fn put<D: Disk, L: MutLock>(
             return Err(AppErr::Conflict(state.hash()));
         }
         let hash = crate::hash_bytes(value);
-        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(|e| match e {
+        let hint = |e: super::push::PushErr<D::Err, ()>| match e {
             super::push::PushErr::Disk(d) => AppErr::Disk(d),
             super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
             _ => AppErr::BadAuth,
-        })?;
+        };
+        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
+        // Same lock/commit as the object write: if the write lands, this hint
+        // is durable. A crash before the write leaves only a spurious wake,
+        // which a sender discards after re-reading authoritative state.
+        if key != super::push::WAKE_KEY {
+            super::push::enqueue_hints(disk, base, &ns, super::push::WAKE_KEY, None)
+                .map_err(hint)?;
+        }
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)
     })
 }

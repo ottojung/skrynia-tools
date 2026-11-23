@@ -20,6 +20,12 @@ pub use sender::{hint_ack, hint_list, hint_read, sub_fetch};
 pub use subscribe::subscribe;
 pub use unsubscribe::unsubscribe;
 
+/// Reserved exact key for generic namespace wake fan-out. A subscriber that
+/// holds an ordinary exact-key Subscribe grant for this key receives an
+/// invalidation hint for every mutation in its namespace. No prefix matching,
+/// no application semantics: senders still re-read authoritative state.
+pub const WAKE_KEY: &[u8] = b"skrynia-wake-v1";
+
 pub const MAX_SUB_BYTES: usize = 4096;
 pub const MAX_SUBS: usize = 64;
 pub const MAX_HINTS: usize = 1024;

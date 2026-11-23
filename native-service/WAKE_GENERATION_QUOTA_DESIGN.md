@@ -24,8 +24,14 @@ fail-closed condition.
 ## Ordinary data-key compatibility and loss-free overflow
 
 The legacy exact-object per-sequence hint queue is still bounded by
-`MAX_HINTS=1024`; success normally produces the same hash/delete wire
-payload and monotone ordinary seq number as before. **Before every CAS**
+`MAX_HINTS=1024`; success initially produces the same hash/delete wire
+payload and monotone ordinary seq number as before. For a given key, the
+service attempts new legacy per-file hints only while the monotone sequence
+counter is below **256**. Past that threshold it uses the durable coalesced
+fallback, even if old records have since been ACKed. This explicit finite
+budget bounds per-request directory scanning and WASM fuel usage. The
+sender must interpret any fallback as an invalidation, not as an event hash.
+**Before every CAS**
 having an exact-key subscriber, P1 additionally advances a durable,
 constant-size generation slot under the source mutation lock. It also stages
 the source/shared reserved wake slot(s) as applicable. If the CAS succeeds

@@ -37,7 +37,7 @@ pub fn postcommit<D: Disk>(
     hash: Option<[u8; 32]>,
     slot: Option<u64>,
 ) {
-    if key == push::WAKE_KEY {
+    if key == push::WAKE_KEY || slot.is_none() || !push::can_enqueue(disk, base, ns, key) {
         return;
     }
     if push::enqueue_hints(disk, base, ns, key, hash).is_ok()

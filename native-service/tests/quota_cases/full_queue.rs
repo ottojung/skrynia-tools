@@ -36,6 +36,10 @@ fn full_data_hint_queue_never_aborts_source_commits() {
         prev = Some(put(&d, &expect, value).unwrap_or_else(|e| panic!("write {i}: {e:?}")));
     }
     assert!(data_exists(&d, KEY), "last source value must be committed");
-    assert_eq!(hints(&d, KEY), MAX_HINTS, "hint queue stays bounded");
+    assert_eq!(
+        hints(&d, KEY),
+        256,
+        "per-key legacy queue stays fuel-bounded"
+    );
     assert_eq!(list(&d), vec![n as u64], "truthful pending wake");
 }

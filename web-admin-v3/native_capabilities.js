@@ -1,33 +1,51 @@
 // Semantic capability adapter for the web-admin-v3 UI over the pinned native
-// POST transport. It translates the four UI operations into the ordinary
-// nonzero service's opaque AppGet/AppPut/AppCas wire operations and never
-// handles the Program 0 bearer token: the trusted static origin's reverse
-// proxy constructs the pinned P0 frame server-side.
+// POST transport. It speaks the dedicated admin ABI of the ordinary nonzero
+// WASM service: STAGE=9, SEAL=10, ACTIVATE=11, GET_ACTIVE=12,
+// LIST_VERSIONS=13 and LIST_PROGRAMS=14 (the app-ID listing operation; there
+// is no app listing among opcodes 9-13). AppPut/AppGet (6/7) are never sent:
+// the UI no longer simulates releases with client-side appdata JSON.
 //
-// Authority is operator-provisioned session material (readCap/adminCap), never
-// a static-bundle, URL or log value. The CAS precondition is the SHA-256 of the
-// exact expected stored bytes, so activation is one bounded pointer write and
-// is O(1) in both historical release count and release asset size.
+// The browser never handles the Program 0 bearer token: the trusted static
+// origin's reverse proxy constructs the pinned P0 frame server-side. Authority
+// is operator-provisioned session material (invoke/read ID, admin capability),
+// never a static-bundle, URL or log value. Activation is one fixed-size u64
+// revision CAS enforced by the compiled service, O(1) in version count and
+// release size, and a lost/malformed response is never replayed.
 
 import {createBinaryPostTransport} from './binary_transport.js';
 import {assertAppName, assertReleaseId, normalizeManifest} from './capabilities.js';
 
 const textEncoder = new TextEncoder();
+const PAGE_LIMIT = 256; // compiled service rejects limit=0 and limit>256
+const OP = {
+  STAGE: 9, SEAL: 10, ACTIVATE: 11, GET_ACTIVE: 12, LIST_VERSIONS: 13, LIST_PROGRAMS: 14,
+};
+// Native service error codes (response status 1, body[0]).
+const ERR = {BADREQ: 1, IO: 7, NOTFOUND: 8, UNAUTH: 9, CONFLICT: 10};
+
+const invalidInput = message => Object.assign(Error(message), {code: 'invalid_input'});
+const invalidData = message => Object.assign(Error(message), {code: 'invalid_data'});
 
 const hexToBytes = hex => {
   if (typeof hex !== 'string' || !/^[0-9a-f]{64}$/.test(hex)) {
-    throw Object.assign(Error('A 32-byte capability is required'), {code: 'invalid_input'});
+    throw invalidInput('A 32-byte capability or identifier is required');
   }
   const out = new Uint8Array(32);
   for (let i = 0; i < 32; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
 };
 
+const bytesToHex = bytes => {
+  let out = '';
+  for (const byte of bytes) out += byte.toString(16).padStart(2, '0');
+  return out;
+};
+
 const putId = bytes => {
   const b = new Uint8Array(bytes);
   const out = new Uint8Array(2 + b.length);
-  out[0] = b.length & 0xff;
-  out[1] = (b.length >> 8) & 0xff;
+  const view = new DataView(out.buffer);
+  view.setUint16(0, b.length, true);
   out.set(b, 2);
   return out;
 };
@@ -48,78 +66,91 @@ const concat = parts => {
   return out;
 };
 
-const appGetOp = (iid, key) => concat([
-  Uint8Array.from([0x01, 0x07]), putId(iid), putBlob(textEncoder.encode(key)),
-]);
-const appCasOp = (adminCap, key, expectedHash, value) => concat([
-  Uint8Array.from([0x01, 0x06]), putId(adminCap), putBlob(textEncoder.encode(key)),
-  Uint8Array.from([1]), expectedHash, putBlob(textEncoder.encode(value)),
-]);
+const pageBytes = (after, limit) => {
+  const l = new Uint8Array(2);
+  new DataView(l.buffer).setUint16(0, limit, true);
+  return after ? concat([Uint8Array.from([1]), after, l]) : concat([Uint8Array.from([0]), l]);
+};
+
+const stageOp = (admin, code) =>
+  concat([Uint8Array.from([1, OP.STAGE]), putId(admin), putBlob(code)]);
+const sealOp = (admin, hash) =>
+  concat([Uint8Array.from([1, OP.SEAL]), putId(admin), hash]);
+const activateOp = (admin, revision, target) => {
+  const r = new Uint8Array(8);
+  new DataView(r.buffer).setBigUint64(0, BigInt(revision), true);
+  return concat([Uint8Array.from([1, OP.ACTIVATE]), putId(admin), r, target]);
+};
+const getActiveOp = iid => concat([Uint8Array.from([1, OP.GET_ACTIVE]), putId(iid)]);
+const listVersionsOp = (iid, after) =>
+  concat([Uint8Array.from([1, OP.LIST_VERSIONS]), putId(iid), pageBytes(after, PAGE_LIMIT)]);
+const listProgramsOp = after =>
+  concat([Uint8Array.from([1, OP.LIST_PROGRAMS]), pageBytes(after, PAGE_LIMIT)]);
 
 async function sha256(bytes) {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return new Uint8Array(digest);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
 }
 
 // Native response envelope: 0x01(version) || status || u32 LE length || body.
 function decodeResponse(buf) {
   const b = new Uint8Array(buf);
   if (b.length < 6 || b[0] !== 1) {
-    throw Object.assign(Error('Unrecognized native response framing'), {code: 'invalid_data'});
+    throw invalidData('Unrecognized native response framing');
   }
   const len = new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(2, true);
   if (6 + len !== b.length) {
-    throw Object.assign(Error('Malformed native response length'), {code: 'invalid_data'});
+    throw invalidData('Malformed native response length');
   }
   return {status: b[1], body: b.subarray(6)};
 }
 
-function parseJson(bytes, label) {
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw Object.assign(Error('Invalid ' + label + ' payload from native service'), {code: 'invalid_data'});
+function parseActive(bytes, label) {
+  if (bytes.length !== 42 || bytes[0] !== 3 || bytes[1] > 1) {
+    throw invalidData('Malformed active record from native service (' + label + ')');
   }
+  const revision = Number(new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    .getBigUint64(34, true));
+  if (!Number.isSafeInteger(revision)) {
+    throw invalidData('Active pointer revision exceeds the browser-safe range');
+  }
+  return {
+    live: bytes[1] === 1,
+    hash: bytesToHex(bytes.subarray(2, 34)),
+    revision,
+  };
 }
 
-const keyApps = () => 'v3admin:apps';
-const keyState = app => 'v3admin:app:' + app + ':state';
-const keyVersions = app => 'v3admin:app:' + app + ':versions';
-
-// Canonical, byte-exact state serialization shared with the provisioning seed.
-// The CAS precondition hashes these exact bytes.
-export const serializeState = state => JSON.stringify({
-  active: state.active ?? null,
-  pointerVersion: state.pointerVersion,
-});
-
-function assertState(value, app) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw Object.assign(Error('Invalid application state from native service'), {code: 'invalid_data'});
+function parsePage(bytes, label) {
+  if (bytes.length < 2) throw invalidData('Malformed native page (' + label + ')');
+  const count = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint16(0, true);
+  if (bytes.length !== 2 + count * 32) {
+    throw invalidData('Malformed native page length (' + label + ')');
   }
-  if (value.active !== null && (typeof value.active !== 'string' || !/^[0-9a-f]{64}$/.test(value.active))) {
-    throw Object.assign(Error('Invalid active release pointer'), {code: 'invalid_data'});
+  const hashes = [];
+  for (let i = 0; i < count; i += 1) {
+    hashes.push(bytesToHex(bytes.subarray(2 + i * 32, 2 + (i + 1) * 32)));
   }
-  if (!Number.isSafeInteger(value.pointerVersion) || value.pointerVersion < 0) {
-    throw Object.assign(Error('Invalid pointer revision'), {code: 'invalid_data'});
-  }
-  return {app, active: value.active ?? null, pointerVersion: value.pointerVersion};
+  return {hashes, last: count ? bytes.subarray(2 + (count - 1) * 32, 2 + count * 32) : null};
 }
 
-function assertVersionList(value, app) {
-  if (!Array.isArray(value)) {
-    throw Object.assign(Error('Invalid release history from native service'), {code: 'invalid_data'});
-  }
-  return value.map(v => {
-    if (!v || typeof v !== 'object' || typeof v.id !== 'string' || !/^[0-9a-f]{64}$/.test(v.id)) {
-      throw Object.assign(Error('Invalid release identifier in history'), {code: 'invalid_data'});
-    }
-    return {...v};
+function serviceError(status, body, label, unreadyCode = 'not_found') {
+  const nativeError = body.length ? body[0] : null;
+  let code = 'invalid_data';
+  if (nativeError === ERR.NOTFOUND) code = unreadyCode;
+  else if (nativeError === ERR.UNAUTH) code = 'unauthorized';
+  else if (nativeError === ERR.CONFLICT) code = 'conflict';
+  else if (nativeError === ERR.IO) code = 'io';
+  return Object.assign(Error(label + ' rejected by native service (err ' + nativeError + ')'), {
+    code, status, nativeError,
   });
 }
 
+function gatewayDenied(error) {
+  return error && error.code === 'rejected' && (error.status === 401 || error.status === 403);
+}
+
 // A mutation that was submitted but whose response cannot be trusted has an
-// unknown outcome: the CAS may or may not have committed. Report that state
+// unknown outcome: the u64 CAS may or may not have committed. Report that state
 // explicitly so callers never auto-retry or silently replay the write.
 function uncertainActivation(app, target, expectedPointerVersion, message, cause) {
   const error = Error(message);
@@ -131,25 +162,18 @@ function uncertainActivation(app, target, expectedPointerVersion, message, cause
   return error;
 }
 
-function projectVersions(app, state, releases) {
-  return releases.map(v => {
-    let manifest = null;
-    let error = null;
-    try {
-      if (v.ready !== true) throw Error('Release is not finalized');
-      manifest = normalizeManifest(app, v.id, v.manifest);
-    } catch (e) {
-      error = e.message || 'Invalid release';
-    }
-    return {
-      id: v.id,
-      ready: v.ready === true,
-      usable: error === null,
-      error,
-      commit: manifest?.commit || '',
-      repo: manifest?.repo || '',
-      files: manifest?.files ?? 0,
-    };
+// The compiled service stores sealed content hashes, not static file manifests.
+// Expose an identity-only manifest so "Inspect manifest" stays honest: no file
+// list, commit or repository is fabricated from a hash.
+function identityManifest(app, releaseId) {
+  return normalizeManifest(app, releaseId, {
+    schema: 'skrynia-native-static-v1',
+    app,
+    release: releaseId,
+    commit: '',
+    repo: '',
+    files: [],
+    origin: 'native-p1-ready-hash',
   });
 }
 
@@ -158,122 +182,197 @@ export function createNativeCapabilities(session, fetchImpl = globalThis.fetch) 
     throw Object.assign(Error('Operator session authority is required'), {code: 'unauthorized'});
   }
   if (typeof session.endpoint !== 'string' || !/^https?:\/\//.test(session.endpoint)) {
-    throw Object.assign(Error('A trusted gateway endpoint is required'), {code: 'invalid_input'});
+    throw invalidInput('A trusted gateway endpoint is required');
   }
-  const iid = hexToBytes(session.readCap);
+  const readCap = hexToBytes(session.readCap);
   const adminCap = hexToBytes(session.adminCap);
   const transport = createBinaryPostTransport(session.endpoint, fetchImpl);
+  const appAdminCaps = session.adminCaps && typeof session.adminCaps === 'object'
+    ? session.adminCaps : null;
 
-  async function readKey(key, label) {
-    const raw = await transport.post(appGetOp(iid, key));
-    const decoded = decodeResponse(raw);
-    if (decoded.status !== 0) {
-      throw Object.assign(Error('Native read denied (' + label + ')'), {
-        code: 'unauthorized', status: decoded.status,
+  const invokeIdFor = app => {
+    assertAppName(app);
+    return app === bytesToHex(readCap) ? readCap : hexToBytes(app);
+  };
+
+  async function adminCapFor(app) {
+    assertAppName(app);
+    if (appAdminCaps && typeof appAdminCaps[app] === 'string') {
+      return hexToBytes(appAdminCaps[app]);
+    }
+    if (app === bytesToHex(await sha256(adminCap))) return adminCap;
+    throw Object.assign(Error('No operator admin authority provisioned for application ' + app), {
+      code: 'unauthorized', app,
+    });
+  }
+
+  async function sendRead(frame, label) {
+    let raw;
+    try {
+      raw = await transport.post(frame);
+    } catch (error) {
+      if (gatewayDenied(error)) {
+        throw Object.assign(Error(label + ' denied by gateway'), {
+          code: 'unauthorized', status: error.status, cause: error,
+        });
+      }
+      throw Object.assign(Error(label + ' could not be read from the native service'), {
+        code: 'transport_unknown', cause: error,
       });
+    }
+    let decoded;
+    try {
+      decoded = decodeResponse(raw);
+    } catch (error) {
+      throw invalidData('Malformed native response (' + label + ')');
+    }
+    if (decoded.status !== 0) throw serviceError(decoded.status, decoded.body, label);
+    return decoded.body;
+  }
+
+  async function sendMutation(frame, label, mutation) {
+    let raw;
+    try {
+      raw = await transport.post(frame);
+    } catch (error) {
+      if (gatewayDenied(error)) {
+        throw Object.assign(Error(label + ' denied by gateway'), {
+          code: 'unauthorized', status: error.status, cause: error,
+        });
+      }
+      throw uncertainActivation(mutation.app, mutation.target, mutation.expectedPointerVersion,
+        label + ' outcome unknown: response lost or rejected; refresh to reconcile', error);
+    }
+    let decoded;
+    try {
+      decoded = decodeResponse(raw);
+    } catch (error) {
+      throw uncertainActivation(mutation.app, mutation.target, mutation.expectedPointerVersion,
+        label + ' outcome unknown: malformed service response; refresh to reconcile', error);
+    }
+    // A service status is definitive: the compiled service reports a failed
+    // precondition/CAS without writing, so this is never an unknown outcome.
+    if (decoded.status !== 0) {
+      throw serviceError(decoded.status, decoded.body, label,
+        label === 'Activation' ? 'invalid_state' : 'not_found');
     }
     return decoded.body;
   }
 
-  async function readApp(app) {
-    assertAppName(app);
-    const [stateBytes, versionBytes] = await Promise.all([
-      readKey(keyState(app), 'state'),
-      readKey(keyVersions(app), 'history'),
-    ]);
-    return {
-      state: assertState(parseJson(stateBytes, 'application state'), app),
-      releases: assertVersionList(parseJson(versionBytes, 'release history'), app),
-    };
+  async function listAll(iid, label) {
+    const seen = new Set();
+    const out = [];
+    let after = null;
+    for (let guard = 0; guard < 4096; guard += 1) {
+      const body = await sendRead(iid ? listVersionsOp(iid, after) : listProgramsOp(after), label);
+      const page = parsePage(body, label);
+      out.push(...page.hashes);
+      if (page.hashes.length < PAGE_LIMIT || !page.last) break;
+      const cursor = bytesToHex(page.last);
+      if (seen.has(cursor)) throw invalidData(label + ' pagination cursor did not advance');
+      seen.add(cursor);
+      after = page.last;
+    }
+    return out;
   }
 
   return {
     kind: 'native',
     async listApps() {
-      const names = parseJson(await readKey(keyApps(), 'application list'), 'application list');
-      if (!Array.isArray(names)) {
-        throw Object.assign(Error('Invalid application list'), {code: 'invalid_data'});
-      }
-      return names.map(name => assertAppName(name)).sort();
+      return [...new Set(await listAll(null, 'application list'))].sort();
     },
     async getAppState(app) {
-      const {state, releases} = await readApp(app);
+      const active = parseActive(
+        await sendRead(getActiveOp(invokeIdFor(app)), 'active pointer'), 'active pointer');
+      const ready = await listAll(invokeIdFor(app), 'ready versions');
       return {
         name: app,
-        active: state.active,
-        pointerVersion: state.pointerVersion,
-        versions: projectVersions(app, state, releases),
+        active: active.live ? active.hash : null,
+        pointerVersion: active.revision,
+        versions: ready.map(id => ({
+          id, ready: true, usable: true, error: null,
+          commit: '', repo: '', files: 0,
+        })),
       };
     },
     async getReleaseManifest(app, releaseId) {
       assertAppName(app);
       assertReleaseId(releaseId);
-      const {releases} = await readApp(app);
-      const found = releases.find(v => v.id === releaseId);
-      if (!found) throw Object.assign(Error('Release not found'), {code: 'not_found'});
-      if (found.ready !== true) {
-        throw Object.assign(Error('Release is not finalized'), {code: 'invalid_state'});
+      if (!(await listAll(invokeIdFor(app), 'ready versions')).includes(releaseId)) {
+        throw Object.assign(Error('Release not found among ready versions'), {code: 'not_found'});
       }
-      return normalizeManifest(app, releaseId, found.manifest);
+      return identityManifest(app, releaseId);
+    },
+    async stageRelease(app, code) {
+      assertAppName(app);
+      if (!(code instanceof Uint8Array) || code.length === 0 || code.length > 8 * 1024 * 1024) {
+        throw invalidInput('Stage requires non-empty code within the service limit');
+      }
+      const admin = await adminCapFor(app);
+      const body = await sendMutation(stageOp(admin, code), 'Stage',
+        {app, target: null, expectedPointerVersion: undefined});
+      if (body.length !== 32) {
+        throw uncertainActivation(app, null, undefined,
+          'Stage outcome unknown: unexpected service response; refresh to reconcile');
+      }
+      return bytesToHex(body);
+    },
+    async sealRelease(app, releaseId) {
+      assertAppName(app);
+      assertReleaseId(releaseId);
+      const admin = await adminCapFor(app);
+      const body = await sendMutation(sealOp(admin, hexToBytes(releaseId)), 'Seal',
+        {app, target: releaseId, expectedPointerVersion: undefined});
+      if (body.length !== 0) {
+        throw uncertainActivation(app, releaseId, undefined,
+          'Seal outcome unknown: unexpected service response; refresh to reconcile');
+      }
+      return {app, release: releaseId, sealed: true};
     },
     async activateRelease(app, releaseId, opts = {}) {
       assertAppName(app);
       assertReleaseId(releaseId);
-      if (!Number.isSafeInteger(opts.expectedPointerVersion) || opts.expectedPointerVersion < 0) {
-        throw Object.assign(Error('A bounded pointer revision is required'), {code: 'invalid_input'});
+      const expected = opts.expectedPointerVersion;
+      if (!Number.isSafeInteger(expected) || expected < 1) {
+        throw invalidInput('A bounded non-zero pointer revision is required');
       }
-      // Fail closed locally before spending a CAS: never target an unsealed or
-      // malformed historical release even if the UI is bypassed.
-      const {releases} = await readApp(app);
-      const target = releases.find(v => v.id === releaseId);
-      if (!target) throw Object.assign(Error('Release not found'), {code: 'not_found'});
-      if (target.ready !== true) {
-        throw Object.assign(Error('Release is not finalized'), {code: 'invalid_state'});
-      }
-      try {
-        normalizeManifest(app, releaseId, target.manifest);
-      } catch {
-        throw Object.assign(Error('Cannot activate release: invalid manifest'), {code: 'invalid_data'});
-      }
-      const expected = {
-        active: opts.expectedActive ?? null,
-        pointerVersion: opts.expectedPointerVersion,
-      };
-      const next = {active: releaseId, pointerVersion: opts.expectedPointerVersion + 1};
-      const expectedHash = await sha256(textEncoder.encode(serializeState(expected)));
-      let raw;
-      try {
-        raw = await transport.post(
-          appCasOp(adminCap, keyState(app), expectedHash, serializeState(next)));
-      } catch (error) {
-        // No trustworthy response arrived. A definitive gateway denial is a
-        // different outcome from an unknown one; everything else (lost ACK,
-        // 5xx, aborted fetch) may already have committed the single CAS write.
-        if (error && error.code === 'rejected' && (error.status === 401 || error.status === 403)) {
-          throw Object.assign(Error('Activation denied by gateway'), {
-            code: 'unauthorized', status: error.status, cause: error,
+      const admin = await adminCapFor(app);
+      const iid = invokeIdFor(app);
+      // Local fail-closed preflight: never spend the single CAS on a plan that
+      // is already known to be stale or to target an unsealed release.
+      const current = parseActive(
+        await sendRead(getActiveOp(iid), 'active pointer'), 'active pointer');
+      if (opts.expectedActive != null) {
+        assertReleaseId(opts.expectedActive);
+        if (!current.live || current.hash !== opts.expectedActive) {
+          throw Object.assign(Error('Activation conflict: active release changed'), {
+            code: 'conflict', current: current.hash, expected: opts.expectedActive,
           });
         }
-        throw uncertainActivation(app, releaseId, opts.expectedPointerVersion,
-          'Activation outcome unknown: response lost or rejected; refresh to reconcile', error);
       }
-      let decoded;
-      try {
-        decoded = decodeResponse(raw);
-      } catch (error) {
-        // A 2xx carrying an unreadable body gives no reliable service status.
-        throw uncertainActivation(app, releaseId, opts.expectedPointerVersion,
-          'Activation outcome unknown: malformed service response; refresh to reconcile', error);
-      }
-      if (decoded.status !== 0) {
-        // The service itself reported a failed CAS precondition. This is a
-        // definitive rejection, not an unknown outcome: no pointer write
-        // happened, so surface it as a conflict for an explicit fresh plan.
-        throw Object.assign(Error('Activation conflict: pointer changed concurrently'), {
-          code: 'conflict', status: decoded.status,
+      if (!current.live || current.revision !== expected) {
+        throw Object.assign(Error('Activation conflict: pointer revision changed'), {
+          code: 'conflict', current: current.revision, expected,
         });
       }
-      return {app, active: next.active, pointerVersion: next.pointerVersion};
+      if (!(await listAll(iid, 'ready versions')).includes(releaseId)) {
+        throw Object.assign(Error('Release is not sealed and ready'), {code: 'invalid_state'});
+      }
+      const body = await sendMutation(
+        activateOp(admin, expected, hexToBytes(releaseId)), 'Activation',
+        {app, target: releaseId, expectedPointerVersion: expected});
+      let next;
+      try {
+        next = parseActive(body, 'activated pointer');
+      } catch (error) {
+        throw uncertainActivation(app, releaseId, expected,
+          'Activation outcome unknown: malformed service response; refresh to reconcile', error);
+      }
+      if (!next.live || next.hash !== releaseId || next.revision !== expected + 1) {
+        throw uncertainActivation(app, releaseId, expected,
+          'Activation outcome unknown: unexpected service response; refresh to reconcile');
+      }
+      return {app, active: next.hash, pointerVersion: next.revision};
     },
   };
 }

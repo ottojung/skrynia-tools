@@ -18,6 +18,8 @@ export function createFailClosedCapabilities(reason = NOT_FROZEN) {
     listApps: err('listApps'),
     getAppState: err('getAppState'),
     getReleaseManifest: err('getReleaseManifest'),
+    stageRelease: err('stageRelease'),
+    sealRelease: err('sealRelease'),
     activateRelease: err('activateRelease'),
   };
 }

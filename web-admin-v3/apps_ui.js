@@ -116,7 +116,13 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
           status('Loading manifest ' + version.id + '…');
           const manifest = await inspectManifest(capabilities, appState.name, version.id);
           onInspectManifest(manifest);
-          status('Manifest loaded: ' + version.id);
+          // The compiled service stores sealed content hashes, not static file
+          // manifests. Say so rather than presenting an empty file list as if
+          // it were complete release metadata.
+          status(manifest.raw && manifest.raw.origin === 'native-p1-ready-hash'
+            ? 'Sealed native release identity loaded: ' + version.id +
+              ' (file metadata is not stored by the service)'
+            : 'Manifest loaded: ' + version.id);
         } catch (error) {
           status('Manifest inspection failed: ' + (error.message || 'unknown error'));
         }

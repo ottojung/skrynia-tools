@@ -1,72 +1,153 @@
 #!/usr/bin/env node
-// Deterministic in-memory proof of the semantic adapter's wire translation and
-// O(1) CAS activation. This is a contract test only: the real compiled stack
-// qualification is tests/web-admin-v3/real_native_e2e/chromium.mjs.
+// Deterministic in-memory proof that the semantic adapter translates UI
+// operations into the compiled P1 admin ABI (9/10/11/12/13 + 14 for app IDs),
+// never AppPut/AppGet (6/7), and keeps activation a single u64 revision CAS.
+// This is a wire-contract test only: real compiled-stack qualification lives in
+// tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs.
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
-import {resolve, dirname} from 'node:path';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const {createNativeCapabilities, serializeState} = await import(
-  new URL('../../web-admin-v3/native_capabilities.js', import.meta.url).href);
+import {createHash, randomBytes} from 'node:crypto';
 
 const sha = b => createHash('sha256').update(Buffer.from(b)).digest();
-const putId = b => { const x = Buffer.from(b); const h = Buffer.alloc(2); h.writeUInt16LE(x.length); return Buffer.concat([h, x]); };
-const putBlob = b => { const x = Buffer.from(b); const h = Buffer.alloc(4); h.writeUInt32LE(x.length); return Buffer.concat([h, x]); };
-const appPutOp = (cap, key, val) => Buffer.concat([Buffer.from([1, 6]), putId(cap), putBlob(key), Buffer.from([0]), putBlob(val)]);
+const putId = b => {
+  const x = Buffer.from(b), h = Buffer.alloc(2);
+  h.writeUInt16LE(x.length);
+  return Buffer.concat([h, x]);
+};
+const putBlob = b => {
+  const x = Buffer.from(b), h = Buffer.alloc(4);
+  h.writeUInt32LE(x.length);
+  return Buffer.concat([h, x]);
+};
 const envelope = (status, body = Buffer.alloc(0)) => {
-  const h = Buffer.alloc(6); h[0] = 1; h[1] = status; h.writeUInt32LE(body.length, 2);
+  const h = Buffer.alloc(6);
+  h[0] = 1; h[1] = status; h.writeUInt32LE(body.length, 2);
   return Buffer.concat([h, body]);
 };
-function readBlob(b, at) { const len = b.readUInt32LE(at); return {data: b.subarray(at + 4, at + 4 + len), next: at + 4 + len}; }
-function readId(b, at) { const len = b.readUInt16LE(at); return {data: b.subarray(at + 2, at + 2 + len), next: at + 2 + len}; }
-
-function fakeService() {
-  const store = new Map();
-  const adminCap = sha('admin');
-  const readCap = sha(adminCap);
-  function put(key, value) { store.set(key, Buffer.from(value)); }
-  function handle(bytes) {
-    const b = Buffer.from(bytes);
-    assert.equal(b[0], 1, 'version byte');
-    if (b[1] === 6) {
-      let at = 2;
-      const idCap = readId(b, at); at = idCap.next;
-      assert.deepEqual(idCap.data, adminCap, 'admin capability');
-      const key = readBlob(b, at); at = key.next;
-      const mode = b[at]; at += 1;
-      if (mode === 0) {
-        const val = readBlob(b, at);
-        put(key.data.toString(), val.data);
-        return envelope(0);
-      }
-      const expected = b.subarray(at, at + 32); at += 32;
-      const val = readBlob(b, at);
-      const current = store.get(key.data.toString());
-      if (!current || !sha(current).equals(expected)) return envelope(1);
-      put(key.data.toString(), val.data);
-      return envelope(0);
-    }
-    if (b[1] === 7) {
-      let at = 2;
-      const idCap = readId(b, at); at = idCap.next;
-      assert.deepEqual(idCap.data, readCap, 'read capability');
-      const key = readBlob(b, at);
-      const found = store.get(key.data.toString());
-      return found ? envelope(0, found) : envelope(1);
-    }
-    throw Error('unexpected opcode ' + b[1]);
-  }
-  const fetchImpl = async (_url, init) => {
-    const body = handle(Buffer.from(init.body));
-    return {status: 200, arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)};
-  };
-  return {store, adminCap, readCap, fetchImpl, put};
+const activeRecord = s => {
+  const b = Buffer.alloc(42);
+  b[0] = 3; b[1] = s.live ? 1 : 0;
+  Buffer.from(s.hash).copy(b, 2);
+  b.writeBigUInt64LE(BigInt(s.revision), 34);
+  return b;
+};
+function readBlob(b, at) {
+  const len = b.readUInt32LE(at);
+  return {data: b.subarray(at + 4, at + 4 + len), next: at + 4 + len};
+}
+function readId(b, at) {
+  const len = b.readUInt16LE(at);
+  return {data: b.subarray(at + 2, at + 2 + len), next: at + 2 + len};
+}
+function readPage(b, at) {
+  const present = b[at]; at += 1;
+  const after = present ? b.subarray(at, at + 32) : null;
+  if (present) at += 32;
+  const limit = b.readUInt16LE(at);
+  return {after, limit};
+}
+function makePage(hashes, after, limit) {
+  if (limit === 0 || limit > 256) return envelope(1, Buffer.from([1]));
+  const sorted = [...hashes].map(h => Buffer.from(h)).sort((a, b) => a.compare(b));
+  const cursor = after ? Buffer.from(after) : null;
+  const start = cursor ? sorted.findIndex(h => h.compare(cursor) > 0) : 0;
+  const from = start < 0 ? sorted.length : start;
+  const selected = sorted.slice(from, from + limit);
+  const body = Buffer.alloc(2 + selected.length * 32);
+  body.writeUInt16LE(selected.length, 0);
+  selected.forEach((h, i) => h.copy(body, 2 + i * 32));
+  return envelope(0, body);
 }
 
-function manifest(app, id, commit) {
-  return {schema: 'skrynia-native-static-v1', app, release: id, commit, repo: 'r', files: [{path: 'index.html', sha256: id}]};
+const {createNativeCapabilities} = await import(
+  new URL('../../web-admin-v3/native_capabilities.js', import.meta.url).href);
+
+// Minimal compiled-service model. Only admin opcodes are understood; any
+// AppPut/AppGet (6/7) frame is recorded and denied as a contract violation.
+function fakeService() {
+  const programs = new Map();
+  const opcodes = [];
+  const casFrames = [];
+  const handler = bytes => {
+    const b = Buffer.from(bytes);
+    const op = b[1];
+    opcodes.push(op);
+    assert.equal(b[0], 1, 'version byte');
+    if (op === 6 || op === 7) return envelope(1, Buffer.from([1]));
+    if (op === 15) {
+      let at = 2;
+      const opCap = readId(b, at); at = opCap.next;
+      const admin = readId(b, at); at = admin.next;
+      const code = readBlob(b, at).data;
+      assert.equal(opCap.data.length, 32);
+      const iid = sha(admin.data);
+      const hash = sha(code);
+      programs.set(iid.toString('hex'), {
+        admin: Buffer.from(admin.data),
+        sealed: new Set([hash.toString('hex')]),
+        blobs: new Map([[hash.toString('hex'), Buffer.from(code)]]),
+        active: {hash, revision: 1, live: true},
+      });
+      return envelope(0, iid);
+    }
+    if (op === 9) {
+      let at = 2;
+      const admin = readId(b, at); at = admin.next;
+      const code = readBlob(b, at).data;
+      const iid = sha(admin.data).toString('hex');
+      const p = programs.get(iid);
+      if (!p) return envelope(1, Buffer.from([8]));
+      const hash = sha(code);
+      p.blobs.set(hash.toString('hex'), Buffer.from(code));
+      return envelope(0, hash);
+    }
+    if (op === 10) {
+      let at = 2;
+      const admin = readId(b, at); at = admin.next;
+      const hash = b.subarray(at, at + 32);
+      const p = programs.get(sha(admin.data).toString('hex'));
+      if (!p) return envelope(1, Buffer.from([8]));
+      p.sealed.add(hash.toString('hex'));
+      return envelope(0);
+    }
+    if (op === 11) {
+      casFrames.push(Buffer.from(b));
+      let at = 2;
+      const admin = readId(b, at); at = admin.next;
+      const expected = Number(b.readBigUInt64LE(at)); at += 8;
+      const target = b.subarray(at, at + 32);
+      const p = programs.get(sha(admin.data).toString('hex'));
+      if (!p || !p.active.live) return envelope(1, Buffer.from([8]));
+      if (p.active.revision !== expected) return envelope(1, Buffer.from([10]));
+      if (!p.sealed.has(target.toString('hex'))) return envelope(1, Buffer.from([8]));
+      p.active = {hash: Buffer.from(target), revision: expected + 1, live: true};
+      return envelope(0, activeRecord(p.active));
+    }
+    if (op === 12) {
+      const iid = readId(b, 2).data;
+      const p = programs.get(iid.toString('hex'));
+      return p ? envelope(0, activeRecord(p.active)) : envelope(1, Buffer.from([8]));
+    }
+    if (op === 13) {
+      let at = 2;
+      const iid = readId(b, at).data; at = readId(b, 2).next;
+      const page = readPage(b, at);
+      const p = programs.get(iid.toString('hex'));
+      return p
+        ? makePage([...p.sealed].map(h => Buffer.from(h, 'hex')), page.after, page.limit)
+        : envelope(1, Buffer.from([8]));
+    }
+    if (op === 14) {
+      const page = readPage(b, 2);
+      return makePage([...programs.keys()].map(h => Buffer.from(h, 'hex')), page.after, page.limit);
+    }
+    throw Error('unexpected opcode ' + op);
+  };
+  const fetchImpl = async (_url, init) => {
+    const body = handler(init.body);
+    return {status: 200, arrayBuffer: async () =>
+      body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)};
+  };
+  return {programs, opcodes, casFrames, fetchImpl};
 }
 
 let ok = 0;
@@ -77,43 +158,78 @@ const check = (name, cond, detail = '') => {
 };
 
 const svc = fakeService();
-const A = 'a'.repeat(64), B = 'b'.repeat(64);
-const app = 'demo';
-svc.put('v3admin:apps', JSON.stringify([app]));
-svc.put('v3admin:app:demo:state', serializeState({active: A, pointerVersion: 4}));
-svc.put('v3admin:app:demo:versions', JSON.stringify([
-  {id: A, ready: true, manifest: manifest(app, A, 'ca')},
-  {id: B, ready: true, manifest: manifest(app, B, 'cb')},
-  {id: 'c'.repeat(64), ready: false, manifest: null},
-]));
+const admin = sha('admin');
+const iid = sha(admin);
+const codeA = Buffer.from('native-A-' + randomBytes(8).toString('hex'));
+const codeB = Buffer.from('native-B-' + randomBytes(8).toString('hex'));
+const A = sha(codeA).toString('hex'), B = sha(codeB).toString('hex');
+const app = iid.toString('hex');
+
+// Register directly at the fake service (op 15 is out-of-band provisioning).
+{
+  const p = iid, h = sha(codeA);
+  svc.programs.set(p.toString('hex'), {
+    admin: Buffer.from(admin),
+    sealed: new Set([h.toString('hex')]),
+    blobs: new Map([[h.toString('hex'), Buffer.from(codeA)]]),
+    active: {hash: h, revision: 1, live: true},
+  });
+}
 const caps = createNativeCapabilities({
   endpoint: 'http://127.0.0.1:1/_skrynia/',
-  readCap: svc.readCap.toString('hex'),
-  adminCap: svc.adminCap.toString('hex'),
+  readCap: app,
+  adminCap: admin.toString('hex'),
 }, svc.fetchImpl);
 
 assert.deepEqual(await caps.listApps(), [app]);
-check('listApps decodes native AppGet', true);
+check('listApps uses LIST_PROGRAMS (14), not AppGet', svc.opcodes.includes(14));
 const state = await caps.getAppState(app);
-check('getAppState lists all historical versions', state.versions.length === 3);
-check('getAppState marks unsealed version unusable', state.versions.filter(v => !v.usable).length === 1);
-check('getAppState reports A/B active pointer + revision', state.active === A && state.pointerVersion === 4);
-const m = await caps.getReleaseManifest(app, B);
-check('getReleaseManifest returns normalized historical manifest', m.commit === 'cb' && m.files === 1);
+check('getAppState GET_ACTIVE + LIST_VERSIONS (12/13)', svc.opcodes.includes(12) && svc.opcodes.includes(13));
+check('getAppState reports all ready versions', state.versions.length === 1 && state.versions[0].id === A);
+check('getAppState reports active hash + u64 revision', state.active === A && state.pointerVersion === 1);
 
-const switched = await caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 4});
-check('CAS activation to later release is one pointer write', switched.active === B && switched.pointerVersion === 5);
-const back = await caps.activateRelease(app, A, {expectedActive: B, expectedPointerVersion: 5});
-check('A-B-A rollback to earlier release advances revision', back.active === A && back.pointerVersion === 6);
+const staged = await caps.stageRelease(app, codeB);
+check('stageRelease uses STAGE (9) and returns sha256(code)', staged === B && svc.opcodes.includes(9));
+check('staged-but-unsealed release is absent from ready history',
+  (await caps.getAppState(app)).versions.every(v => v.id !== B));
+const beforeUnsealed = svc.casFrames.length;
 await assert.rejects(
-  caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 4}),
-  e => e.code === 'conflict');
-check('stale expected revision is rejected as conflict (no replay)', true);
+  caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 1}),
+  e => e && e.code === 'invalid_state');
+check('unsealed activation fails closed before the CAS', svc.casFrames.length === beforeUnsealed);
+await caps.sealRelease(app, B);
+check('sealRelease uses SEAL (10)', svc.opcodes.includes(10));
+check('sealed release appears in history',
+  (await caps.getAppState(app)).versions.map(v => v.id).sort().join() === [A, B].sort().join());
+
+const manifest = await caps.getReleaseManifest(app, B);
+check('getReleaseManifest is identity-only (no fabricated file metadata)',
+  manifest.id === B && manifest.files === 0 && manifest.raw.origin === 'native-p1-ready-hash');
+
+const switched = await caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 1});
+check('ACTIVATE (11) is one u64 revision CAS to a later version',
+  switched.active === B && switched.pointerVersion === 2 && svc.casFrames.length === beforeUnsealed + 1);
+const cas = svc.casFrames[svc.casFrames.length - 1];
+check('ACTIVATE frame encodes admin cap, u64 revision and 32-byte target',
+  cas[1] === 11 && cas.readBigUInt64LE(36) === 1n && cas.length === 2 + 34 + 8 + 32 &&
+  Buffer.from(cas.subarray(4, 36)).equals(admin));
+const back = await caps.activateRelease(app, A, {expectedActive: B, expectedPointerVersion: 2});
+check('A-B-A rollback to an earlier release advances revision', back.active === A && back.pointerVersion === 3);
+await assert.rejects(
+  caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 1}),
+  e => e && e.code === 'conflict');
+check('stale revision is rejected as conflict without a CAS', svc.casFrames.length === beforeUnsealed + 2);
+await assert.rejects(
+  caps.activateRelease(app, B, {expectedActive: A, expectedPointerVersion: 1}),
+  e => e && e.code === 'conflict');
+check('ABA replay of an old revision is rejected', svc.casFrames.length === beforeUnsealed + 2);
 const after = await caps.getAppState(app);
-check('conflict left the durable pointer unchanged', after.active === A && after.pointerVersion === 6);
-await assert.rejects(
-  caps.activateRelease(app, 'c'.repeat(64), {expectedActive: A, expectedPointerVersion: 6}),
-  e => e.code === 'invalid_state');
-check('activation of unsealed release fails closed locally', true);
+check('conflicts left the durable pointer unchanged', after.active === A && after.pointerVersion === 3);
+const foreign = sha('other-admin').toString('hex');
+await assert.rejects(caps.activateRelease(foreign, B, {expectedActive: A, expectedPointerVersion: 3}),
+  e => e && e.code === 'unauthorized');
+check('activation without provisioned admin authority fails closed', true);
+check('no AppPut/AppGet (6/7) opcode was ever sent',
+  !svc.opcodes.includes(6) && !svc.opcodes.includes(7));
 
-console.log(`PASS native capability adapter contract (${ok} checks)`);
+console.log(`PASS native P1 admin-opcode adapter contract (${ok} checks)`);

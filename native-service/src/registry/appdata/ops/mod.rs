@@ -12,4 +12,4 @@ use crate::MutLock;
 
 pub use read::get;
 pub use types::{AppErr, WriteAuth};
-pub use write::{delete, put};
+pub use write::{delete, delete_wake, put, put_wake};

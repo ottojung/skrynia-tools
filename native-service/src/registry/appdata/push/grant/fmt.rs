@@ -6,6 +6,7 @@ use crate::hash_bytes;
 pub enum Kind {
     Subscribe,
     Sender,
+    Wake,
 }
 
 impl Kind {
@@ -13,6 +14,7 @@ impl Kind {
         match self {
             Kind::Subscribe => "pushgrant",
             Kind::Sender => "pushsender",
+            Kind::Wake => "pushwake",
         }
     }
 }

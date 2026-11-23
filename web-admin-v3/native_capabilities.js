@@ -118,6 +118,19 @@ function assertVersionList(value, app) {
   });
 }
 
+// A mutation that was submitted but whose response cannot be trusted has an
+// unknown outcome: the CAS may or may not have committed. Report that state
+// explicitly so callers never auto-retry or silently replay the write.
+function uncertainActivation(app, target, expectedPointerVersion, message, cause) {
+  const error = Error(message);
+  error.code = 'uncertain';
+  error.app = app;
+  error.target = target;
+  error.expectedPointerVersion = expectedPointerVersion;
+  if (cause !== undefined) error.cause = cause;
+  return error;
+}
+
 function projectVersions(app, state, releases) {
   return releases.map(v => {
     let manifest = null;
@@ -228,12 +241,34 @@ export function createNativeCapabilities(session, fetchImpl = globalThis.fetch) 
       };
       const next = {active: releaseId, pointerVersion: opts.expectedPointerVersion + 1};
       const expectedHash = await sha256(textEncoder.encode(serializeState(expected)));
-      const raw = await transport.post(
-        appCasOp(adminCap, keyState(app), expectedHash, serializeState(next)));
-      const decoded = decodeResponse(raw);
+      let raw;
+      try {
+        raw = await transport.post(
+          appCasOp(adminCap, keyState(app), expectedHash, serializeState(next)));
+      } catch (error) {
+        // No trustworthy response arrived. A definitive gateway denial is a
+        // different outcome from an unknown one; everything else (lost ACK,
+        // 5xx, aborted fetch) may already have committed the single CAS write.
+        if (error && error.code === 'rejected' && (error.status === 401 || error.status === 403)) {
+          throw Object.assign(Error('Activation denied by gateway'), {
+            code: 'unauthorized', status: error.status, cause: error,
+          });
+        }
+        throw uncertainActivation(app, releaseId, opts.expectedPointerVersion,
+          'Activation outcome unknown: response lost or rejected; refresh to reconcile', error);
+      }
+      let decoded;
+      try {
+        decoded = decodeResponse(raw);
+      } catch (error) {
+        // A 2xx carrying an unreadable body gives no reliable service status.
+        throw uncertainActivation(app, releaseId, opts.expectedPointerVersion,
+          'Activation outcome unknown: malformed service response; refresh to reconcile', error);
+      }
       if (decoded.status !== 0) {
-        // The service reports a failed CAS precondition as a non-zero status.
-        // Never replay: surface it as an explicit conflict for reconciliation.
+        // The service itself reported a failed CAS precondition. This is a
+        // definitive rejection, not an unknown outcome: no pointer write
+        // happened, so surface it as a conflict for an explicit fresh plan.
         throw Object.assign(Error('Activation conflict: pointer changed concurrently'), {
           code: 'conflict', status: decoded.status,
         });

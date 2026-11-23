@@ -71,6 +71,11 @@ pinned ordinary-service wire ABI through `createBinaryPostTransport`:
   bytes, so activation and A-B-A rollback are O(1) in release count and asset
   size, conflict on a stale revision, and are never silently replayed.
   Unsealed or malformed releases are rejected before the CAS is spent.
+  A lost ACK, gateway 5xx or malformed 2xx response is reported with
+  `code: 'uncertain'`, distinct from a definitive `conflict` or `unauthorized`
+  denial. The controller then blocks further activation for that app until an
+  explicit refresh of authoritative state; it never auto-retries or spends a
+  second CAS on an unknown outcome.
 
 The native admin service API is still exercised through the ordinary guest's
 proven `AppGet`/`AppPut`/`AppCas` ABI; no Program 0 opcodes, v2 facade or CLI
@@ -135,6 +140,7 @@ node tests/web-admin-v3/fail_closed.mjs
 node tests/web-admin-v3/browser_vault_lock.mjs
 node tests/web-admin-v3/p0_framing_decode.mjs
 node tests/web-admin-v3/native_capabilities.mjs
+node tests/web-admin-v3/uncertain_activation.mjs
 ```
 
 Real native HTTP qualification against the pinned compiled kernel + P0 +

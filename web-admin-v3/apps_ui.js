@@ -30,8 +30,12 @@ function hideManifest(viewId, emptyId) {
 export function createAppsController({hostId, capabilities, status, onInspectManifest}) {
   const host = document.getElementById(hostId);
   let busy = false;
+  // Apps whose last activation returned an untrustworthy response. The write
+  // may or may not have committed, so no further CAS is offered until the
+  // operator explicitly refreshes authoritative state. No automatic retry.
+  const uncertainApps = new Set();
 
-  async function render() {
+  async function render({reconcile = true} = {}) {
     if (!capabilities) {
       clear(host);
       host.append(el('p', 'No capability adapter configured.', 'error'));
@@ -42,6 +46,9 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
     host.append(el('p', 'Loading applications and release history…'));
     try {
       const states = await loadAllAppStates(capabilities);
+      // Clear before rendering so a successful fresh read is reflected in the
+      // buttons we are about to create, not only in the following redraw.
+      if (reconcile) uncertainApps.clear();
       const fragment = document.createDocumentFragment();
       if (states.length === 0) {
         fragment.append(el('p', 'No applications found.'));
@@ -67,6 +74,19 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
     panel.append(title);
     const activeText = appState.active ? appState.active : 'none';
     panel.append(el('p', 'Active pointer: ' + activeText));
+    if (uncertainApps.has(appState.name)) {
+      panel.append(el('p',
+        'Activation outcome unknown for ' + appState.name +
+        '. The pointer may or may not have changed; refresh authoritative state before retrying.',
+        'error'));
+      const refresh = el('button', 'Refresh state');
+      refresh.type = 'button';
+      refresh.addEventListener('click', async () => {
+        status('Refreshing authoritative state for ' + appState.name + '…');
+        await render();
+      });
+      panel.append(refresh);
+    }
     if (!appState.versions.length) {
       panel.append(el('p', 'No releases found.'));
       return panel;
@@ -106,7 +126,7 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
       if (appState.active !== version.id && version.usable) {
         const activate = el('button', appState.active ? 'Activate this version' : 'Activate');
         activate.type = 'button';
-        activate.disabled = false;
+        activate.disabled = uncertainApps.has(appState.name);
         activate.addEventListener('click', async () => {
           try {
             const plan = activationPlan(appState, version.id);
@@ -129,6 +149,15 @@ export function createAppsController({hostId, capabilities, status, onInspectMan
             status('Activated ' + plan.app + ' → ' + plan.target);
             await render();
           } catch (error) {
+            if (error && error.code === 'uncertain') {
+              uncertainApps.add(appState.name);
+              status('Activation outcome unknown for ' + appState.name +
+                '; no automatic retry. Refresh authoritative state to reconcile.');
+              // Redraw without clearing the guard: the displayed pointer is
+              // only authoritative after an explicit refresh.
+              await render({reconcile: false});
+              return;
+            }
             const conflict = error && error.code === 'conflict'
               ? 'Conflict: active pointer changed concurrently.'
               : 'Activation failed.';

@@ -7,8 +7,9 @@ not a backend-existence claim from front-end tests: it boots the actual kernel,
 dumb P0, ordinary WASM service and trusted edge gateway and drives real HTTP.
 
 It qualifies only the transport/authority boundary below; it does **not** claim
-the native admin service API (`listApps`/`getAppState`/`getReleaseManifest`/
-`activateRelease`) is implemented in WASM, and it does not deploy anything.
+the native admin service API is implemented in WASM. The dedicated
+`p1_admin_adapter.mjs` below qualifies that admin ABI through the shipped
+semantic adapter. Neither deploys anything.
 
 ```
 browser-adapter createBinaryPostTransport()
@@ -74,12 +75,29 @@ Pre-existing independent suites still pass:
 `crypto_vault`, `app_history_activation`, `fail_closed`, `browser_vault_lock`,
 `p0_framing_decode` (5/5).
 
+## Shipped adapter -> real P1 admin ABI (`p1_admin_adapter.mjs`)
+
+```sh
+node tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs
+SKRYNIA_P1_WASM=/path/to/p1-83a65a2f.wasm node tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs
+```
+
+This permanent test drives `createNativeCapabilities()` (not raw frames) over
+the same pinned stack. It proves `LIST_PROGRAMS(14)` app discovery, `GET_ACTIVE(12)`
+plus paginated `LIST_VERSIONS(13)` history, `STAGE(9)`/`SEAL(10)` provisioning,
+and a single `ACTIVATE(11)` u64 revision CAS with A->B->A, stale/ABA replay and
+unsealed-target denials. Both allowlisted compiled P1 pins
+(`d3686527...`, `83a65a2f...`) pass; no AppPut/AppGet opcode is sent, no secret
+appears in responses or evidence, and all processes/temp dirs are cleaned up.
+
 ## Scope / not covered
 
 No real browser/HTTPS (host-local HTTP gateway only); no production TLS/DNS;
-no CLI, kernel/gateway source changes, deploy, merge or release; no native admin
-service API implementation. The service operations above exercise the ordinary
-guest's proven native register/invoke/AppPut/AppGet/CAS ABI, not admin semantics.
+no CLI, kernel/gateway source changes, deploy, merge or release. The `run.mjs`
+service operations above exercise the ordinary guest's proven
+register/invoke/AppPut/AppGet/CAS transport ABI, not admin semantics; admin
+semantics are covered by `p1_admin_adapter.mjs` and the deterministic
+`native_capabilities.mjs`/`uncertain_activation.mjs` wire-contract tests.
 Per AGENTS.md, no credentials are placed in public assets, URLs, Git history or
 logs; all tokens are disposable and generated per run.
 
@@ -144,18 +162,19 @@ It reuses the pinned stack bootstrap from `run.mjs` (now exported) and:
 2. Hosts `web-admin-v3/` as an **independent static origin**; its `/_skrynia/`
    path is reverse-proxied to the gateway with the edge capability injected
    server-side. The browser never sees the Program 0 token or edge capability.
-3. Provisions already-published immutable app history into the ordinary service
-   with native `AppPut` ops, then injects only disposable per-run operator
-   session capability bytes into the browser at runtime (CDP), never into a
-   static bundle, URL or log.
-4. Drives the real DOM: vault unlock, all-app/all-version listing (including an
-   unsealed release), historical manifest inspection, A -> B -> A activation
-   through the shipped buttons, stale-CAS conflict and unsealed-release denial,
-   and a post-run native read proving durable pointer persistence.
-5. Asserts no token/verifier/capability appears in the DOM, browser storage or
-   window globals and that all native traffic was `POST /_skrynia/`.
+3. Provisions ready releases in the compiled P1 with `REGISTER_AUTH(15)`,
+   `STAGE(9)` and `SEAL(10)` (C is staged but deliberately left unsealed), then
+   injects only disposable per-run invoke-ID/admin-capability bytes into the
+   browser at runtime (CDP), never into a static bundle, URL or log.
+4. Drives the real DOM with the rewired adapter: vault unlock, all-app/ready-
+   version listing from `LIST_PROGRAMS(14)`/`LIST_VERSIONS(13)`, sealed release
+   identity inspection, A -> B -> A activation through the shipped buttons with
+   `ACTIVATE(11)`, stale-CAS conflict and unsealed-release denial, and a post-run
+   `GET_ACTIVE(12)` read proving durable pointer persistence.
+5. Asserts no bearer/verifier/edge/admin secret appears in the DOM, browser
+   storage or window globals (the public invoke ID is intentionally displayed
+   as the app ID) and that all native traffic was `POST /_skrynia/`.
 
-This harness proves the UI-to-native wiring and fail-closed behavior; it does
-**not** claim the native admin service API is implemented in WASM, and it does
-no production TLS/DNS/deploy. Chromium is the system binary (`CHROME_BIN`
+This harness proves the UI-to-native wiring and fail-closed behavior against the
+real compiled P1 admin ABI; it does no production TLS/DNS/deploy. Chromium is the system binary (`CHROME_BIN`
 override). Verified on marceline-dev with Chromium 147.0.7727.137.

@@ -22,7 +22,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import {
   PINS, P0_FRAME_PIN, sha256hex, sha256buf, hashFile, exists, freePort, stopProc,
-  startKernel, startGateway, appPutOp, appGetOp, decodeResponse,
+  startKernel, startGateway, registerOp, putId, putBlob, decodeResponse,
 } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -158,10 +158,11 @@ async function postNative(origin, bytes) {
   });
 }
 
-function manifest(app, id, commit) {
-  return {schema: 'skrynia-native-static-v1', app, release: id, commit,
-    repo: 'native-e2e', files: [{path: 'index.html', sha256: id}]};
-}
+const stageOp = (admin, code) =>
+  Buffer.concat([Buffer.from([1, 9]), putId(admin), putBlob(code)]);
+const sealOp = (admin, hash) =>
+  Buffer.concat([Buffer.from([1, 10]), putId(admin), Buffer.from(hash)]);
+const getActiveOp = iid => Buffer.concat([Buffer.from([1, 12]), putId(iid)]);
 
 async function main() {
   for (const [name, a] of Object.entries(PINS)) {
@@ -205,22 +206,27 @@ async function main() {
     staticServer = host.server;
     rec('independent static origin serves shipped admin app', true, appOrigin);
 
-    // ---- Provision already-published immutable history through the real stack ----
-    const A = 'a'.repeat(64), B = 'b'.repeat(64), C = 'c'.repeat(64);
-    const put = async (key, value) => {
-      const r = await postNative(appOrigin, appPutOp(adminCap, Buffer.from(key), Buffer.from(value)));
+    // ---- Provision sealed ready history in the compiled P1 admin service ----
+    const APP = Buffer.from(readCap).toString('hex');
+    const codeA = await readFile(PINS.echo.path);
+    const A = sha256buf(codeA).toString('hex');
+    const codeB = Buffer.concat([Buffer.from('chromium-e2e-B-'), randomBytes(16)]);
+    const codeC = Buffer.concat([Buffer.from('chromium-e2e-C-'), randomBytes(16)]);
+    const B = sha256buf(codeB).toString('hex');
+    const C = sha256buf(codeC).toString('hex');
+    const nativeOp = async (frame, label) => {
+      const r = await postNative(appOrigin, frame);
+      assert.equal(r.http, 200, label + ' http');
       const d = decodeResponse(r.body);
-      assert.equal(r.http, 200);
-      assert.equal(d.status, 0, 'provisioning write status');
+      assert.equal(d.status, 0, label + ' native status');
+      return d.body;
     };
-    await put('v3admin:apps', JSON.stringify(['demo']));
-    await put('v3admin:app:demo:state', JSON.stringify({active: A, pointerVersion: 4}));
-    await put('v3admin:app:demo:versions', JSON.stringify([
-      {id: A, ready: true, manifest: manifest('demo', A, 'commit-A')},
-      {id: B, ready: true, manifest: manifest('demo', B, 'commit-B')},
-      {id: C, ready: false, manifest: null},
-    ]));
-    rec('immutable app history provisioned in ordinary service', true, '3 releases, unsealed C');
+    await nativeOp(registerOp(opCap, adminCap, codeA), 'register A');
+    assert.equal((await nativeOp(stageOp(adminCap, codeB), 'stage B')).toString('hex'), B);
+    await nativeOp(sealOp(adminCap, Buffer.from(B, 'hex')), 'seal B');
+    assert.equal((await nativeOp(stageOp(adminCap, codeC), 'stage C')).toString('hex'), C);
+    rec('compiled P1 ready history provisioned (A,B sealed; C staged)', true,
+      '2 ready, 1 staged-but-unsealed');
 
     // ---- Launch real Chromium and inject only runtime session authority ----
     const cdpPort = await freePort();
@@ -264,25 +270,22 @@ async function main() {
       (await evaluate('document.getElementById("vault-secret").value')) === '');
 
     await until(evaluate,
-      '[...document.querySelectorAll(".app-panel h3")].some(x=>x.textContent.includes("demo"))',
+      '[...document.querySelectorAll(".app-panel h3")].some(x=>x.textContent.includes("' + APP + '"))',
       'all-app/all-version history rendered');
     const panelInfo = await evaluate('(()=>{const p=[...document.querySelectorAll(".app-panel")]'
-      + '.find(x=>x.querySelector("h3")?.textContent.includes("demo"));'
+      + '.find(x=>x.querySelector("h3")?.textContent.includes("' + APP + '"));'
       + 'return {title:p.querySelector("h3").textContent,'
       + ' pointer:p.querySelector("p").textContent,'
       + ' rows:p.querySelectorAll(".version-row").length,'
       + ' badges:[...p.querySelectorAll(".badge")].map(x=>x.textContent)};})()');
-    rec('UI lists every app version including unsealed one',
-      panelInfo.rows === 3 && panelInfo.badges.includes('unavailable'), JSON.stringify(panelInfo));
+    rec('UI lists every ready release from the compiled service',
+      panelInfo.rows === 2 && panelInfo.badges.includes('ready') &&
+      !panelInfo.badges.includes('unavailable'), JSON.stringify(panelInfo));
     rec('UI shows the current active pointer', panelInfo.pointer.includes(A), panelInfo.pointer);
 
-    // ---- Historical manifest inspection ----
-    const rowFor = id => '(()=>{const p=[...document.querySelectorAll(".app-panel")]'
-      + '.find(x=>x.querySelector("h3")?.textContent.includes("demo"));'
-      + 'return [...p.querySelectorAll(".version-row")]'
-      + '.find(x=>x.querySelector(".version-meta")?.textContent.startsWith(' + JSON.stringify(id) + '));})()';
+    // ---- Sealed release identity inspection ----
     const clickRowButton = (id, label) => evaluate('(()=>{const p=[...document.querySelectorAll(".app-panel")]'
-      + '.find(x=>x.querySelector("h3")?.textContent.includes("demo"));'
+      + '.find(x=>x.querySelector("h3")?.textContent.includes("' + APP + '"));'
       + 'const row=[...p.querySelectorAll(".version-row")]'
       + '.find(x=>x.querySelector(".version-meta")?.textContent.startsWith(' + JSON.stringify(id) + '));'
       + 'const button=[...row.querySelectorAll("button")]'
@@ -292,41 +295,42 @@ async function main() {
     await clickRowButton(B, 'Inspect manifest');
     await until(evaluate,
       'document.getElementById("manifest-view").textContent.includes("skrynia-native-static-v1")'
-      + ' && document.getElementById("manifest-view").textContent.includes(' + JSON.stringify(B) + ')',
-      'historical manifest inspection');
-    rec('historical release manifest inspected in browser', true);
+      + ' && document.getElementById("manifest-view").textContent.includes(' + JSON.stringify(B) + ')'
+      + ' && document.getElementById("manifest-view").textContent.includes("native-p1-ready-hash")',
+      'sealed release identity inspection');
+    rec('sealed release identity inspected in browser (no invented file list)', true);
 
     // ---- A -> B -> A O(1) CAS rollback driven through the real UI ----
     await clickRowButton(B, 'Activate this version');
     await until(evaluate,
-      'document.getElementById("status").textContent.includes("Activated demo → ' + B + '")',
+      'document.getElementById("status").textContent.includes("Activated ' + APP + ' → ' + B + '")',
       'activation to B');
     await until(evaluate,
       'document.getElementById("status").textContent.includes("Loaded")',
       'post-activation re-render');
-    let live = await evaluate('window.__skryniaV3AdminCapabilities().getAppState("demo")');
+    let live = await evaluate('window.__skryniaV3AdminCapabilities().getAppState("' + APP + '")');
     rec('UI activation advanced active pointer to B',
-      live.active === B && live.pointerVersion === 5, 'rev=' + live.pointerVersion);
+      live.active === B && live.pointerVersion === 2, 'rev=' + live.pointerVersion);
 
     await clickRowButton(A, 'Activate this version');
     await until(evaluate,
-      'document.getElementById("status").textContent.includes("Activated demo → ' + A + '")',
+      'document.getElementById("status").textContent.includes("Activated ' + APP + ' → ' + A + '")',
       'rollback to A');
     await until(evaluate,
       'document.getElementById("status").textContent.includes("Loaded")',
       'post-activation re-render');
-    live = await evaluate('window.__skryniaV3AdminCapabilities().getAppState("demo")');
+    live = await evaluate('window.__skryniaV3AdminCapabilities().getAppState("' + APP + '")');
     rec('UI A-B-A rollback advanced revision without asset rewrite',
-      live.active === A && live.pointerVersion === 6, 'rev=' + live.pointerVersion);
+      live.active === A && live.pointerVersion === 3, 'rev=' + live.pointerVersion);
 
     const conflictCode = await evaluate('(async()=>{try{'
-      + 'await window.__skryniaV3AdminCapabilities().activateRelease("demo","' + B + '",'
-      + '{expectedActive:"' + A + '",expectedPointerVersion:4});return "NO_ERROR";}'
+      + 'await window.__skryniaV3AdminCapabilities().activateRelease("' + APP + '","' + B + '",'
+      + '{expectedActive:"' + A + '",expectedPointerVersion:1});return "NO_ERROR";}'
       + 'catch(e){return e.code||"NO_CODE";}})()');
     rec('stale CAS precondition fails closed as conflict', conflictCode === 'conflict', conflictCode);
     const unsealedCode = await evaluate('(async()=>{try{'
-      + 'await window.__skryniaV3AdminCapabilities().activateRelease("demo","' + C + '",'
-      + '{expectedActive:"' + A + '",expectedPointerVersion:6});return "NO_ERROR";}'
+      + 'await window.__skryniaV3AdminCapabilities().activateRelease("' + APP + '","' + C + '",'
+      + '{expectedActive:"' + A + '",expectedPointerVersion:3});return "NO_ERROR";}'
       + 'catch(e){return e.code||"NO_CODE";}})()');
     rec('unsealed release activation fails closed', unsealedCode === 'invalid_state', unsealedCode);
 
@@ -335,18 +339,26 @@ async function main() {
       + '+JSON.stringify(Object.entries(localStorage))'
       + '+JSON.stringify(Object.entries(sessionStorage))'
       + '+Object.keys(window).filter(k=>/TOKEN|CAP|SECRET|CREDENTIAL/i.test(k)).join(",");'
+      // session.readCap is the PUBLIC invoke ID that the UI deliberately shows
+      // as the app ID (GET_ACTIVE/LIST_VERSIONS are unauthenticated reads); the
+      // secrets are the bearer token, its verifier, the edge capability and the
+      // private admin capability.
       + 'return [' + JSON.stringify(tokenHex) + ',' + JSON.stringify(verifierHex) + ','
-      + JSON.stringify(edgeCap) + ',' + JSON.stringify(session.readCap) + ','
-      + JSON.stringify(session.adminCap) + '].some(s=>blob.includes(s));})()');
-    rec('no token/verifier/capability in DOM, storage or window globals', leak === false);
+      + JSON.stringify(edgeCap) + ',' + JSON.stringify(session.adminCap)
+      + '].some(s=>blob.includes(s));})()');
+    rec('no bearer/verifier/edge/admin secret in DOM, storage or window globals', leak === false);
     const postOnly = host.seen.length > 0 && host.seen.every(s => s.path === '/_skrynia/' && s.method === 'POST');
     rec('all native traffic was POST /_skrynia/ only', postOnly, host.seen.length + ' requests');
 
     // ---- Durable native state verified outside the browser ----
-    const finalRead = await postNative(appOrigin, appGetOp(readCap, Buffer.from('v3admin:app:demo:state')));
-    const finalState = JSON.parse(decodeResponse(finalRead.body).body.toString());
+    const finalRead = await postNative(appOrigin, getActiveOp(readCap));
+    const finalBytes = decodeResponse(finalRead.body).body;
+    const finalState = {
+      active: Buffer.from(finalBytes.subarray(2, 34)).toString('hex'),
+      pointerVersion: Number(finalBytes.readBigUInt64LE(34)),
+    };
     rec('native service persisted A-B-A pointer after browser exit',
-      finalState.active === A && finalState.pointerVersion === 6,
+      finalState.active === A && finalState.pointerVersion === 3,
       JSON.stringify(finalState));
     rec('forged-framing pin unchanged', P0_FRAME_PIN === '8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217');
     socket.close();

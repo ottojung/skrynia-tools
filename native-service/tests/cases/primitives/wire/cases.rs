@@ -16,9 +16,7 @@ pub fn req_cases() -> Vec<Request> {
             invoke_id: vec![7; 32],
             input: vec![8, 9],
         },
-        Request::Lookup {
-            invoke_id: vec![5; 32],
-        },
+        Request::Lookup(vec![5; 32]),
         Request::Revoke {
             admin_cap: vec![6; 32],
             expect: AppPrecond::Absent,

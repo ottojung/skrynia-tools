@@ -30,6 +30,9 @@ pub const OP_HINT_LIST: u8 = 20;
 pub const OP_HINT_READ: u8 = 21;
 pub const OP_HINT_ACK: u8 = 22;
 pub const OP_PUSH_SUB_FETCH: u8 = 23;
+pub const OP_PUSH_WAKE_GRANT: u8 = 24;
+pub const OP_APP_PUT_WAKE: u8 = 25;
+pub const OP_APP_DELETE_WAKE: u8 = 26;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 

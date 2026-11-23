@@ -5,7 +5,7 @@ from `efe6117`) trialled a durable `has-subs` marker so `enqueue_hints` could
 skip `disk.list()` on absent nested directories. It was **never pushed**, and
 has been deleted. Decisive real-binary testing with the owner's corrected
 generic kernel PR125 exact `856c029c6e428706a475b2fb06dbe2e2357eb105` showed
-the clean PR65-head P1 WASM works unchanged (33/33 push E2E PASS). The kernel
+the clean PR65-head P1 WASM works unchanged (31 named PASS / ALL_OK=True push E2E PASS). The kernel
 fix maps ENOENT -> ERR_NOT_FOUND(-2) in `fs/dir/path.rs::open_path` only,
 preserving ENOTDIR/EACCES/other errors as real I/O/permission failures.
 

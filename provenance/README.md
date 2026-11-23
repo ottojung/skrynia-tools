@@ -85,7 +85,7 @@ test bearer only, disposable temp dirs. No browser secret, no real VAPID.
     `/workspace/skrynia-v3-integration-kit/target/release/skrynia-server` (verified SHA).
 - Dumb P0 `d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa` (unchanged).
 - Echo guest `dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5`.
-- GREEN matrix with PR125 kernel (33/33, `push_e2e_PR125_cleanP1.log`, ALL_OK=True):
+- GREEN matrix with PR125 kernel (31 named PASS / ALL_OK=True, `push_e2e_PR125_cleanP1.log`, ALL_OK=True):
   POSITIVE op18 grant, op16 subscribe, AppPut hint, op19 sender grant, op20 list
   (seq=[1]), op21 read (32-byte new_hash match), op22 ack + idempotent replay,
   op20 empty-after-ack, op23 scoped sub-fetch, 256605-byte AppGet byte-exact;

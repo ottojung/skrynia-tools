@@ -1,8 +1,5 @@
-//! Deterministic RED/GREEN proof for exact-key wake fan-out.
-//! Real P1 appdata source (put/subscribe/hint queue) over an in-memory Disk.
-//! A: gap proof (passes on base). B: desired wake behaviour (RED on base).
-mod common;
-use common::*;
+//! Exact-key fan-out proof and unchanged ordinary data-key queue semantics.
+use crate::common::*;
 
 #[test]
 fn gap_mutating_b_never_wakes_subscriber_of_a() {
@@ -16,8 +13,7 @@ fn gap_mutating_b_never_wakes_subscriber_of_a() {
 
 #[test]
 fn wake_object_is_invalidated_for_every_mutation() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
+    let d = seeded();
     for key in [
         b"traveller-tes-v1" as &[u8],
         b"traveller-vitalik-v1",
@@ -25,8 +21,15 @@ fn wake_object_is_invalidated_for_every_mutation() {
     ] {
         put(&d, key, b"v");
     }
-    assert!(
-        hints(&d, WAKE) >= 3,
-        "wake object must fan out all mutations"
-    );
+    assert_eq!(list(&d), vec![3], "one slot advances per mutation");
+    assert_eq!(hints(&d, WAKE), 0, "wake slot creates no hint files");
+}
+
+#[test]
+fn ordinary_data_key_hint_queue_is_unchanged() {
+    let d = Mem::default();
+    subscribe(&d, b"data-key-v1");
+    put(&d, b"data-key-v1", b"v");
+    assert_eq!(hints(&d, b"data-key-v1"), 1, "data-key hints still queued");
+    assert_eq!(hints(&d, WAKE), 0, "no wake slot written without a sub");
 }

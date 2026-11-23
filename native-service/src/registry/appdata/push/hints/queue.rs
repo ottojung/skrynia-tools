@@ -28,3 +28,21 @@ pub fn enqueue_hints<D: Disk>(
     disk.write_atomic(&hint_path(base, read_cap, key, seq), &body)
         .map_err(PushErr::Disk)
 }
+
+/// Mark the reserved wake key dirty under the caller's mutation lock. The
+/// fixed slot is the only durable wake state: generation advances before the
+/// source commit, and no hint files are created or removed. See hints/wake.rs.
+pub fn mark_wake_dirty<D: Disk>(
+    disk: &D,
+    base: &str,
+    read_cap: &[u8],
+    key: &[u8],
+) -> Result<(), PushErr<D::Err, ()>> {
+    let entries = disk
+        .list(&subs_dir(base, read_cap, key))
+        .map_err(PushErr::Disk)?;
+    if entries.is_empty() {
+        return Ok(());
+    }
+    super::wake::mark_dirty(disk, base, read_cap, key).map(|_| ())
+}

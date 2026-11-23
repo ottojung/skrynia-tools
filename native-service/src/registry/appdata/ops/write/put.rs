@@ -31,13 +31,14 @@ pub fn put<D: Disk, L: MutLock>(
             super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
             _ => AppErr::BadAuth,
         };
-        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
-        // Same lock/commit as the object write: if the write lands, this hint
-        // is durable. A crash before the write leaves only a spurious wake,
-        // which a sender discards after re-reading authoritative state.
-        if key != super::push::WAKE_KEY {
-            super::push::enqueue_hints(disk, base, &ns, super::push::WAKE_KEY, None)
-                .map_err(hint)?;
+        if key == super::push::WAKE_KEY {
+            // The reserved wake key uses the fixed dirty slot, even when a
+            // client writes the key itself; legacy per-seq hint files would be
+            // invisible to the WAKE_KEY sender special-case.
+            super::push::mark_wake_dirty(disk, base, &ns, key).map_err(hint)?;
+        } else {
+            super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
+            super::push::mark_wake_dirty(disk, base, &ns, super::push::WAKE_KEY).map_err(hint)?;
         }
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)
     })

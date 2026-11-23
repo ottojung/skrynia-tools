@@ -44,3 +44,8 @@ pub fn hint_path(base: &str, read_cap: &[u8], key: &[u8], seq: u64) -> String {
 pub fn hint_counter_path(base: &str, read_cap: &[u8], key: &[u8]) -> String {
     format!("{}/hint-sequence.bin", object_dir(base, read_cap, key))
 }
+
+/// Single atomic dirty-slot state for the reserved wake key: no hint files.
+pub fn wake_slot_path(base: &str, read_cap: &[u8], key: &[u8]) -> String {
+    format!("{}/wake-slot.bin", object_dir(base, read_cap, key))
+}

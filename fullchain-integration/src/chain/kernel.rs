@@ -12,6 +12,7 @@ pub struct Kernel {
 
 impl Kernel {
     pub fn start(art: &Path, base: &Path) -> io::Result<Self> {
+        super::verify_all(art)?;
         let port = super::free_port();
         let token = *b"fullchain-disposable-token-00001";
         prepare(base, art, &token)?;

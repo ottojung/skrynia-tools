@@ -2,8 +2,10 @@
 mod edge;
 mod kernel;
 mod p1;
+mod pins;
 mod port;
 pub use edge::EdgeProc;
 pub use kernel::{Kernel, op_cap};
 pub use p1::transport;
+pub use pins::{manifest, verify, verify_all};
 pub use port::free_port;

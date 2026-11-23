@@ -35,6 +35,9 @@ pub fn verify(c: &Ctx, rep: &Report, sent: usize) -> Vec<String> {
         ),
         format!("plaintext_hex={}", hex(&v.plaintext)),
         format!("vapid_sub={}", v.vapid_sub),
+        // provider::check succeeded => ES256 vk.verify and aes128gcm decrypt both passed.
+        "vapid_es256_verify=ok".into(),
+        "aes128gcm_decrypt=ok".into(),
         format!("push_seen={}", seen.len()),
         "hint_list_empty=true".into(),
     ]

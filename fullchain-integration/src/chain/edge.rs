@@ -14,6 +14,7 @@ pub struct EdgeProc {
 
 impl EdgeProc {
     pub fn start(art: &Path, base: &Path, kernel_port: u16, token: &[u8; 32]) -> io::Result<Self> {
+        super::verify_all(art)?;
         let port = super::free_port();
         let host = "push-app.test".to_owned();
         let origin = "https://push-app.test".to_owned();

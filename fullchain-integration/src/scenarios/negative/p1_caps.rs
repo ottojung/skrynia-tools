@@ -1,5 +1,5 @@
 use super::super::p1::{call, must};
-use super::super::wire::{blb, idb, req};
+use super::super::wire::{blb, idb, req, req_ver};
 use crate::chain::{EdgeProc, Kernel, op_cap, transport};
 use sha2::{Digest, Sha256};
 fn h(b: &[u8]) -> [u8; 32] {
@@ -51,16 +51,27 @@ pub fn run(art: &std::path::Path, tmp: &std::path::Path) -> Vec<String> {
     let bad_sender = call(&io, &req(20, &[&idb(&bad_s), &idb(&h(&admin)), &blb(key)])).unwrap_err();
     let bad_fetch = call(&io, &req(23, &[&idb(&bad_s), &idb(&h(&admin)), &blb(key)])).unwrap_err();
     let malformed = call(&io, &[1u8, 20, 0xff]).unwrap_err();
+    // Well-formed op20 body but wrong native P1 VERSION byte: must be rejected.
+    let bad_version = call(
+        &io,
+        &req_ver(2, 20, &[&idb(&sender), &idb(&h(&admin)), &blb(key)]),
+    )
+    .unwrap_err();
     assert_eq!(bad_grant.0, 9);
     assert_eq!(sib.0, 9);
     assert_eq!(bad_sender.0, 9);
     assert_eq!(bad_fetch.0, 9);
     assert!(matches!(malformed.0, 1 | 254 | 255));
+    assert_eq!(
+        bad_version.0, 1,
+        "wrong VERSION must be a frame error (1), not authz (9)"
+    );
     vec![
         "neg_wrong_grant=9".into(),
         "neg_sibling_key=9".into(),
         "neg_bad_sender=9".into(),
         "neg_bad_fetch=9".into(),
         format!("neg_malformed={}", malformed.0),
+        format!("neg_wrong_version={}", bad_version.0),
     ]
 }

@@ -15,6 +15,13 @@ pub fn execute() {
     std::fs::create_dir_all(&tmp).expect("tmp");
     eprintln!("artifacts={}", art.display());
     eprintln!("tmp={}", tmp.display());
+    if let Err(e) = crate::chain::verify_all(&art) {
+        panic!("artifact SHA256 pin check FAILED (fail closed): {e}");
+    }
+    println!("pin_verify=ok");
+    for line in crate::chain::manifest(&art).expect("runtime manifest") {
+        println!("{line}");
+    }
     let mut ev = crate::scenarios::run_positive(&art, &tmp.join("pos"));
     ev.extend(crate::scenarios::run_negative(&art, &tmp.join("neg")));
     for e in &ev {

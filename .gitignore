@@ -10,3 +10,7 @@ __pycache__/
 
 # Test-only Node dependencies
 **/node_modules/
+
+# Disposable full-chain harness artifacts (never commit)
+/.cargo-target-sender/
+/artifacts/

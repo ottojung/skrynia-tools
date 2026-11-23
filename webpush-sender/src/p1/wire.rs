@@ -1,6 +1,7 @@
-//! Request encoding matching native-service `put_id` / `put_blob` / `put_u64`.
+//! Request encoding matching native-service `[VERSION, op, ...]` wire.
 use super::{Error, Result};
 
+pub const VERSION: u8 = 1;
 pub const OP_HINT_LIST: u8 = 20;
 pub const OP_HINT_READ: u8 = 21;
 pub const OP_HINT_ACK: u8 = 22;
@@ -21,6 +22,7 @@ fn blob(out: &mut Vec<u8>, value: &[u8]) -> Result<()> {
 }
 
 fn head(out: &mut Vec<u8>, op: u8, cap: &[u8], ns: &[u8], key: &[u8]) -> Result<()> {
+    out.push(VERSION);
     out.push(op);
     id(out, cap)?;
     id(out, ns)?;

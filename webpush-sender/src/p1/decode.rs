@@ -16,7 +16,7 @@ pub fn decode(src: &[u8]) -> Result<Vec<u8>> {
     let body = src[6..].to_vec();
     match src[1] {
         0 => Ok(body),
-        1 if len == 1 => Err(Error::P1(body[0])),
+        1 if !body.is_empty() => Err(Error::P1(body[0])),
         _ => Err(Error::Wire("status")),
     }
 }

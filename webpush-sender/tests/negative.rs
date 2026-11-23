@@ -1,9 +1,10 @@
 mod common;
 
 use common::{
-    FakeP1, FixedRng, ManualClock, ScriptedTransport, build, config, frame, resolver, sub_json,
-    vapid_key,
+    FakeP1, FixedRng, ManualClock, ScriptedTransport, build, config, frame, resolver, scan,
+    sub_json, vapid_key,
 };
+use std::path::Path;
 use webpush_sender::Error;
 
 #[test]
@@ -35,4 +36,16 @@ fn replay_is_skipped_without_new_sends() {
     assert_eq!(second.skipped, 1);
     assert_eq!(second.acked, 0);
     assert_eq!(out.calls.borrow().len(), 1);
+}
+
+#[test]
+fn no_legacy_v2_routes_in_source() {
+    let bad = [
+        "_skrynia/push",
+        "push/subscriptions",
+        "configure-push-rules",
+    ];
+    let mut seen = Vec::new();
+    scan(Path::new("src"), &bad, &mut seen);
+    assert!(seen.is_empty(), "legacy routes: {seen:?}");
 }

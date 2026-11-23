@@ -14,8 +14,9 @@ fn opcodes_20_through_23_over_real_http() {
     client.sub_fetch().unwrap();
     let seen = mock.seen();
     assert_eq!(seen.len(), 4);
-    let ops: Vec<u8> = seen.iter().map(|s| s.body[0]).collect();
+    let ops: Vec<u8> = seen.iter().map(|s| s.body[1]).collect();
     assert_eq!(ops, vec![20, 21, 22, 23]);
+    assert!(seen.iter().all(|s| s.body.first() == Some(&1)));
     for request in &seen {
         assert_eq!(request.request_line, "POST /_skrynia/ HTTP/1.1");
         assert!(!has_root_token_marker(request));

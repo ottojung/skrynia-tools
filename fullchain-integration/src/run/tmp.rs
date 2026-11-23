@@ -36,3 +36,6 @@ fn private_dir(path: &Path) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(all(test, unix))]
+mod symlink_test;

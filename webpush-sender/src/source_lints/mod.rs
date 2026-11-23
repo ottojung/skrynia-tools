@@ -46,3 +46,6 @@ mod tests;
 
 #[cfg(test)]
 mod vendor_test;
+
+#[cfg(test)]
+mod fullchain;

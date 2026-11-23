@@ -1,6 +1,14 @@
+use super::push::PushErr;
 use super::{AppErr, MutLock, State};
 use crate::hash_bytes;
 use crate::wire::AppPrecond;
+pub fn hint_err<D, L>(e: PushErr<D, ()>) -> AppErr<D, L> {
+    match e {
+        PushErr::Disk(d) => AppErr::Disk(d),
+        PushErr::Busy | PushErr::Quota => AppErr::Busy,
+        _ => AppErr::BadAuth,
+    }
+}
 
 pub fn matches_precond(state: &State, expect: &AppPrecond) -> bool {
     match (state, expect) {

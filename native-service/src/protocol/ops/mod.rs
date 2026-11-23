@@ -1,5 +1,6 @@
 mod admin;
 mod app;
+mod app_wake;
 mod dispatch;
 mod operator;
 mod push;

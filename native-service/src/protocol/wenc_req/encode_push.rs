@@ -1,45 +1,49 @@
 use super::helpers::{put_blob, put_id};
-use crate::wire::{
-    OP_PUSH_GRANT, OP_PUSH_SENDER_GRANT, OP_PUSH_SUBSCRIBE, OP_PUSH_UNSUBSCRIBE, Request,
-};
-
+use crate::wire::*;
 pub fn is_push(req: &Request) -> bool {
     matches!(
         req,
-        Request::PushSubscribe { .. }
-            | Request::PushUnsubscribe { .. }
-            | Request::PushGrant { .. }
-            | Request::PushSenderGrant { .. }
+        Request::PushSubscribe(..)
+            | Request::PushUnsubscribe(..)
+            | Request::PushGrant(..)
+            | Request::PushSenderGrant(..)
+            | Request::PushWakeGrant(..)
     )
 }
-
 pub fn encode_push(out: &mut Vec<u8>, req: &Request) {
     match req {
-        Request::PushSubscribe(grant_cap, key, subscriber, subscription) => {
+        Request::PushSubscribe(g, k, s, sub) => {
             out.push(OP_PUSH_SUBSCRIBE);
-            put_id(out, grant_cap);
-            put_blob(out, key);
-            put_blob(out, subscriber);
-            put_blob(out, subscription);
+            put_id(out, g);
+            put_blob(out, k);
+            put_blob(out, s);
+            put_blob(out, sub);
         }
-        Request::PushUnsubscribe(grant_cap, key, subscriber) => {
+        Request::PushUnsubscribe(g, k, s) => {
             out.push(OP_PUSH_UNSUBSCRIBE);
-            put_id(out, grant_cap);
-            put_blob(out, key);
-            put_blob(out, subscriber);
+            put_id(out, g);
+            put_blob(out, k);
+            put_blob(out, s);
         }
-        Request::PushGrant(write_cap, grant_cap, key, subscriber) => {
+        Request::PushGrant(w, g, k, s) => {
             out.push(OP_PUSH_GRANT);
-            put_id(out, write_cap);
-            put_id(out, grant_cap);
-            put_blob(out, key);
-            put_blob(out, subscriber);
+            put_id(out, w);
+            put_id(out, g);
+            put_blob(out, k);
+            put_blob(out, s);
         }
-        Request::PushSenderGrant(write_cap, sender_cap, key) => {
+        Request::PushSenderGrant(w, g, k) => {
             out.push(OP_PUSH_SENDER_GRANT);
-            put_id(out, write_cap);
-            put_id(out, sender_cap);
-            put_blob(out, key);
+            put_id(out, w);
+            put_id(out, g);
+            put_blob(out, k);
+        }
+        Request::PushWakeGrant(w, g, k, ns) => {
+            out.push(OP_PUSH_WAKE_GRANT);
+            put_id(out, w);
+            put_id(out, g);
+            put_blob(out, k);
+            put_id(out, ns);
         }
         _ => unreachable!(),
     }

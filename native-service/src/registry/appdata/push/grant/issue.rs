@@ -21,6 +21,7 @@ pub fn issue<D: Disk, L: MutLock>(
         || grant_cap.len() != CAP_LEN
         || subject.len() != CAP_LEN
         || !path::valid_key(key)
+        || (matches!(kind, Kind::Wake) && key != super::super::WAKE_KEY)
     {
         return Err(PushErr::BadAuth);
     }

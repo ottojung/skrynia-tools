@@ -1,87 +1,58 @@
-# Exact-key wake fan-out for ordinary P1 (DRAFT, DEV-only)
+# Generic exact-key wake invalidation (development integration)
 
-Status: source-level design and tests only. Not a release artifact. No WASM
-binary was rebuilt, no deployment, no main/prod merge, no real keys or data.
+The native P1 provides an invalidation channel for programs with many mutable
+objects. The kernel and Program0 remain generic; neither knows applications,
+object names, Web Push providers, subscriptions or credentials.
 
-## 1. Source-grounded RED (actually executed)
+## Same-namespace writes
 
-`native-service/src/registry/appdata/ops/write/put.rs` enqueues a change hint
-only at the exact key being mutated; `push/hints/queue.rs` lists subscribers
-at that exact key and returns early when there are none. Native push grants
-are exact-key (`push/grant/mod.rs`). Therefore a single subscription cannot be
-woken by mutations of any other key.
+The reserved exact object key is `skrynia-wake-v1` (`push::WAKE_KEY`).
+When a namespace has subscribers to this key, a successful AppPut or AppDelete
+stages an invalidation under the mutation lock **before** committing its
+actual object. A direct write of the reserved key uses the same fixed slot.
+A sender may receive a harmless spurious invalidation after a failed object
+commit; its consumer must reread authoritative state.
 
-`native-service/tests/wake_fanout.rs` proves this with two distinct keys:
-subscribe only `traveller-tes-v1`, mutate `thread-0042-tes-v1` through the real
-`appdata::ops::put`, and assert zero hints on the subscribed key (and zero
-anywhere) while the value change is durable. On the unmodified base the
-companion test `wake_object_is_invalidated_for_every_mutation` FAILS (RED).
+## Cross-namespace writes
 
-Recorded run (isolated target dir, no heavy build):
-`cargo test --offline -p skrynia-native-service --test wake_fanout` —
-1 passed / 1 failed, exit 101.
+The writer of the *wake* namespace issues a `Kind::Wake` grant restricted to
+the reserved exact wake key and the read-cap identifier of one source writer
+namespace. The source writer needs its own write cap and this narrowly scoped
+wake-only grant, but **never** the wake namespace's write cap or sender grant.
 
-## 2. Design evaluation
+`AppPutWake` (opcode 25) and `AppDeleteWake` (26) verify their source
+CAS precondition and Wake grant under the same mutation lock. Both the
+source and target wake generations are durably staged before the source
+write/delete. No post-commit best-effort secondary PUT exists. Legacy
+AppPut/Delete remain valid unchanged. `PushWakeGrant` (24) is the
+issuer-only operation. Wake authorization cannot write ordinary target data.
+Wrong key, foreign source namespace, revoked grant and ungranted issuer fail
+closed. There are no prefix subscriptions.
 
-* (a) N exact-key subscriptions for all traveller and dynamically allocated
-  `thread-{profileId}-{author}` keys. Rejected: the key set grows to hundreds
-  (113 profiles in the catalogue) and is open-ended ("future keys"). Every new
-  key needs a fresh app-scoped grant + subscription + sender-scheduler entry;
-  revocation/identity rotation is O(N); disk and sender count grow linearly.
-  Cannot bound resources or guarantee coverage of a key not yet known.
+## Bounded delivery
 
-* (b) Atomically coupled invalidation of a designated exact wake object under
-  the SAME mutation lock/commit. **Chosen.** A namespace-scoped reserved exact
-  key `skrynia-wake-v1` is the single wake object. Any successful `put` or
-  `delete` in that namespace enqueues an invalidation hint on that exact key
-  inside the existing `with_lock` closure, immediately before the object
-  write/delete. The app holds ONE ordinary exact-key Subscribe grant and ONE
-  subscription/sender for the wake key; the sender re-reads authoritative
-  state (already implemented in the Along SW chain) and suppresses false
-  notifications. No prefix subscriptions, no best-effort second PUT, no
-  polling, no app semantics in kernel/P0, no new opcode, no new authority.
+The reserved wake key uses a **fixed durable generation slot** keyed by exact
+(namespace, key), not one hint file per mutation. Every subscribed mutation
+advances a monotone generation and marks the slot dirty. The existing sender
+list/read/ACK protocol returns the latest pending generation, an opaque
+32-byte invalidation and a generation-conditional ACK. An ACK of g cannot
+clear g+1, including after restart or when the sender rereads an old hint.
 
-* (c) Other designs considered: (c1) consolidate all app state into one object
-  — would force a large-object/chunking rewrite and breaks the existing data
-  model; (c2) userland wake-first double PUT — NOT crash-equivalent: the sender
-  may consume the wake hint before the data PUT commits and then suppress a
-  genuine change permanently (a lost wake); (c3) prefix/wildcard subscriptions
-  or unconditional `showNotification` — explicitly forbidden by owner policy.
+The slot remains constant-size even after more than 1,024 offline mutations.
+A failed slot write aborts the source mutation; no wake backlog/quota or
+old-hint pruning error blocks a healthy-disk data write. The ordinary
+**non-wake** exact-object notification queue still has its separate quota.
 
-## 3. Why (b) is correct and minimal
+## Acceptance and remaining release work
 
-* Crash safety: both hints (mutated key and wake key) and the object write are
-  in one `with_lock` scope over one lock. If the write commits, the wake hint
-  is durable. If a crash precedes the write, the wake hint is spurious only;
-  senders MUST re-read authoritative state (documented in `hints/queue.rs`),
-  so no false notification is claimed. There is no second PUT after commit.
-* Least privilege: fan-out targets only the wake key of the writer's own
-  namespace; reachability still requires a valid exact-key Subscribe grant for
-  that wake key. A foreign writer cannot create hints in another namespace.
-* Bounded: one extra durable hint per mutation, under the existing `MAX_HINTS`
-  quota; queue exhaustion fails the mutation closed rather than dropping a
-  wake. One subscription/sender regardless of data-key count.
-* General purpose: the rule is data-model agnostic and applies to every key,
-  including keys allocated in the future. No traveller/thread/channel names
-  appear in P1 or P0.
+The native-service integration tests cover independent writer namespaces,
+113 dynamic threads, over 1,024 offline changes, sender read/mutate/stale ACK,
+grant replacement and false-authority cases, and spurious pre-commit hints.
+Rust structural lint (50 code lines/file and 10 entries/directory), default
+rustfmt and native-service Clippy are mandatory.
 
-## 4. Negative/edge tests added (all executed, see board handoff)
-
-* both traveller keys and a dynamic thread key wake the single wake object;
-* 113 dynamically allocated thread keys with exactly one subscription;
-* durability across a reopen; revocation stops fan-out;
-* foreign-writer namespace isolation; delete also invalidates;
-* crash before value commit => spurious wake only, no data mutation without a
-  wake; bounded queue rejects mutations once `MAX_HINTS` is reached.
-
-## 5. Remaining gates (NOT claimed here)
-
-1. Rebuild the push P1 WASM from this source is an operator/ capacity-gated
-   step; this work did not rebuild the pinned artifact `cf1322c3...`.
-2. Along userland must issue the exact-key Subscribe grant for
-   `skrynia-wake-v1` and subscribe to it (one subscription/sender), and keep
-   the SW authoritative-state re-read/baseline logic already under review.
-3. Real outbound VAPID provider + disposable-Chromium PushManager acceptance,
-   operator-provisioned caps/bearer, restart/migration, five-app backed-up
-   migration and independent exact-HEAD adversarial review remain open.
-4. Source tests are NOT browser+backend acceptance; release stays NO-GO.
+This is a source-level development contract. Compile and pin an updated
+ordinary P1 WASM binary, integrate the client wake-grant provisioning and
+AppPutWake/AppDeleteWake, then exercise the real sender and browser with
+independently authorized credentials before claiming real push delivery.
+No production/TLS/DNS/data migration follows automatically from a code merge.

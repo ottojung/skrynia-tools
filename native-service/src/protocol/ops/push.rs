@@ -40,6 +40,11 @@ pub fn handle<D: super::Disk, L: MutLock>(
                 .map(|_| ok(Vec::new())),
             7,
         ),
+        Request::PushWakeGrant(write_cap, grant_cap, key, source_ns) => map_res(
+            reg.push_wake_grant(disk, lock, &write_cap, &grant_cap, &key, &source_ns)
+                .map(|_| ok(Vec::new())),
+            7,
+        ),
         _ => return None,
     })
 }

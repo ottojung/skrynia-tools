@@ -1,6 +1,7 @@
 mod encode;
 mod encode_admin;
 mod encode_app;
+mod encode_app_wake;
 mod encode_push;
 mod encode_sender;
 mod helpers;

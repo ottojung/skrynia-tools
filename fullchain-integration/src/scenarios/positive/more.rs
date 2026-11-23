@@ -1,7 +1,6 @@
-use super::super::p1::must;
-use super::super::wire::{blb, idb, req};
 use super::ctx::Ctx;
 use super::pump;
+use crate::{blb, idb, must, req};
 use sha2::{Digest, Sha256};
 fn h(b: &[u8]) -> [u8; 32] {
     Sha256::digest(b).into()

@@ -1,4 +1,4 @@
-use crate::chain::{EdgeProc, Kernel, op_cap};
+use crate::{EdgeProc, Kernel};
 pub fn run(art: &std::path::Path, tmp: &std::path::Path) -> Vec<String> {
     let k = Kernel::start(art, &tmp.join("k")).expect("kernel");
     let e = EdgeProc::start(art, &tmp.join("e"), k.port, &k.token).expect("edge");

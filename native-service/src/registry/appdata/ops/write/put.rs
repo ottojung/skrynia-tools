@@ -26,11 +26,20 @@ pub fn put<D: Disk, L: MutLock>(
             return Err(AppErr::Conflict(state.hash()));
         }
         let hash = crate::hash_bytes(value);
-        super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(|e| match e {
+        let hint = |e: super::push::PushErr<D::Err, ()>| match e {
             super::push::PushErr::Disk(d) => AppErr::Disk(d),
             super::push::PushErr::Busy | super::push::PushErr::Quota => AppErr::Busy,
             _ => AppErr::BadAuth,
-        })?;
+        };
+        if key == super::push::WAKE_KEY {
+            // The reserved wake key uses the fixed dirty slot, even when a
+            // client writes the key itself; legacy per-seq hint files would be
+            // invisible to the WAKE_KEY sender special-case.
+            super::push::mark_wake_dirty(disk, base, &ns, key).map_err(hint)?;
+        } else {
+            super::push::enqueue_hints(disk, base, &ns, key, Some(hash)).map_err(hint)?;
+            super::push::mark_wake_dirty(disk, base, &ns, super::push::WAKE_KEY).map_err(hint)?;
+        }
         io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)
     })
 }

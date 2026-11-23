@@ -1,5 +1,5 @@
 //! Deterministic subscription key material for disposable verification.
-use crate::provider::SubKeys;
+use crate::SubKeys;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use p256::elliptic_curve::sec1::ToEncodedPoint;
 

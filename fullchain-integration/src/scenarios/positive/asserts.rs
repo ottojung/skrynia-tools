@@ -1,7 +1,5 @@
-use super::super::p1::must;
-use super::super::wire::{blb, idb, req};
 use super::ctx::Ctx;
-use crate::provider;
+use crate::{blb, check, idb, must, req};
 use webpush_sender::pump::Report;
 
 pub fn verify(c: &Ctx, rep: &Report, sent: usize) -> Vec<String> {
@@ -17,8 +15,7 @@ pub fn verify(c: &Ctx, rep: &Report, sent: usize) -> Vec<String> {
     assert_eq!(sent, 1);
     let seen = c.push.seen();
     assert_eq!(seen.len(), 1, "provider saw exactly one push");
-    let v =
-        provider::check(&seen[0], &c.sub_keys, "https://push.example.test").expect("vapid+decrypt");
+    let v = check(&seen[0], &c.sub_keys, "https://push.example.test").expect("vapid+decrypt");
     assert_eq!(v.plaintext.len(), 32);
     assert_eq!(seen[0].header("content-encoding"), Some("aes128gcm"));
     assert_eq!(seen[0].header("ttl"), Some("60"));

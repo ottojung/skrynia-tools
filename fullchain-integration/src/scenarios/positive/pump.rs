@@ -1,6 +1,5 @@
-use super::super::transport::LoopbackPush;
 use super::ctx::Ctx;
-use crate::caps::{FixedResolver, FixedRng, TestClock};
+use crate::{FixedResolver, FixedRng, LoopbackPush, TestClock};
 use sha2::{Digest, Sha256};
 use webpush_sender::ledger::FileLedgerStore;
 use webpush_sender::pump::{Parts, Pump, Report};

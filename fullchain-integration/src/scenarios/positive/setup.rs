@@ -1,6 +1,5 @@
-use super::super::p1::must;
-use super::super::wire::{blb, idb, req};
 use super::ctx::Ctx;
+use crate::{blb, idb, must, op_cap, req};
 use sha2::{Digest, Sha256};
 
 fn h(b: &[u8]) -> [u8; 32] {
@@ -8,7 +7,7 @@ fn h(b: &[u8]) -> [u8; 32] {
 }
 
 pub fn bootstrap(c: &mut Ctx) {
-    let op = crate::chain::op_cap();
+    let op = op_cap();
     let admin = h(b"fc-admin-cap");
     let grant = h(b"fc-grant-cap");
     let sub = b"sub-alpha";

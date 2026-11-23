@@ -9,6 +9,16 @@ mod provider;
 mod run;
 mod scenarios;
 
+// Flat re-exports keep every cross-module import at exactly one `super`/`crate`
+// hop, satisfying the sibling-only structural lint.
+pub use caps::{FixedResolver, FixedRng, TestClock};
+pub use chain::{EdgeProc, Kernel, free_port, manifest, op_cap, transport, verify, verify_all};
+pub use provider::{
+    FakePush, Materials, ReplyPlan, Seen, SubKeys, Verified, check, read_req, server_config,
+    write_reply,
+};
+pub use scenarios::{LoopbackPush, blb, call, fixture, idb, must, req, req_ver, u64b};
+
 fn main() {
     run::execute();
 }

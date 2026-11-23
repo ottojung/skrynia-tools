@@ -1,5 +1,4 @@
-use crate::chain::{EdgeProc, Kernel};
-use crate::provider::{FakePush, SubKeys};
+use crate::{EdgeProc, FakePush, Kernel, ReplyPlan, SubKeys, fixture, transport};
 use std::path::{Path, PathBuf};
 use webpush_sender::p1::HttpP1;
 
@@ -23,9 +22,9 @@ impl Ctx {
         let kernel = Kernel::start(art, &tmp.join("kernel")).expect("kernel");
         let edge =
             EdgeProc::start(art, &tmp.join("edge"), kernel.port, &kernel.token).expect("edge");
-        let io = crate::chain::transport(&edge);
-        let push = FakePush::start(crate::provider::ReplyPlan::status(201));
-        let (sub_json, sub_keys) = super::super::keys::fixture();
+        let io = transport(&edge);
+        let push = FakePush::start(ReplyPlan::status(201));
+        let (sub_json, sub_keys) = fixture();
         Self {
             art: art.into(),
             tmp: tmp.into(),

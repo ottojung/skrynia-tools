@@ -1,16 +1,12 @@
-//! Reserved wake key remains a valid exact data key; its direct mutation uses
-//! the fixed dirty slot, never legacy per-seq hint files.
-mod common;
-use common::*;
+//! Direct AppPut/AppDelete of reserved WAKE_KEY stays visible and file-free.
+use crate::common::*;
 use skrynia_native_service::NoLock;
 use skrynia_native_service::hash_bytes;
 use skrynia_native_service::registry::appdata::{WriteAuth, ops};
 
 #[test]
 fn direct_put_to_wake_key_notifies_and_keeps_no_legacy_files() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, WAKE, b"payload");
     assert_eq!(list(&d), vec![1], "sender sees the wake-key write");
     assert!(read_ok(&d, 1));
@@ -22,9 +18,7 @@ fn direct_put_to_wake_key_notifies_and_keeps_no_legacy_files() {
 
 #[test]
 fn direct_delete_of_wake_key_advances_slot_without_legacy_files() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, WAKE, b"payload");
     let before = list(&d)[0];
     ops::delete(

@@ -1,23 +1,19 @@
 //! Authz gates: foreign writer, delete fan-out, exact sender grant.
-mod common;
-use common::*;
+use crate::common::*;
 use skrynia_native_service::NoLock;
 use skrynia_native_service::hash_bytes;
 use skrynia_native_service::registry::appdata::{WriteAuth, ops, push};
-use skrynia_native_service::wire::AppPrecond;
 
 #[test]
 fn foreign_writer_cannot_create_wake_state_in_another_namespace() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     ops::put(
         &d,
         &NoLock,
         "d",
         WriteAuth::External(&[9u8; 32]),
         b"thread-001-vitalik-v1",
-        &AppPrecond::Absent,
+        &skrynia_native_service::wire::AppPrecond::Absent,
         b"x",
     )
     .unwrap();
@@ -26,9 +22,7 @@ fn foreign_writer_cannot_create_wake_state_in_another_namespace() {
 
 #[test]
 fn delete_also_advances_the_wake_generation() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, b"traveller-tes-v1", b"v");
     let before = list(&d)[0];
     ops::delete(

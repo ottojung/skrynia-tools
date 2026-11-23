@@ -1,55 +1,22 @@
-//! Shared P1 appdata helpers for the wake fan-out integration tests.
+//! Shared P1 appdata helpers for the wake regression integration tests.
 #![allow(dead_code)]
+mod app;
+mod faildata;
 mod fault;
 mod memdisk;
 mod queries;
+mod sender;
 mod wake;
+
+pub use app::{caps, put, subscribe, unsubscribe};
+pub use faildata::FailData;
 #[allow(unused_imports)]
 pub use fault::{NoRemove, NoSlotWrite};
 pub use memdisk::Mem;
 #[allow(unused_imports)]
 pub use queries::{data_exists, hints};
+pub use sender::{SENDER_A, SENDER_B, ns, seed_sender, seeded};
 #[allow(unused_imports)]
-pub use wake::{SENDER_A, SENDER_B, ack, list, ns, put_ok, read_ok, seed_sender};
-
-use skrynia_native_service::registry::appdata::{WriteAuth, ops, push};
-use skrynia_native_service::wire::AppPrecond;
-use skrynia_native_service::{NoLock, hash_bytes};
+pub use wake::{ack, list, put_ok, read_ok};
 
 pub const WAKE: &[u8] = b"skrynia-wake-v1";
-pub fn caps() -> ([u8; 32], [u8; 32], [u8; 32]) {
-    ([3u8; 32], [7u8; 32], [11u8; 32])
-}
-pub fn subscribe(d: &Mem, key: &[u8]) {
-    let (w, g, s) = caps();
-    let subject = hash_bytes(&s);
-    push::issue_grant::<Mem, NoLock>(
-        d,
-        &NoLock,
-        "d",
-        &push::Kind::Subscribe,
-        &w,
-        &g,
-        key,
-        &subject,
-    )
-    .unwrap();
-    push::subscribe(d, &NoLock, "d", &g, key, &s, b"endpoint").unwrap();
-}
-pub fn unsubscribe(d: &Mem, key: &[u8]) {
-    let (_, g, s) = caps();
-    push::unsubscribe(d, &NoLock, "d", &g, key, &s).unwrap();
-}
-pub fn put(d: &Mem, key: &[u8], v: &[u8]) {
-    let w = caps().0;
-    ops::put(
-        d,
-        &NoLock,
-        "d",
-        WriteAuth::External(&w),
-        key,
-        &AppPrecond::Absent,
-        v,
-    )
-    .unwrap();
-}

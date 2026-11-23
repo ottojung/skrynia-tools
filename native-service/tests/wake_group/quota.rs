@@ -1,13 +1,10 @@
-//! Bounded-resource gate: wake state stays O(1) past the ordinary hint quota.
-mod common;
-use common::*;
+//! Wake state stays O(1) past the ordinary hint queue depth.
+use crate::common::*;
 use skrynia_native_service::registry::appdata::push;
 
 #[test]
 fn wake_queue_cannot_make_an_unrelated_namespace_write_busy() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     let n = push::MAX_HINTS + 32;
     for i in 0..n {
         assert!(

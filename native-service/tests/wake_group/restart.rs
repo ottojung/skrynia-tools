@@ -1,12 +1,9 @@
 //! Restart/ABA/re-list gates for the fixed durable wake slot.
-mod common;
-use common::*;
+use crate::common::*;
 
 #[test]
 fn generation_is_durable_for_a_fresh_sender_after_restart() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, b"before", b"v");
     let before = list(&d);
     seed_sender(&d, &SENDER_B); // new sender instance over the same durable Disk
@@ -22,9 +19,7 @@ fn generation_is_durable_for_a_fresh_sender_after_restart() {
 
 #[test]
 fn repeated_and_stale_acks_are_noops() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, b"one", b"v");
     let g1 = list(&d)[0];
     put(&d, b"two", b"v");
@@ -41,9 +36,7 @@ fn repeated_and_stale_acks_are_noops() {
 
 #[test]
 fn superseded_read_is_missing_and_next_list_finds_latest() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     put(&d, b"listed", b"v");
     let g1 = list(&d)[0];
     assert!(read_ok(&d, g1), "sender listed g1");

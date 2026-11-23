@@ -1,6 +1,5 @@
-//! Deterministic fan-out proof with the fixed wake slot over real P1 source.
-mod common;
-use common::*;
+//! Exact-key fan-out proof and unchanged ordinary data-key queue semantics.
+use crate::common::*;
 
 #[test]
 fn gap_mutating_b_never_wakes_subscriber_of_a() {
@@ -14,9 +13,7 @@ fn gap_mutating_b_never_wakes_subscriber_of_a() {
 
 #[test]
 fn wake_object_is_invalidated_for_every_mutation() {
-    let d = Mem::default();
-    subscribe(&d, WAKE);
-    seed_sender(&d, &SENDER_A);
+    let d = seeded();
     for key in [
         b"traveller-tes-v1" as &[u8],
         b"traveller-vitalik-v1",

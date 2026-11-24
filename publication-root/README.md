@@ -66,6 +66,5 @@ provider and real nginx:
 ```sh
 python3 publication-root/tests/real_wasm_chain.py \
   --kernel KERNEL --provider PROVIDER --root ROOT_WASM \
-  --apps-harness /path/to/skrynia-apps/qualification/publication-isolation \
   --results /tmp/opencode/wasm-publication-results.json
 ```

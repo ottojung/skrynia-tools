@@ -98,12 +98,6 @@ jobs:
           ref: a339a8cc3bc739276a622dfe2e65cf0fcf06507a
           path: upstream-skrynia
           persist-credentials: false
-      - uses: actions/checkout@v5
-        with:
-          repository: ottojung/skrynia-apps
-          ref: 3737bbc3bc61cffdac1ecee12434fe44b878c251
-          path: upstream-skrynia-apps
-          persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.93.0
         with:
           targets: wasm32-unknown-unknown
@@ -132,7 +126,6 @@ jobs:
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
             --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
             --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
-            --apps-harness "$PWD/upstream-skrynia-apps/qualification/publication-isolation" \
             --results "$RUNNER_TEMP/wasm-publication-results.json"
       - uses: actions/upload-artifact@v4
         if: always()

@@ -92,7 +92,7 @@ def run(args, base):
         assert call(12, ident(iid)) == b'\x03\x01' + h + struct.pack('<Q', rev)
 
     def versions(*hashes):
-        assert call(13, ident(iid) + b'\x00' + struct.pack('<H', 256)) == (
+        assert call(13, ident(iid) + b'\x00' + struct.pack('<H', 64)) == (
             struct.pack('<H', len(hashes)) + b''.join(sorted(hashes)))
 
     def stage(code, ok=True):

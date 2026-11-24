@@ -123,12 +123,23 @@ function parseActive(bytes, label) {
 function parsePage(bytes, label) {
   if (bytes.length < 2) throw invalidData('Malformed native page (' + label + ')');
   const count = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint16(0, true);
+  if (count > PAGE_LIMIT) {
+    throw invalidData('Native page exceeds ' + PAGE_LIMIT + ' entries (' + label + ')');
+  }
   if (bytes.length !== 2 + count * 32) {
     throw invalidData('Malformed native page length (' + label + ')');
   }
   const hashes = [];
+  let previous = null;
   for (let i = 0; i < count; i += 1) {
-    hashes.push(bytesToHex(bytes.subarray(2 + i * 32, 2 + (i + 1) * 32)));
+    const hex = bytesToHex(bytes.subarray(2 + i * 32, 2 + (i + 1) * 32));
+    // The service indexes 32-byte keys in strictly ascending order. Duplicates
+    // and unsorted pages are malformed service data, never UI state to repair.
+    if (previous !== null && hex <= previous) {
+      throw invalidData('Native page hashes are not strictly ascending (' + label + ')');
+    }
+    hashes.push(hex);
+    previous = hex;
   }
   return {hashes, last: count ? bytes.subarray(2 + (count - 1) * 32, 2 + count * 32) : null};
 }
@@ -262,24 +273,39 @@ export function createNativeCapabilities(session, fetchImpl = globalThis.fetch) 
   async function listAll(iid, label) {
     const seen = new Set();
     const out = [];
-    let after = null;
+    let after = null;      // byte cursor for the next request
+    let afterHex = null;   // hex cursor for strict ordering checks
     for (let guard = 0; guard < 4096; guard += 1) {
-      const body = await sendRead(iid ? listVersionsOp(iid, after) : listProgramsOp(after), label);
+      const body = await sendRead(
+        iid ? listVersionsOp(iid, after) : listProgramsOp(after), label);
       const page = parsePage(body, label);
+      if (afterHex !== null && page.hashes.length && page.hashes[0] <= afterHex) {
+        throw invalidData(label + ' pagination cursor moved backwards or repeated');
+      }
       out.push(...page.hashes);
-      if (page.hashes.length < PAGE_LIMIT || !page.last) break;
+      if (page.hashes.length < PAGE_LIMIT || !page.last) return out;
       const cursor = bytesToHex(page.last);
-      if (seen.has(cursor)) throw invalidData(label + ' pagination cursor did not advance');
+      if (seen.has(cursor) || cursor <= afterHex) {
+        throw invalidData(label + ' pagination cursor did not advance');
+      }
       seen.add(cursor);
       after = page.last;
+      afterHex = cursor;
     }
-    return out;
+    // Never return a truncated list when the guard is exhausted.
+    throw invalidData(label + ' pagination guard exhausted; refusing partial list');
   }
 
   return {
     kind: 'native',
     async listApps() {
-      return [...new Set(await listAll(null, 'application list'))].sort();
+      const apps = await listAll(null, 'application list');
+      for (let i = 1; i < apps.length; i += 1) {
+        if (apps[i - 1] >= apps[i]) {
+          throw invalidData('application list is not strictly ascending and unique');
+        }
+      }
+      return apps;
     },
     async getAppState(app) {
       const active = parseActive(

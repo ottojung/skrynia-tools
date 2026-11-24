@@ -21,7 +21,8 @@ pub fn execute() {
         v.vapid_sub, rep.hints, rep.delivered, rep.acked, rep.skipped
     );
     std::fs::write(&cfg.out, body).expect("write decrypted hint out");
-    println!("bridge_plaintext_hex={hex}");
+    // The plaintext is written only to the caller's private 0600 temp output.
+    // Never echo the raw hint to stdout or CI logs; digests/verdicts only.
     println!("bridge_vapid_sub={}", v.vapid_sub);
     println!("bridge_vapid_es256_verify=ok");
     println!("bridge_aes128gcm_decrypt=ok");

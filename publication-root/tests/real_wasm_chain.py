@@ -154,6 +154,10 @@ def main() -> int:
         record("private_paths_rejected_before_import",
                all(wasm_call(url, token, OP_PUBLISH, p.decode("latin1")) == -1 for p in bad))
         record("wrong_token_denied", wasm_call(url, b"\x00" * 32, OP_PUBLISH, rel) == -4)
+        missing = f"apps/qual/releases/{RELEASE}/missing.js"
+        provider_code = wasm_call(url, token, OP_PUBLISH, missing)
+        record("provider_failure_passthrough", provider_code == 3, provider_code)
+        record("failed_publish_creates_no_public_node", get(nginx_port, "/" + missing)[0] == 404)
         record("mailbox_clean_after_failures", not os.listdir(mailbox))
 
         # Concurrent independent publications through the real WASM root.

@@ -34,3 +34,13 @@ unsafe extern "C" {
     ) -> i32;
     pub fn eval_output_len() -> i32;
 }
+
+// Operator-defined publication boundary. u32 is a mailbox ticket, never a
+// guest pointer and never arbitrary publication authority. Children cannot
+// import this namespace; the root program mediates their requests.
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "syscall")]
+unsafe extern "C" {
+    pub fn publish(ticket: u32) -> i32;
+    pub fn unpublish(ticket: u32) -> i32;
+}

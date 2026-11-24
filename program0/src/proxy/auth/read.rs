@@ -1,4 +1,4 @@
-use super::super::abi;
+use super::abi;
 use super::{DENIED, TOKEN_BYTES};
 const VERIFIER_PATH: &[u8] = b"security/program0.sha256";
 pub fn exact(fd: i32, into: &mut [u8]) -> Result<(), i32> {

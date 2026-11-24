@@ -29,3 +29,14 @@ unsafe extern "C" {
     pub fn release_mutation_lock() -> i32;
     pub fn fs_delegate_scope(root: i32, path_ptr: u32, path_len: u32, ops: u32) -> i32;
 }
+
+// Publication is an operator-defined syscall, not a kernel filesystem
+// primitive. Only the root program may import this namespace; children are
+// mediated through the root callback. One u32 ticket selects a private
+// operator-disk request file whose bytes are the relative public path.
+#[cfg(target_arch = "wasm32")]
+#[link(wasm_import_module = "syscall")]
+unsafe extern "C" {
+    pub fn publish(ticket: u32) -> i32;
+    pub fn unpublish(ticket: u32) -> i32;
+}

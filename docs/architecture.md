@@ -23,6 +23,21 @@ entrypoint preserve each application's navigation and service worker boundary.
 Building from an exact Git commit and publishing immutable static assets are
 deployment concerns, not kernel operations.
 
+## Explicit publication
+
+Private disk bytes are never assumed to be nginx-servable. Exposure is an
+explicit root operation through the operator-defined `syscall` namespace:
+`publish(ticket)` and `unpublish(ticket)` take an opaque u32 ticket whose
+private operator-disk request file (`publication-requests/<8 hex>`) contains
+the bounded UTF-8 relative public path. The root validates that path against
+the public namespace, writes and syncs the request before invoking the import,
+and removes the request file on every exit path. The provider interprets the
+same relative path in the separate public root; no storage alias or private
+data is exposed. Children have no direct `syscall.*` imports and request
+publication only through the root callback after token authorization. Any
+revocation of a mutable target happens before its deletion or replacement so
+a stale link cannot expose later bytes.
+
 ## Costs and failure boundaries
 
 Stage code by content identity, seal it before activation, and activate by one

@@ -1,4 +1,5 @@
 mod read;
+pub(super) use super::abi;
 use super::token;
 const TOKEN_BYTES: usize = 32;
 const VERSION: u8 = 1;

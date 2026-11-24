@@ -36,6 +36,31 @@ Optional: `--workdir /tmp/opencode/dumb-p0-http` to keep logs in a bounded dispo
 - Positive: register, lookup, P1->P2 invoke echo, appdata write/read (0xff User-root write mode), appdata CAS, restart persistence, lookup/get after restart.
 - Negative: wrong operator cap denied, sibling appdata isolation, wrong bearer denied, malformed/missing bearer denied, shadow verifier in User dir denied.
 
+## Publication ABI gate
+
+The root WASM must import the operator-defined publication syscalls with the
+exact four-byte contract; children must not. Check compiled bytes before any
+publication fixture:
+
+```bash
+python3 program0/integration/check_publication_abi.py --wasm /path/to/skrynia_program0.wasm
+```
+
+The checker verifies `syscall.publish` and `syscall.unpublish` exist with
+`(i32) -> i32` signatures and that no unexpected import namespace is present.
+It does not run the kernel. The kernel requires the provider to advertise both
+names and must be started with its syscall URL configured; otherwise startup
+fails closed on the unresolved imports.
+
+A real publication acceptance run additionally needs a private operator-disk
+`publication-requests/` mount readable by the provider and a separate nginx
+root. Assert: target inaccessible before publish; exact bytes after publish;
+inaccessible after unpublish with the source file still intact; overlapping
+tickets do not overwrite each other; malicious paths and private roots are
+rejected before any import call; and a version switch unpublishes the old
+entry before replacing mutable private data. Those steps belong to the shared
+end-to-end publication fixture, not to this standalone P0 fixture.
+
 ## Caveats
 
 - Do **not** claim security-qualified/release acceptance on 4389433 until hQ PR119 security patches land and are qualified.

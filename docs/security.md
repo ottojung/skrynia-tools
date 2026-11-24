@@ -38,6 +38,30 @@ independent service that enforces those restrictions. Digest verification detect
 corruption but cannot restore lost data. There is no general safe collector
 for the optional client protocols.
 
+## Publication boundary
+
+Private `open_disk` storage is not a static website root. The root program
+alone imports `syscall.publish` and `syscall.unpublish`; each call carries one
+u32 ticket allocated with create-only semantics, never a guest pointer or raw
+publication authority. The matching `publication-requests/<8 lower hex>` file
+holds exact bounded UTF-8 relative path bytes with no trailing newline. The
+writer never truncates or overwrites another request, invokes the import only
+after the request is synced, and deletes its own ticket on success, provider
+failure and pre-invoke failure. The provider treats request files as read-only
+and shares no private disk mount with nginx.
+
+Path validation rejects absolute paths, traversal, empty/`.`/`..` segments,
+backslashes, NUL/newlines and oversize or non-UTF-8 input, and permits only
+public regular-file targets under `apps/`. Security material, program code,
+operator data and the mailbox itself are never publishable. Children cannot
+import the syscall namespace; their mediated requests go through the root
+callback, which enforces the same validation after token authorization.
+
+Revoke a public entry before deleting or replacing the private bytes it names.
+Otherwise a surviving symlink can resolve to a later file at the same path.
+Version switches and rollback revoke the old entry and publish the selected
+immutable target rather than relying on storage aliasing.
+
 ## Transport and isolation
 
 Use HTTPS except explicit disposable loopback tests. Do not put capability

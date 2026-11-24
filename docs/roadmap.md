@@ -12,8 +12,9 @@ administration, trusted edge, and isolated outbound push sender.
   trusted edge, sender and app clients from exact revisions.
 - Qualify the admin UI against actual sealed versions and revision CAS.
 - Qualify exact-key wake delivery, recovery, authorization and resource bounds.
-- Provide a repeatable Git-based build and immutable static publication path
-  with web-based version management and constant-work code rollback.
+- Provide a repeatable Git-based build and explicit `publish`/`unpublish`
+  publication path with web-based version management and constant-work code
+  rollback. Never rely on direct static serving of private storage.
 - Validate per-app migration, backup, data authority and stable service-worker
   origin independently of code publication.
 

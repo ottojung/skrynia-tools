@@ -26,3 +26,11 @@ pub unsafe extern "C" fn release_mutation_lock() -> i32 {
 pub unsafe extern "C" fn fs_delegate_scope(_: i32, _: u32, _: u32, _: u32) -> i32 {
     -1
 }
+#[allow(dead_code)]
+pub unsafe extern "C" fn publish(_: u32) -> i32 {
+    -1
+}
+#[allow(dead_code)]
+pub unsafe extern "C" fn unpublish(_: u32) -> i32 {
+    -1
+}

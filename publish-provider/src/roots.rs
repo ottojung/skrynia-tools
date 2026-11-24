@@ -1,7 +1,7 @@
 //! Three disjoint, operator-owned roots opened once as confined directory
 //! descriptors. The source root is never served; only symlinks are published.
 
-use super::identity::same;
+use super::boundary;
 use std::ffi::CString;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::os::unix::ffi::OsStrExt;
@@ -18,29 +18,13 @@ pub fn open(requests: &Path, disk: &Path, nginx: &Path) -> Result<Roots, String>
     let (requests, req_abs) = open_dir(requests)?;
     let (disk, disk_abs) = open_dir(disk)?;
     let (nginx, nginx_abs) = open_dir(nginx)?;
-    if same(&requests, &disk) || same(&requests, &nginx) || same(&disk, &nginx) {
-        return Err("roots must be distinct directories".into());
-    }
-    check_boundary(&nginx_abs, &req_abs, "requests")?;
-    check_boundary(&nginx_abs, &disk_abs, "disk")?;
-
+    boundary::check(&requests, &disk, &nginx, &req_abs, &disk_abs, &nginx_abs)?;
     Ok(Roots {
         requests,
         disk,
         nginx,
         disk_abs,
     })
-}
-
-fn check_boundary(nginx: &Path, private: &Path, name: &str) -> Result<(), String> {
-    if nginx.starts_with(private) || private.starts_with(nginx) {
-        return Err(format!(
-            "{name} root and nginx root must not overlap: {} vs {}",
-            private.display(),
-            nginx.display()
-        ));
-    }
-    Ok(())
 }
 
 fn open_dir(path: &Path) -> Result<(OwnedFd, PathBuf), String> {

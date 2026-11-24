@@ -5,6 +5,7 @@
 //! are never served by this service.
 
 pub mod abi;
+mod boundary;
 pub mod config;
 mod fs;
 mod identity;

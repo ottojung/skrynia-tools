@@ -1,32 +1,21 @@
 # Skrynia Tools roadmap
 
-The primary deployment path is GitHub repository/subdirectory, exact
-checkout, local or CI-runner build, hierarchical Skrynia HTTP upload,
-immutable release-qualified assets, and single-key CAS activation.
+## Current components
 
-## Implemented
+Native Rust/WASM clients, optional cooperative data protocols, a token-gated
+root proxy example, ordinary native storage and code registry, browser
+administration, trusted edge, and isolated outbound push sender.
 
-- Native HTTP client, scoped grants, object operations and optional
-  append log, CAS cell, event set, and immutable snapshots.
-- Native web administration (`web-admin-v3/`): CLI-free static front-end,
-  trusted gateway, native P1 opcodes 9-14, single revision CAS activation,
-  explicit uncertain-outcome handling.
-- Real Skrynia server integration tests for upload, nested asset paths,
-  browser entrypoint, rollback, history, quota and grant compatibility.
-- Optional browser WebAssembly package and cross-browser protocol tests.
+## Release work
 
-## Remaining work
+- Reproducibly build and test compatible kernel, root and ordinary guests,
+  trusted edge, sender and app clients from exact revisions.
+- Qualify the admin UI against actual sealed versions and revision CAS.
+- Qualify exact-key wake delivery, recovery, authorization and resource bounds.
+- Provide a repeatable Git-based build and immutable static publication path
+  with web-based version management and constant-work code rollback.
+- Validate per-app migration, backup, data authority and stable service-worker
+  origin independently of code publication.
 
-- Native transport port for generic CAS/log/event-set client bindings
-  (owner-coordinated followup; reserved root protocol library paths not
-  modified in this draft).
-- Robust deployment reconciliation after a lost activation reply.
-- Explicit retention and garbage-collection policy for abandoned
-  versions and orphan uploads.
-- Operational qualification of large uploads, HTTP timeouts, cache
-  behavior, service workers, CSP, frontend routers and absolute assets.
-- Publish the browser SDK to npm when separately approved.
-- Extend isolated adversarial/failed-I/O integration coverage.
-
-Only Skrynia's ordinary HTTP object operations are required to serve
-and mutate a published app.
+The application and operator determine data semantics. Production cutover is
+distinct from source integration and disposable acceptance.

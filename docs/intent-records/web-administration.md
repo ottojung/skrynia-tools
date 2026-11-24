@@ -1,13 +1,12 @@
 $id-2006686696634046
-title: Web-based Skrynia Tools administration published in Skrynia
+title: Web-based Skrynia Tools administration and atomic release management
 date: 2026/11/17
 source: @ottojung
 kind: requirement
 
 The Skrynia Tools administration interface must be a web application, not
-a command-line admin interface, and must itself be published as objects in
-Skrynia. A one-time Bash bootstrap receives SKRYNIA_URL, a grant for the
-applications' data scope, and any other necessary configuration using
+a command-line admin interface. A one-time Bash bootstrap receives SKRYNIA_URL,
+scoped deployment authority, and any other necessary configuration using
 environment variables or interactive prompts when absent. It publishes
 the interface and prints its URL together with a random access password.
 Subsequent administration happens through the web interface.

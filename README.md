@@ -5,9 +5,8 @@ an optional operator-supplied dumb Program 0 token gate, an ordinary nonzero
 WASM service, a native Rust/WASM client, CLI-free native web administration,
 an outbound WebPush sender and a real-stack acceptance harness.
 
-**There is no CLI and no v2 HTTP facade.** No `/store`, `/grants`, GET/HEAD
-parity, fake static server, or application logic in the kernel or Program 0.
-The retired v2 HTTP app/bootstrap/actions were removed.
+Administration is web-based. The kernel and root proxy do not implement
+application semantics; static hosting is separate.
 
 ## Components
 
@@ -15,11 +14,11 @@ The retired v2 HTTP app/bootstrap/actions were removed.
   callback gate only. The root token is operator-held, never in browser JS.
 - `native-service/` — ordinary nonzero WASM service: exact-key authorized
   objects, durable push subscriptions/change hints, fixed-slot wake and bounded
-  legacy fallback, sealed code identity and constant-work revision CAS.
+  pending-hint processing, sealed code identity and constant-work revision CAS.
 - `src/client`, `src/wire/native`, `src/cas`, `src/log`, `src/event_set`,
   `src/browser` — native binary POST client with exact read/write capability
   separation and strict frames; generic log/CAS/snapshot/EventSet algorithms
-  preserved on native transport (owner commit `f6fd21df`, `b9bb39c0`).
+  are optional client protocols. EventSet requires an injected enumerating store.
 - `web-admin-v3/` — static native admin front-end on a separate trusted
   origin. The browser sends opaque binary POST bytes through an operator
   gateway; root/issuer/P0 tokens stay server-side. Activation uses native

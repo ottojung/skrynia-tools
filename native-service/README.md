@@ -1,19 +1,22 @@
-# Native service scaffolding — NOT Program 0
+# Ordinary native service
 
-This non-root Rust library preserves the earlier prototype of native
-application storage, capability checks, registry, code history and activation
-algorithms as source and tests. It is NOT a runnable Program 0: the privileged
-root entry point has been removed, and the new Program 0 lives exclusively in
-the separate program0/ crate.
+This crate implements an ordinary nonzero WASM service. It owns application
+data capabilities, immutable sealed code identity, revision CAS activation,
+mediated child execution, and exact-key Web Push state. The root proxy is
+separate and does not understand these operations.
 
-The library is not an operator-ready evaluated guest program either.
-The current guest ABI accepts only skrynia.invoke as an import and does not
-allow direct file, RAM or HTTP access. Reusing this library inside a nonzero
-guest therefore requires designing and verifying an explicit, least-authority
-service boundary, not merely compiling this old privileged root code.
+Build the guest with feature `cb-guest` for `wasm32-unknown-unknown`.
+It accesses resources through the parent-mediated guest ABI. Host-side
+interfaces enable deterministic tests; they do not authorize deploying this
+crate as the root program. See `src/protocol/wire/` for operation definitions
+and `integration/` for compiled integration tests.
 
-Do not include this library in the root WASM or deploy its previous private
-binary protocol. The old service wire operations, including application
-registration and version activation, are not part of the Program 0 contract.
-Their tests verify implementation pieces for future migration, NOT that native
-applications are ready to deploy.
+Application data is addressed by read capability and key; the write capability
+hashes to the corresponding read capability. Code registration and
+administration have their own authority. Exact-key subscriptions and durable
+change hints are consumed by an isolated outbound sender, not by the kernel.
+
+A successful host test is not compiled guest acceptance. Use the pinned
+disposable integration harness, independently verify source and artifact
+identity, and test least-authority delegation, concurrent mutation, restart
+and recovery before release.

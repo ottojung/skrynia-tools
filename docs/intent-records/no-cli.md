@@ -6,7 +6,6 @@ kind: requirement
 
 Skrynia Tools must not expose any CLI functionality. Remove its
 CLI executable, command parser, installation package, tests and
-documentation. Administration must take place through the Skrynia
-hosted web interface. The one-time Bash installation bootstrap and
+documentation. Administration must take place through the web interface. The one-time Bash installation bootstrap and
 noninteractive GitHub Actions for application publishing remain
 distinct from a user-facing CLI.

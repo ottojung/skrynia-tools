@@ -1,49 +1,38 @@
 # Skrynia Tools architecture
 
-**One Skrynia server, HTTP operations only.** Skrynia stores public bytes,
-applies grants, and serializes conditional mutations. Tools is unprivileged
-client software: builds and release publication run on a developer machine
-or ephemeral CI runner, not on an application/deployment server.
+Skrynia is a generic WASM execution kernel. Application protocols belong to
+ordinary user-supplied programs. Tools provides optional components:
 
-## Components
+- **Program 0:** operator-selected root WASM, authenticating a private token
+  and forwarding opaque bytes. Generic callbacks delegate bounded authority;
+  application storage, code registry and push semantics are not root functions.
+- **Ordinary native service:** capability-authorized data, immutable sealed code
+  versions, a revision-checked active pointer, and exact-key change hints.
+- **Trusted edge:** authenticates an app-scoped caller and forwards opaque
+  binary requests to the kernel with the private root token.
+- **Native clients:** Rust and browser WASM adapters for the ordinary service.
+  Optional higher-level data protocols have independent correctness assumptions.
+- **Web administration:** static HTML/JS on a separate trusted HTTPS origin;
+  native admin operations, local encrypted vault, version discovery and
+  atomic activation. No command-line administrative interface.
+- **Web Push sender:** separate process with narrowly authorized hint access and
+  outbound delivery. Durable service state, not notifications, is authoritative.
 
-1. Native HTTP client: GET, create-if-absent, replacement, deletion,
-   byte-SHA256 CAS, scoped listing, and grant administration.
-2. Optional client data protocols: append-only logs, CAS cells, event sets,
-   and content-addressed snapshots. Deployment does not depend on them.
-3. Release manager: uploads a build tree to release-qualified hierarchical
-   keys, publishes a manifest and ready marker, then CAS-updates a small
-   active-release pointer.
-4. Browser entrypoint: stable HTML fetches the active pointer and
-   navigates to the selected release's index.html. No dynamic server
-   routing, backend execution, HTML rewriting or symlink activation.
-5. GitHub Actions: build on the runner, authenticate with scoped user
-   tokens, and publish directly using JavaScript HTTP modules.
-
-Skrynia's hierarchical store URLs preserve directory layouts and MIME
-types. Every publish is a series of single-object operations; only
-the final pointer change is atomic. Incomplete pre-activation uploads
-remain inert and may need explicit retention management.
-
-The deployment protocol is cooperative: another holder of modify
-authority could rewrite an old release. Separate create-only asset
-and exact-key pointer grants can enforce stronger immutability, but
-the current single-token action does not claim that protection.
+The static host is separate from execution. A stable origin and release
+entrypoint preserve each application's navigation and service worker boundary.
+Building from an exact Git commit and publishing immutable static assets are
+deployment concerns, not kernel operations.
 
 ## Costs and failure boundaries
 
-Uploading scales with bytes and files; listing versions scales with
-history; verification re-reads assets. Rollback reads only a fixed-size
-ready marker and bounded active pointer and performs one CAS.
-CAS conflict fails rather than overwriting concurrent activation.
-Lost mutation replies remain ambiguous until reconciled by reading
-the authoritative active pointer.
+Stage code by content identity, seal it before activation, and activate by one
+revision-checked mutation of the fixed-size active pointer. This operation does
+not copy release bytes, scan historical releases or migrate application data.
+Listing history and verifying artifacts have their own costs.
 
-## Native web administration
+A rejected CAS is distinct from a missing or uncertain response. Reconcile
+the authoritative state before another attempt. Separate static asset retention,
+data migration and user-held authorization from code activation.
 
-`web-admin-v3/` is static, CLI-free, and hosted on a separate trusted origin.
-The browser sends opaque binary POST through an operator gateway; root/P0
-tokens never enter browser JS. Activation/listing use native P1 opcodes
-(9-14) with single revision CAS and explicit uncertain-outcome handling.
-No v2 `/store` facade, no bootstrap script, no deployment action CLI.
-[Web administration](web-admin.md).
+See [protocols](protocols.md), [security](security.md), [browser SDK](browser.md),
+and [web administration](../web-admin-v3/README.md).

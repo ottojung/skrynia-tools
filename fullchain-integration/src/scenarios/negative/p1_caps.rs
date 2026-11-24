@@ -9,7 +9,7 @@ pub fn run(art: &std::path::Path, tmp: &std::path::Path) -> Vec<String> {
     let c = caps();
     let key = b"notice/alpha";
     let sub = b"sub-a";
-    let echo = std::fs::read(art.join("echo_dc28e490.wasm")).unwrap();
+    let echo = std::fs::read(art.join("echo.wasm")).unwrap();
     setup(&io, &echo, &c, key, sub);
     negatives(&io, &c, key, sub)
 }

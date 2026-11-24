@@ -1,4 +1,4 @@
-//! Scenario bodies shared by the thin #[test] entry points in tests/https.rs.
+//! Scenario bodies shared by the thin #[test] entry points in tests/common/tls.
 mod happy;
 mod limits;
 mod pinned;

@@ -7,8 +7,11 @@ use std::{fs, io};
 mod table;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod manifest_test;
 
-pub use self::table::PINS;
+pub use self::table::NAMES;
+mod read_manifest;
 
 pub fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
@@ -31,14 +34,16 @@ pub fn verify(p: &Path, expected: &str) -> io::Result<()> {
     }
 }
 pub fn verify_all(art: &Path) -> io::Result<()> {
-    for (name, pin) in PINS {
-        verify(&art.join(name), pin)?;
+    let pins = read_manifest::load(art)?;
+    for name in NAMES {
+        verify(&art.join(name), &pins[name])?;
     }
     Ok(())
 }
 pub fn manifest(art: &Path) -> io::Result<Vec<String>> {
-    PINS.iter()
-        .map(|(name, _)| {
+    NAMES
+        .iter()
+        .map(|name| {
             let h = hex(&sha256_file(&art.join(name))?);
             Ok(format!("SHA256 {name} {h}"))
         })

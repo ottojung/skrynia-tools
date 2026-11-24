@@ -49,8 +49,11 @@ this directory contains only the app).
   backend exists or is authorized. Real kernel + Program 0 + service end-to-end
   qualification of this transport is provided by
   `tests/web-admin-v3/real_native_e2e/run.mjs` against pinned compiled artifacts
-  (host-local HTTP, disposable token); see that harness README for exact scope
-  and the still-open native admin API qualification gate.
+  (host-local HTTP, disposable token); see that harness README for exact scope.
+  The native admin API gate is **closed**: `p1_admin_adapter.mjs` reports 42/42
+  real-stack PASS over native opcodes 9-14. That evidence is pinned to earlier
+  source heads (`3f92c133…` / `67212c89…`), so it is historical and **not**
+  exact-head proof; the exact-head gate is the CI `compiled-stack` job.
 
 ## Integration contract (wired adapter)
 

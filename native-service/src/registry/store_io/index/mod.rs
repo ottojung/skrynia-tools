@@ -19,7 +19,7 @@ pub use page::page;
 pub use pending::{
     clear as clear_pending, recover, scope, take as take_pending, write as write_pending,
 };
-pub use state::{ensure_program, preflight};
+pub use state::{ensure_program, peek as peek_pending, preflight};
 pub use write::{dry_run, insert, remove};
 
 pub const KEY_LEN: usize = 32;

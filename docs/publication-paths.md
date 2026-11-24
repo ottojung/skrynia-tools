@@ -8,7 +8,7 @@ configuration. This is an observed inventory, not a release approval.
 | `security/program0.sha256` | private operator disk | token verifier | must never be published; P0 reads it after token check |
 | `programs/root.wasm` | private operator disk | root program code | private; the P0 loads it with `eval_delegate`, not via nginx |
 | `programs/operator.cap` | private operator disk | test operator capability | private |
-| `publication-requests/<8 hex>` | private operator disk | request-only mailbox | new: create-exclusive u32 ticket, path bytes, read-only to provider, deleted after import |
+| `publication-requests/<8 hex>` | private root-writable user disk (kernel write default) | request-only mailbox | new: create-exclusive u32 ticket, path bytes, read-only to provider, deleted after import; excluded from the child's `programs/` scope |
 | `programs/active/<id>.bin` | private user disk | mutable active pointer | private; revoke any public entry before CAS replacement |
 | `programs/blob/<hash>.bin` | private user disk | immutable sealed code | private; publish only the public app copy if one is created |
 | `programs/ready/<id>/<hash>.ready` | private user disk | ready marker | private; activation checks it before switching |
@@ -20,6 +20,9 @@ configuration. This is an observed inventory, not a release approval.
 - The kernel resolves `syscall.publish`/`syscall.unpublish` from
   `SKRYNIA_SYSCALL_URL` discovery; startup fails closed if either import is
   unavailable. The provider cannot receive guest pointers or private tokens.
+  The kernel writes by default to the private user root, so
+  `PATH_TO_PUBLICATION_REQUESTS` is a read-only mount of that root's
+  `publication-requests/` directory, never a public or child-writable path.
 - The provider's `PATH_TO_SKRYNIA_DISK` and `PATH_TO_NGINX_SKRYNIA_ROOT` are
   distinct roots. It reads mailbox requests from a private operator-disk mount
   and mirrors the full relative path: `apps/<app>/releases/<id>/asset.js`

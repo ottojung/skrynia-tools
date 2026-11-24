@@ -16,7 +16,14 @@ fn invalid() -> Vec<u8> {
     INVALID.to_le_bytes().to_vec()
 }
 
-/// Mediated child request: opcode, u32 path length, exact path bytes.
+/// Reply shape matches the generic mediator: i32 callback status, then data.
+pub fn accepted(code: u32) -> Vec<u8> {
+    let mut out = 0i32.to_le_bytes().to_vec();
+    out.extend_from_slice(&code.to_le_bytes());
+    out
+}
+
+/// A child queues a bounded public path; the root executes it after eval.
 pub fn dispatch(req: &[u8]) -> Vec<u8> {
     let Some(&op) = req.first() else {
         return invalid();
@@ -31,8 +38,8 @@ pub fn dispatch(req: &[u8]) -> Vec<u8> {
     let Some(rel) = req.get(5..5usize.saturating_add(len)) else {
         return invalid();
     };
-    if 5 + len != req.len() {
-        return invalid();
+    if 5 + len != req.len() || !super::queue::enqueue(op == OP_PUBLISH, rel) {
+        return super::ERR_VALIDATION.to_le_bytes().to_vec();
     }
-    super::call(op, rel).to_le_bytes().to_vec()
+    accepted(0)
 }

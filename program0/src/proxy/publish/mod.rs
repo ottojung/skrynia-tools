@@ -4,6 +4,7 @@ mod abi_host;
 mod bridge;
 mod host;
 mod path;
+mod queue;
 mod sys;
 #[cfg(test)]
 mod tests;
@@ -20,4 +21,16 @@ pub const ERR_CLEANUP: i32 = -103;
 
 pub fn call(op: u8, rel: &[u8]) -> i32 {
     bridge::call(&mut Abi, op == OP_PUBLISH, rel)
+}
+
+/// Run queued child requests with full root authority, after evaluation ends.
+pub fn flush() -> usize {
+    let mut accepted = 0;
+    for (publish, rel) in queue::drain() {
+        let op = if publish { OP_PUBLISH } else { OP_UNPUBLISH };
+        if call(op, &rel) == 0 {
+            accepted += 1;
+        }
+    }
+    accepted
 }

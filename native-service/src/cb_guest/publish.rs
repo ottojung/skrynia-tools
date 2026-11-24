@@ -17,6 +17,8 @@ fn result(reply: Result<(i32, Vec<u8>), i32>) -> Result<u32, i32> {
     Ok(u32::from_le_bytes(bytes))
 }
 
+/// Returns 0 when the root accepted the request for execution after eval,
+/// not the provider's final result. The root owns the operator-disk mailbox.
 pub fn publish(rel: &[u8]) -> Result<u32, i32> {
     result(call(&request(wire::PUBLISH, rel)))
 }

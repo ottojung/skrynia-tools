@@ -47,15 +47,28 @@ publication authority. The matching `publication-requests/<8 lower hex>` file
 holds exact bounded UTF-8 relative path bytes with no trailing newline. The
 writer never truncates or overwrites another request, invokes the import only
 after the request is synced, and deletes its own ticket on success, provider
-failure and pre-invoke failure. The provider treats request files as read-only
-and shares no private disk mount with nginx.
+failure and pre-invoke failure. The kernel's root ABI writes by default to the
+private root-writable user disk, so that is the mailbox root; the provider mounts
+only `publication-requests/` read-only from a private directory and shares no
+private disk mount with nginx. Program 0 confines evaluated children to the
+`programs/` prefix, excluding the mailbox entirely.
 
 Path validation rejects absolute paths, traversal, empty/`.`/`..` segments,
 backslashes, NUL/newlines and oversize or non-UTF-8 input, and permits only
 public regular-file targets under `apps/`. Security material, program code,
 operator data and the mailbox itself are never publishable. Children cannot
 import the syscall namespace; their mediated requests go through the root
-callback, which enforces the same validation after token authorization.
+callback, which validates and queues them. The kernel gives the callback the
+child's scoped filesystem authority, so the root executes queued requests only
+after evaluation returns and its own unrestricted root authority is restored.
+The child receives only an acceptance status, not the provider result.
+
+A trapped or timed-out import can leave a request file behind. Tickets are
+never reused: create-only allocation prevents overwrite, and an uncertain
+outcome requires a fresh ticket plus reconciliation against the authoritative
+public root, never a replay of the old ticket. Stale request files are
+reclaimed by an operator-side janitor using filesystem age well beyond the
+provider timeout; the provider itself never deletes request files.
 
 Revoke a public entry before deleting or replacing the private bytes it names.
 Otherwise a surviving symlink can resolve to a later file at the same path.

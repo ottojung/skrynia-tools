@@ -12,8 +12,10 @@ fn transfer<H: Host>(
     publish: bool,
     rel: &[u8],
 ) -> Result<i32, i32> {
-    host.write_all(fd, rel)?;
-    host.finish(fd)?;
+    let written = host.write_all(fd, rel);
+    let finished = host.finish(fd);
+    written?;
+    finished?;
     Ok(host.invoke(publish, ticket))
 }
 

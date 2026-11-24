@@ -34,9 +34,12 @@ the public namespace, writes and syncs the request before invoking the import,
 and removes the request file on every exit path. The provider interprets the
 same relative path in the separate public root; no storage alias or private
 data is exposed. Children have no direct `syscall.*` imports and request
-publication only through the root callback after token authorization. Any
-revocation of a mutable target happens before its deletion or replacement so
-a stale link cannot expose later bytes.
+publication only through the root callback after token authorization. Because
+the kernel scopes filesystem authority to the child while that callback runs,
+the root queues validated requests and executes them after evaluation returns
+with its own unrestricted disk authority.
+Any revocation of a mutable target happens before its deletion or replacement
+so a stale link cannot expose later bytes.
 
 ## Costs and failure boundaries
 

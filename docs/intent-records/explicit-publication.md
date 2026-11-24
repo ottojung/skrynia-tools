@@ -18,5 +18,12 @@ Only public regular files may be published. Tokens, private operator data and
 private mutable objects must never be published, and no direct nginx alias of
 storage may be created. A publication must be revoked before the file it names
 is deleted or replaced, so a dangling link cannot re-expose later bytes.
-Version switching and rollback must preserve this revocation order. Native and
-HTTP providers must share the same four-byte syscall semantics.
+Version switching and rollback must preserve this revocation order. HTTP alone
+defines the operational syscall semantics: `GET <base>/syscalls_list` returns
+the complete name list and `POST <base>/<name>` exchanges exactly four
+little-endian bytes. A custom `libskrynia` executable may elide the HTTP
+transport only through a complete equivalent implementation (the
+`run_optimized` / `Syscalls::optimized` / `EquivalentCall` path) that reproduces
+the same discovery list, results and effects without implicit RAM authority.
+There is no separate class of native syscalls, no operator name registration,
+no fallback and no name precedence rule.

@@ -61,8 +61,13 @@ Outcome is reported in the response: 0 means the provider confirmed success;
 1..6 are provider failures; -1 invalid request/path, -2 mailbox failure before
 the import, -3 unknown outcome (the import may have taken effect), -4 cleanup
 failure after a confirmed result. A trap produces no response and is therefore
-an unknown outcome, never a success. Stale request files are reclaimed by an
-operator-side age-based janitor; the provider never writes or deletes requests.
+an unknown outcome, never a success. A pre-invoke write or close failure removes
+only the ticket file the root just created, never a pre-existing colliding file;
+a trap or uncertain outcome can still leave a ticket. No age-based janitor is
+implemented: an operator may reclaim such a file only after the provider and all
+potentially in-flight requests for that exact ticket are known finished, keyed on
+the ticket name. Tickets are never reused, so reclamation cannot affect a new
+request; the provider never writes or deletes requests.
 A deployment helper that POSTs directly to the provider is a convenience path,
 not a WASM lifecycle; only the compiled root program exercises the syscall.
 

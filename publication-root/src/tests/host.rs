@@ -19,7 +19,7 @@ impl Host for Fake {
         Ok(take(&self.input, &mut self.pos, dst))
     }
     fn close(&mut self, _: i32) -> Result<(), i32> {
-        Ok(())
+        if self.fail_close { Err(-5) } else { Ok(()) }
     }
     fn mkdir(&mut self, _: &[u8]) -> Result<(), i32> {
         Ok(())
@@ -30,10 +30,14 @@ impl Host for Fake {
         Ok(ticket)
     }
     fn write(&mut self, _: i32, bytes: &[u8]) -> Result<(), i32> {
+        if self.fail_write {
+            return Err(-5);
+        }
         self.written.push(bytes.to_vec());
         Ok(())
     }
-    fn delete(&mut self, _: &[u8]) -> Result<(), i32> {
+    fn delete(&mut self, path: &[u8]) -> Result<(), i32> {
+        self.deleted.push(path.to_vec());
         if self.deny_delete { Err(-5) } else { Ok(()) }
     }
     fn invoke(&mut self, publish: bool, ticket: u32) -> Option<i32> {

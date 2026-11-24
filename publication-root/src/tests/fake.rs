@@ -10,8 +10,11 @@ pub struct Fake {
     pub provider: i32,
     pub trap: bool,
     pub deny_delete: bool,
+    pub fail_write: bool,
+    pub fail_close: bool,
     pub invokes: Vec<(bool, u32)>,
     pub written: Vec<Vec<u8>>,
+    pub deleted: Vec<Vec<u8>>,
     pub pos: usize,
     pub vpos: usize,
 }

@@ -1,9 +1,26 @@
 # Publication root program
 
 A dedicated, generic root WASM for the operator-defined `publish` and
-`unpublish` syscalls. It is **not** Program 0: the ordinary Program 0 remains a
-token-checking proxy and does not import any syscall. Children are never given
-publication authority.
+`unpublish` syscalls. In the kernel sense this program **is** the operator-supplied
+root program ("Program 0" is the kernel's name for the single root it boots): the
+kernel links `syscall.*` imports only into that root. It is a *different
+deployment* from the optional generic token-checking proxy example in this
+repository, which is an ordinary root that imports no syscalls and only relays a
+private 256-bit token. Both are operator-chosen roots, never evaluated children;
+children are never given publication authority.
+
+## Relation to the token-proxy service
+
+Only one root WASM is active per kernel instance. A publication deployment boots
+this root; a pure HTTP-relay deployment may boot the generic token proxy instead.
+The two are not composed inside an evaluated child. If one deployment needs both
+behaviours, the operator must build a single qualified root WASM containing the
+approved code and qualify it as a new artifact. Both roots use the operator's
+private user-root disk namespace: this root writes only bounded ticket files under
+`publication-requests/`, and the provider mounts that directory read-only. The
+generic proxy never imports publication syscalls and never reads that directory.
+Evaluated children receive only their delegated scoped filesystem authority, so
+they cannot read, forge or delete tickets.
 
 ## Why a separate root
 
@@ -35,8 +52,15 @@ Response body is one little-endian i32:
 
 A trapping syscall produces no response at all; the caller must treat that as
 unknown, never as success. Tickets are fresh random u32 values created with
-O_EXCL semantics; an in-flight ticket is never reused. Stale request files from
-trapped calls are reclaimed by an operator-side age-based janitor.
+create-only exclusive semantics; an in-flight ticket is never reused. A
+pre-invoke write or close failure removes only the ticket file this root just
+created, never a pre-existing colliding file. A trap or an uncertain provider
+outcome can still leave a ticket behind. This repository implements **no**
+age-based janitor: an operator may reclaim such a file only after the provider
+and every potentially in-flight request for that exact ticket are known to have
+finished (for example in a controlled maintenance window), keyed on the exact
+ticket name. Because tickets are never reused, reclaiming an old ticket cannot
+affect any new request.
 
 ## Validation and authority
 
@@ -46,6 +70,16 @@ rejects private roots (`security`, `programs`, `publication-requests`,
 `operator`, `private`, `tokens`). App names, release identity, manifest hashes
 and activation policy remain application/deployment concerns; this program
 never encodes them.
+
+## Release deployment gate
+
+Release deployment must boot this generated root WASM through the kernel. A
+deployment helper that POSTs directly to the HTTP provider is a convenience path
+only; it does not satisfy the WASM publication lifecycle gate and must not be
+recorded as its substitute. The downstream deployment owner wires the exact
+compiled root artifact into the release flow and records its hash. Until that is
+done and evidenced, the deployment gate is open (NOT RUN), regardless of this
+program's source and CI status.
 
 ## Build and verify
 

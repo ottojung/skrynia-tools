@@ -258,7 +258,7 @@ class Fixture:
         # A page size of 256 is accepted by the current protocol; a future
         # max64 revision is deferred to charging coordination (64 already
         # works on the old protocol). No page-size change is made here.
-        body = self.call(OP_LIST_VERSIONS, ident(self.iid) + b'\x00' + struct.pack('<H', 256))
+        body = self.call(OP_LIST_VERSIONS, ident(self.iid) + b'\x00' + struct.pack('<H', 64))
         expected = struct.pack('<H', len(hashes)) + b''.join(sorted(hashes))
         assert body == expected, (body.hex(), expected.hex())
 

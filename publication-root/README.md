@@ -15,12 +15,18 @@ Only one root WASM is active per kernel instance. A publication deployment boots
 this root; a pure HTTP-relay deployment may boot the generic token proxy instead.
 The two are not composed inside an evaluated child. If one deployment needs both
 behaviours, the operator must build a single qualified root WASM containing the
-approved code and qualify it as a new artifact. Both roots use the operator's
-private user-root disk namespace: this root writes only bounded ticket files under
-`publication-requests/`, and the provider mounts that directory read-only. The
-generic proxy never imports publication syscalls and never reads that directory.
-Evaluated children receive only their delegated scoped filesystem authority, so
-they cannot read, forge or delete tickets.
+approved code and qualify it as a new artifact.
+
+Storage is separated by deployment. The ordinary token proxy delegates its whole
+user root to its trusted persistent service. This publication root instead boots
+with its **own** kernel user root and mailbox: it writes bounded ticket files
+under `publication-requests/` on that root, and the provider mounts only that
+directory read-only. The source artifact disk is a **different** read-only root;
+the provider enforces disjoint requests/source/nginx roots in both directions at
+startup so a relative path cannot expose the mailbox. The generic proxy never
+imports publication syscalls and does not run in a publication deployment.
+Evaluated children receive only their delegated scoped filesystem authority, and
+the kernel instance has no mailbox authority outside this root.
 
 ## Why a separate root
 

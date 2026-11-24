@@ -1,4 +1,4 @@
-use super::{Fake, auth, bridge, frame, path};
+use super::{Fake, auth, bridge, frame};
 
 const PUBLIC: &[u8] = b"apps/hello/releases/r1/index.html";
 

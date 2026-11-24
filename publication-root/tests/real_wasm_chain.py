@@ -221,8 +221,11 @@ def main() -> int:
     operator = os.path.join(tmp, "operator")
     private = os.path.join(tmp, "private-disk")
     nginx_root = os.path.join(tmp, "nginx-root")
-    mailbox = os.path.join(private, "publication-requests")
-    for directory in (operator, private, nginx_root, mailbox, os.path.join(tmp, "nginx")):
+    # Publication VM user root (mailbox) is disjoint from the source artifact root.
+    pub_user = os.path.join(tmp, "publication-user")
+    mailbox = os.path.join(pub_user, "publication-requests")
+    source = os.path.join(tmp, "source-disk")
+    for directory in (operator, pub_user, source, nginx_root, mailbox, os.path.join(tmp, "nginx")):
         os.makedirs(directory, exist_ok=True)
     token = hashlib.sha256(b"real-wasm-publication-test-token").digest()
     os.makedirs(os.path.join(operator, "security"), exist_ok=True)
@@ -238,14 +241,14 @@ def main() -> int:
         **os.environ,
         "PUBLICATION_PROVIDER_BIND": f"127.0.0.1:{provider_port}",
         "PATH_TO_PUBLICATION_REQUESTS": mailbox,
-        "PATH_TO_SKRYNIA_DISK": private,
+        "PATH_TO_SKRYNIA_DISK": source,
         "PATH_TO_NGINX_SKRYNIA_ROOT": nginx_root,
     }, f"http://127.0.0.1:{provider_port}/syscalls_list", "provider")
     kernel = Process(args.kernel, kernel_port, {
         **os.environ,
         "SKRYNIA_ROOT_WASM": args.root,
         "SKRYNIA_OPERATOR_DIR": operator,
-        "SKRYNIA_USER_DIR": private,
+        "SKRYNIA_USER_DIR": pub_user,
         "SKRYNIA_BIND": f"127.0.0.1:{kernel_port}",
         "SKRYNIA_SYSCALL_URL": f"http://127.0.0.1:{provider_port}",
     }, f"http://127.0.0.1:{kernel_port}/version", "kernel")

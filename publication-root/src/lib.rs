@@ -8,8 +8,6 @@ pub mod path;
 
 #[cfg(target_arch = "wasm32")]
 mod entry;
-#[cfg(target_arch = "wasm32")]
-mod host_abi;
 #[cfg(test)]
 mod tests;
 

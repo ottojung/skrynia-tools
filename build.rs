@@ -13,5 +13,6 @@ fn main() {
     source_lints::check(root);
     source_lints::check(&root.join("program0"));
     source_lints::check(&root.join("native-service"));
+    source_lints::check(&root.join("publication-root"));
     source_lints::check(&root.join("fullchain-integration"));
 }

@@ -23,7 +23,7 @@ pub fn require<H: Host>(host: &mut H, input: i32) -> Result<[u8; 32], i32> {
     if header[0] != 1 {
         return Err(-4);
     }
-    let verifier_fd = host.open_read(VERIFIER)?;
+    let verifier_fd = host.open(VERIFIER, 1)?;
     let mut expected = [0u8; 32];
     let result = exact(host, verifier_fd, &mut expected).and_then(|()| {
         let mut extra = [0u8; 1];

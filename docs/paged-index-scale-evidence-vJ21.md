@@ -53,15 +53,15 @@ Exact compiled stack (release kernel `a1dc4119…`, P0 `44e845a4…`, trusted ed
 from this source with rustup wasm32 + cached registry:
 
 - baseline source `73d8fa1` reproduced kit P1 `c7239fc5…` byte-for-byte;
-- fixed P1 `23b50e8f7c14177cbf2ac380a1be0da57270e1252296016efc6ab8f07bdf032f`.
+- fixed P1 `b0e94de5bd2c43256b4dd28fad3829e1f991b86128fc53f33b0ff064e1970a6b`.
 
 Command:
 
 ```
 cd <isolated checkout>
 SKRYNIA_P1_OVERRIDE=<target-wasm>/skrynia_native_service.wasm \
-SKRYNIA_P1_OVERRIDE_SHA256=23b50e8f7c14177cbf2ac380a1be0da57270e1252296016efc6ab8f07bdf032f \
-E2E_EVIDENCE_OUT=<evidence>/scale1000-max64-evidence.json \
+SKRYNIA_P1_OVERRIDE_SHA256=b0e94de5bd2c43256b4dd28fad3829e1f991b86128fc53f33b0ff064e1970a6b \
+E2E_EVIDENCE_OUT=<evidence>/scale1000-final64-evidence.json \
 node tests/web-admin-v3/p1_admin_scale_1000.mjs
 ```
 
@@ -69,9 +69,9 @@ Result: **78/78 checks PASS** (`ALL_OK=true`), including `SCALE-LIST` (1001
 hashes in 4 pages), `ADAPTER-scale`, `O1`, O2-O5 O(1) activation with a
 byte-exact private-state diff, fail-closed denials and `RST5` (all 1001 ready
 versions listable after kill/restart). Evidence
-`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-max64-evidence.json`
-sha256 `beb882c99c8d16e0437f36aff646111a6c172be4c934ca81617af944dce2331f`;
-log sha256 `bf084cda6bef2f520d43b85e510752b7202e967df249b29ac6635ff936f2a447`.
+`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-final64-evidence.json`
+sha256 `af16590d1a0167bf4d43b7faf102a8e4cb9114805bc1d212ca4dd174262704e2`;
+log sha256 `ca1f5a6b830c133c71a2b3d8ab8e7a93171a417d9099cf2226eb795b4b9b3e55`.
 
 The shipped default pin remains the exact PR102 artifact; the harness override
 is hash-gated and for source-change validation only. Release/cutover still

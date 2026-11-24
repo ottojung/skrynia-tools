@@ -7,6 +7,9 @@ license = "AGPL-3.0-or-later"
 publish = false
 description = "Private publication syscall provider for Skrynia disk and nginx roots"
 
+# Standalone crate: intentionally not a member of the tools workspace.
+[workspace]
+
 [lib]
 name = "skrynia_publish_provider"
 path = "src/lib.rs"

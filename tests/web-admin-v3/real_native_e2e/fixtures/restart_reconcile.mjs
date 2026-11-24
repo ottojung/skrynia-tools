@@ -110,8 +110,11 @@ async function startStaticHost({ port, edgePort, appHost, appOrigin, edgeCap }) 
         const isActivate = body.length > 2 && body[0] === 1 && body[1] === 11;
         if (isActivate) { state.activateCount += 1; state.afterCommit = { http: upstreamRes.statusCode, body: buf, request: Buffer.from(body) }; }
         if (state.drop && isActivate) {
-          // DROP AFTER COMMIT: service has committed, client never gets a reply.
-          res.destroy();
+          // DROP AFTER COMMIT: the real service has committed; return an empty
+          // 200 so the shipped adapter sees an untrustworthy (malformed) reply
+          // without a TCP reset that browsers may retry at the network layer.
+          res.writeHead(200, {'Content-Type': 'application/octet-stream'});
+          res.end();
           return;
         }
         res.writeHead(upstreamRes.statusCode, { 'Content-Type': 'application/octet-stream' });
@@ -288,9 +291,8 @@ export async function main() {
     // Service really committed despite client seeing no reply.
     const committed = decodeResponse(host.state.afterCommit.body);
     if (committed.body.length !== 42) {
-      console.error('DEBUG committed', 'status', committed.status, 'len', committed.body.length, 'hex', Buffer.from(committed.body).toString('hex').slice(0, 200));
-      console.error('DEBUG request hex', Buffer.from(host.state.afterCommit.request||[]).toString('hex').slice(0,200));
-      console.error('DEBUG activateCount', host.state.activateCount, 'seen', JSON.stringify(host.state.seen));
+      console.error('unexpected ACTIVATE response', 'status', committed.status, 'len', committed.body.length,
+        'activateCount', host.state.activateCount);
     }
     const committedState = parseActive(committed.body);
     rec('pointer committed on service to B rev2', committed.status === 0 && committedState.revision === 2 && committedState.hash.toString('hex') === hB, JSON.stringify(committedState));

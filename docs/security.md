@@ -52,6 +52,11 @@ Ordinary guest callback scopes must not permit access to the operator's private
 filesystem or amplify delegated authority. Test these boundaries against compiled
 guests, not only mocked transports.
 
+Publication requires explicit authorization before the provider receives a
+private ticket. The public nginx tree contains only explicit publication
+links; the source disk is never directly served. Only the provider writes
+the publication tree; published source ancestors remain controlled.
+
 ## Release and recovery
 
 Build the exact source revision in an appropriately constrained environment.

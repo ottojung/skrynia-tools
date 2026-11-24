@@ -15,6 +15,8 @@ ordinary user-supplied programs. Tools provides optional components:
 - **Web administration:** static HTML/JS on a separate trusted HTTPS origin;
   native admin operations, local encrypted vault, version discovery and
   atomic activation. No command-line administrative interface.
+- **Publication provider:** separate HTTP syscall service with a private
+  ticket mailbox, explicit publish/unpublish and a distinct nginx root.
 - **Web Push sender:** separate process with narrowly authorized hint access and
   outbound delivery. Durable service state, not notifications, is authoritative.
 

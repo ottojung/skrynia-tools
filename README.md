@@ -23,6 +23,8 @@ application semantics; static hosting is separate.
   origin. The browser sends opaque binary POST bytes through an operator
   gateway; root/issuer/P0 tokens stay server-side. Activation uses native
   opcodes and a single revision CAS, never AppPut/AppGet (6/7).
+- `publish-provider/` — isolated HTTP syscall provider and container; publishes
+  explicit symlinks from private disk into a separate nginx root.
 - `webpush-sender/` — independently operated least-privilege WebPush sender.
 - `fullchain-integration/` — disposable real-stack acceptance with runtime
   SHA256 pins (development evidence only).

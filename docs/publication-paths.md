@@ -22,8 +22,14 @@ configuration. This is an observed inventory, not a release approval.
   unavailable. The provider cannot receive guest pointers or private tokens.
 - The provider's `PATH_TO_SKRYNIA_DISK` and `PATH_TO_NGINX_SKRYNIA_ROOT` are
   distinct roots. It reads mailbox requests from a private operator-disk mount
-  and creates/removes only the corresponding public symlink. No nginx alias of
-  private disk storage is permitted.
+  and mirrors the full relative path: `apps/<app>/releases/<id>/asset.js`
+  becomes `<root>/apps/<app>/releases/<id>/asset.js`. It creates/removes only
+  that public symlink; no nginx alias of private disk storage is permitted.
+- skrynia-apps nginx configs ship `disable_symlinks on`. Publication requires a
+  scoped override for the `/apps/` location because the symlink nodes live
+  under `<root>/apps/<app>/...`; keep `disable_symlinks on` everywhere else so
+  private storage stays unservable. This config change belongs to the apps
+  integration front, not to the kernel or the tools bridge.
 - `v3-trusted-edge-gateway` config binds app hosts/origins and authenticates
   opaque requests to the kernel. It carries no publication authority and must
   not be given the provider's disk mount.

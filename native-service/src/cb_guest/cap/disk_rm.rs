@@ -8,7 +8,7 @@ pub fn remove(path: &str) -> Result<(), i32> {
         return Err(n);
     }
     if let Some((dir, _)) = path.rsplit_once('/') {
-        sync_dir(dir)?;
+        let _ = sync_dir(dir);
     }
     Ok(())
 }

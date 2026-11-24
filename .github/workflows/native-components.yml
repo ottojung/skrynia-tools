@@ -177,6 +177,8 @@ jobs:
           GW="$A/edge"; ECHO="$A/echo.wasm"
           P2="$A/theorem_lab_feedback_p2.wasm"
           for f in "$KERNEL" "$P0" "$P1" "$GW" "$ECHO" "$P2"; do test -s "$f" || { echo "missing $f" >&2; exit 1; }; done
+          # Artifact upload/download strips executable bits; restore for spawn.
+          chmod 700 "$KERNEL" "$GW"
           # Verify against the SHA256SUMS produced by compiled-stack.
           (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
           test -s "$A/COMMIT_MANIFEST.txt"

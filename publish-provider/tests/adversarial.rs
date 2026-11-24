@@ -53,6 +53,10 @@ fn rejects_conflicts_without_touching_real_files() {
 
     source(&f, "apps/alias.txt", b"x");
     std::os::unix::fs::symlink(f.disk.join("apps"), f.nginx.join("apps-link")).unwrap();
-    assert_eq!(code(&f, "publish", 13, b"apps-link/alias.txt"), 2);
+    assert_eq!(code(&f, "publish", 13, b"apps/alias.txt"), 0);
+    std::fs::create_dir_all(f.disk.join("apps/sub-link")).expect("sub-link");
+    source(&f, "apps/sub-link/f.txt", b"x");
+    std::os::unix::fs::symlink(f.disk.join("apps/sub"), f.nginx.join("apps/sub-link")).unwrap();
+    assert_eq!(code(&f, "publish", 14, b"apps/sub-link/f.txt"), 4);
     assert!(target(&f, "apps/wrong.txt").is_some());
 }

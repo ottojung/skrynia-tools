@@ -92,7 +92,9 @@ publication authority. It binds loopback only, takes request paths solely from
 an operator-private mailbox and returns a four-byte result code through the
 kernel syscall ABI. Mailbox and source nodes are opened with `O_NOFOLLOW|O_NONBLOCK`
 and must be regular files; FIFOs/directories fail closed without blocking.
-Paths must stay under `apps/`, preventing publication of private operator files.
+The provider is generic over valid relative paths; application authorization is
+enforced by the migration/root writer, while the provider confines traversal,
+rejects private mailbox publication, and never serves private trees.
 Source files are read-only there; destination directories hold only symlinks
 with the exact expected absolute source target. Ancestor traversal is confined
 with pre-opened `O_NOFOLLOW` directory descriptors, and real destination files

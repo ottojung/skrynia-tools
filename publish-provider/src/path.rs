@@ -31,7 +31,7 @@ pub fn clean(bytes: &[u8]) -> Result<Vec<String>, InvalidPath> {
             normal => out.push(normal.to_owned()),
         }
     }
-    if out.is_empty() || out[0] == "publication-requests" || out[0] != "apps" {
+    if out.is_empty() || out[0] == "publication-requests" {
         return Err(InvalidPath);
     }
     let joined = out.iter().map(String::len).sum::<usize>() + out.len() - 1;

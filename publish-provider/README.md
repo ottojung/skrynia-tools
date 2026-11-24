@@ -78,9 +78,10 @@ provider write to the mailbox.
 The path grammar matches the kernel's `clean_relative` plus the mailbox
 contract: non-empty UTF-8, no NUL/backslash/newline, no `//`, no trailing `/`,
 no absolute path, no `..` segment, `.` segments ignored, at most 4096 bytes,
-and never the private `publication-requests` directory itself. The provider also requires the first path component to be `apps/`, so a hostile
-or malformed ticket cannot publish private operator files outside the public app
-namespace. Finer-grained authorization remains the root writer's responsibility. All traversal uses pre-opened root descriptors
+and never the private `publication-requests` directory itself. The provider is generic over valid relative file paths and does not hardcode an
+application namespace; the migration/root writer enforces application-level
+authorization and public/private policy. The source root must be disjoint from
+mailbox/operator secrets, and the provider never serves private trees. All traversal uses pre-opened root descriptors
 with `O_NOFOLLOW` on every component. Publish and unpublish calls are
 serialized in-process; repeated identical calls are idempotent.
 

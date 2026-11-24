@@ -16,6 +16,10 @@ fn path_grammar_matches_kernel_clean_relative() {
         path::clean(b"apps/a/./b"),
         Ok(vec!["apps".into(), "a".into(), "b".into()])
     );
+    assert_eq!(
+        path::clean(b"example/path/a"),
+        Ok(vec!["example".into(), "path".into(), "a".into()])
+    );
     for bad in [
         &b""[..],
         &b"/abs"[..],
@@ -28,8 +32,6 @@ fn path_grammar_matches_kernel_clean_relative() {
         &b"a\\b"[..],
         &b"a\nb"[..],
         &b"publication-requests/00000001"[..],
-        &b"security/x"[..],
-        &b"secret.txt"[..],
     ] {
         assert!(path::clean(bad).is_err(), "accepted {bad:?}");
     }

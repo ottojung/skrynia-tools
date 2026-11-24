@@ -85,7 +85,10 @@ jobs:
           cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
           cp "$SKRYNIA_V3_NATIVE_SERVICE_WASM" "$FC_ARTIFACTS/service.wasm"
           cp "$PWD/target/wasm32-unknown-unknown/release/theorem_lab_feedback_p2.wasm" "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm"
-          (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm theorem_lab_feedback_p2.wasm > SHA256SUMS)
+          # fullchain-integration validates SHA256SUMS as an exact 5-entry roster.
+          # Keep it to those 5; publish P2 digest separately for downstream reuse.
+          (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm > SHA256SUMS)
+          (cd "$FC_ARTIFACTS"; sha256sum theorem_lab_feedback_p2.wasm > SHA256SUMS.p2)
           {
             echo "tools_head=$(git rev-parse HEAD)"
             echo "kernel_head=$(git -C upstream-skrynia rev-parse HEAD)"
@@ -175,7 +178,7 @@ jobs:
           P2="$A/theorem_lab_feedback_p2.wasm"
           for f in "$KERNEL" "$P0" "$P1" "$GW" "$ECHO" "$P2"; do test -s "$f" || { echo "missing $f" >&2; exit 1; }; done
           # Verify against the SHA256SUMS produced by compiled-stack.
-          (cd "$A" && sha256sum -c SHA256SUMS)
+          (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
           test -s "$A/COMMIT_MANIFEST.txt"
           echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
           echo "p0=$P0" >> "$GITHUB_OUTPUT"

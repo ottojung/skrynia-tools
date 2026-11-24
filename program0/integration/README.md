@@ -49,8 +49,10 @@ python3 program0/integration/check_publication_abi.py --wasm /path/to/skrynia_pr
 The checker verifies `syscall.publish` and `syscall.unpublish` exist with
 `(i32) -> i32` signatures and that no unexpected import namespace is present.
 It does not run the kernel. The kernel requires the provider to advertise both
-names and must be started with its syscall URL configured; otherwise startup
-fails closed on the unresolved imports.
+names via the current `GET <base>/syscalls_list` discovery route (HTTP 200, JSON
+array of strings, superseding the earlier `POST /version` provider route) and
+must be started with `SKRYNIA_SYSCALL_URL`; otherwise startup fails closed on
+the unresolved imports.
 
 A real publication acceptance run additionally needs a private operator-disk
 `publication-requests/` mount readable by the provider and a separate nginx

@@ -17,9 +17,14 @@ configuration. This is an observed inventory, not a release approval.
 
 ## Configuration and deploy integration
 
-- The kernel resolves `syscall.publish`/`syscall.unpublish` from
-  `SKRYNIA_SYSCALL_URL` discovery; startup fails closed if either import is
-  unavailable. The provider cannot receive guest pointers or private tokens.
+- The kernel resolves `syscall.publish`/`syscall.unpublish` from the sole
+  `SKRYNIA_SYSCALL_URL` configuration. Current discovery is
+  `GET <base>/syscalls_list` with no request body, returning HTTP 200 and a
+  JSON array of strings such as `["publish","unpublish"]`; this supersedes the
+  earlier `POST /version` provider-discovery route. Per-call `POST <base>/<name>`
+  still exchanges exactly four little-endian bytes. Startup fails closed if
+  either import is unavailable. The provider cannot receive guest pointers or
+  private tokens.
   The kernel writes by default to the private user root, so
   `PATH_TO_PUBLICATION_REQUESTS` is a read-only mount of that root's
   `publication-requests/` directory, never a public or child-writable path.

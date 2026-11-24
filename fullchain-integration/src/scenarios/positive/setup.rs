@@ -13,7 +13,7 @@ pub fn bootstrap(c: &mut Ctx) {
     let sub = b"sub-alpha";
     c.ns = h(&admin);
     c.sender_cap = h(b"fc-sender-cap");
-    let echo = std::fs::read(c.art.join("echo_dc28e490.wasm")).expect("echo");
+    let echo = std::fs::read(c.art.join("echo.wasm")).expect("echo");
     must(
         &c.io,
         &req(15, &[&idb(&op), &idb(&admin), &blb(&echo)]),

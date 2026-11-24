@@ -13,6 +13,9 @@ fn compiled_service_roundtrip() {
     let work = tempfile::tempdir().unwrap();
     let echo = work.path().join("echo.wasm");
     std::fs::write(&echo, support::kernel::wasm::echo_wasm()).unwrap();
+    if let Some(dir) = std::env::var_os("FC_ARTIFACTS") {
+        std::fs::copy(&echo, Path::new(&dir).join("echo.wasm")).unwrap();
+    }
     let script =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../program0/integration/dumb_p0_http.py");
     let status = Command::new("python3")

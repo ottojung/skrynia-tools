@@ -3,7 +3,7 @@ use super::{ctx::Ctx, wire as w};
 use crate::{blb, idb, must, op_cap, req};
 use std::path::Path;
 pub fn setup(c: &Ctx, art: &Path) {
-    let echo = std::fs::read(art.join("echo_dc28e490.wasm")).unwrap();
+    let echo = std::fs::read(art.join("echo.wasm")).unwrap();
     must(&c.io, &req(15, &[
         &idb(&op_cap()), &idb(&w::writer()), &blb(&echo),
     ]), "register ordinary");

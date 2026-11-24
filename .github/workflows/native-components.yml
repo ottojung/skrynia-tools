@@ -57,4 +57,12 @@ jobs:
           git rev-parse HEAD
           git -C upstream-skrynia rev-parse HEAD
           sha256sum "$SKRYNIA_V3_SERVER_BIN" "$SKRYNIA_V3_PROGRAM0_WASM" "$SKRYNIA_V3_NATIVE_SERVICE_WASM"
+          export FC_ARTIFACTS="$RUNNER_TEMP/skrynia-fullchain-artifacts"
+          mkdir "$FC_ARTIFACTS"
           cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+          install -m 700 "$SKRYNIA_V3_SERVER_BIN" "$FC_ARTIFACTS/kernel"
+          install -m 700 v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway "$FC_ARTIFACTS/edge"
+          cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
+          cp "$SKRYNIA_V3_NATIVE_SERVICE_WASM" "$FC_ARTIFACTS/service.wasm"
+          (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm > SHA256SUMS)
+          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked

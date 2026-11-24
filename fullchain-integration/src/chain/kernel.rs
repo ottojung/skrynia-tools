@@ -42,8 +42,8 @@ pub fn op_cap() -> [u8; 32] {
 }
 
 fn spawn(art: &Path, base: &Path, port: u16, log: fs::File) -> io::Result<Child> {
-    Command::new(art.join("kernel_v3_main_1c5639d"))
-        .env("SKRYNIA_ROOT_WASM", art.join("p0_d57ab27a.wasm"))
+    Command::new(art.join("kernel"))
+        .env("SKRYNIA_ROOT_WASM", art.join("root.wasm"))
         .env("SKRYNIA_OPERATOR_DIR", base.join("operator"))
         .env("SKRYNIA_USER_DIR", base.join("user"))
         .env("SKRYNIA_BIND", format!("127.0.0.1:{port}"))

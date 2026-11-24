@@ -3,6 +3,8 @@ use wasm_bindgen::{JsCast, prelude::*};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestCache, RequestInit, RequestRedirect, Response};
 
+mod bytes;
+
 impl BrowserClient {
     pub(super) async fn post(&self, frame: Vec<u8>) -> Result<Vec<u8>, JsValue> {
         let init = RequestInit::new();
@@ -24,11 +26,6 @@ impl BrowserClient {
         if response.status() != 200 {
             return Err(JsValue::from_str("unexpected HTTP status; outcome unknown"));
         }
-        let buffer = JsFuture::from(response.array_buffer()?).await?;
-        let array = js_sys::Uint8Array::new(&buffer);
-        if array.length() as usize > native::MAX_FRAME {
-            return Err(JsValue::from_str("response too large; outcome unknown"));
-        }
-        Ok(array.to_vec())
+        bytes::bounded(&response).await
     }
 }

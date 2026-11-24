@@ -1,7 +1,10 @@
 # Native v3 cross-namespace Wake full-chain acceptance
 
-Status: **compiled disposable integration PASS**, not real browser/provider,
-production deployment or any source of private credentials.
+Status: **HISTORICAL compiled disposable integration PASS at an earlier
+source/pin set; NOT RUN at the reviewed head** (`eeb94881…`). Not real
+browser/provider, production deployment or any source of private credentials.
+Do not present this document as exact-head proof; current pins live in
+`fullchain-integration/src/chain/pins/table.rs`.
 
 ## Exact SHA-pinned runtime
 
@@ -9,11 +12,15 @@ production deployment or any source of private credentials.
   1c5639debea8838277e5f22d9136ff263e894071, artifact
   kernel_v3_main_1c5639d SHA256
   ac301e18fcabf2cbf9f246fbaf1b7985e4062b6225da125f873138a2ed77401c.
-- Native P1: ottojung/skrynia-tools head
+- Native P1 (historical pin): ottojung/skrynia-tools head
   18f9123a55070118e4f2fb9aa2c09ad6d16690b2 (PR81, merged to
   PR80 development branch), --features cb-guest built for
   wasm32-unknown-unknown; artifact p1_wake_18f9123a.wasm
   SHA256 d47f824f6c3d1630e67bba93ff2b6c829b9c685d12e17fe2b765fccd668a595b.
+  **Superseded at the reviewed head:** the current table pins
+  `p1_hintbudget_bounded_20261123.wasm` SHA256
+  `e9e5e1f3543bfbfabce1788a6a9535bed37ef15187ffb50a5aa714d27775ca41`
+  (the wake opcodes 24/25/26 are present in that artifact).
 - Dumb user-supplied P0, trusted edge and P2 echo guest: SHA256 values
   in fullchain-integration/src/chain/pins/table.rs. All five artifacts
   must be separately built or supplied in artifacts/, **not committed**;

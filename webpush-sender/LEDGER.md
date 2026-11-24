@@ -55,7 +55,9 @@ Commit is atomic: write temp, `fsync` file, `rename`, `fsync` parent directory.
 
 At-least-once delivery across the pre-marker crash is unavoidable without a
 two-phase commit spanning the remote endpoint; **no exactly-once claim** is made.
-`src/pump/retry.rs` and `Retry-After` handling are deliberately untouched.
+`src/pump/retry.rs:33` does consume `Reply.retry_after_ms` with bounded backoff
+capped at 60 s; the earlier "deliberately untouched" claim is false at this
+head and has been withdrawn. An ACK still requires a durable pre-marker.
 
 ## RED / GREEN evidence
 
@@ -65,7 +67,7 @@ compile; the old `pump/ledger.rs` `HashSet` cap silently stopped recording at
 1024 and `cycle.rs` marked only after `HintAck`, with no persisted pre-ACK
 marker and no replay-ACK path.
 
-GREEN at this branch: 9 unit invariants (bounded growth, restart, corruption,
+GREEN at this branch: 10 unit invariants (bounded growth, restart, corruption,
 foreign grant, seq reuse, epoch migration, quota/load faults, real atomic
 fsync+rename commit) plus 2 end-to-end fault cases (quota-withholds-ACK,
 lost-ACK replay without re-send), plus the re-review fixes: a multi-hint

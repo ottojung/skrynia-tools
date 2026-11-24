@@ -1,3 +1,6 @@
+# HISTORICAL / NOT RUN AT EXACT HEAD — do not cite as current evidence.
+# Produced at source 2bc4a204 with superseded pins (kernel 4c6d34f9, p1 cf1322c3).
+# Current pins: fullchain-integration/src/chain/pins/table.rs; exact-head gate: CI compiled-stack.
 # FULLCHAIN_OK durable evidence — skrynia-tools native WebPush full chain
 # repository: https://github.com/ottojung/skrynia-tools
 # branch: antonina/pr79-evidence-fix-marceline-dev-20261123 (DRAFT, stacked from PR79 30bb38ca)

@@ -1,5 +1,14 @@
 # WebPush sender validation evidence — agent 7L1EYxnLyKBfxPBZySk7iW-thanked
 
+> **HISTORICAL / NOT RUN at the reviewed head (`eeb94881…`).** This file is a
+> verbatim record of two earlier PR65/PR67-era runs. Its source-inventory
+> SHA-256s do **not** match the current tree, and four listed files no longer
+> exist at head: `src/pump/clock.rs`, `src/pump/ledger.rs`,
+> `tests/common/fakes/p1.rs` and `tests/https.rs`. TLS coverage now lives in
+> `tests/common/tls/**`. No exact-head re-run was performed here. Do not use
+> this document as exact-head proof; the CI `webpush-sender` and
+> `sender-crate` jobs at the reviewed commit are the current gate.
+
 Base: skrynia-tools PR65 head efe61173660b089df4e43dcd2840210d3070bfe2 (branch security/skrynia-p1-subscription-revocation-20261122).
 Isolated branch: security/skrynia-webpush-sender-20261122. Host: marceline-dev.
 Disk: 26G available on /dev/loop9 (>20GiB hard, <32GiB preferred).
@@ -137,7 +146,7 @@ Disk stayed 32-33 GiB free (>20 GiB hard floor). doc-tests NOT RUN (no rustdoc
 on host); no doctest examples exist. GitHub CI NOT yet observed for the new
 commit at review time.
 
-## Live transport proofs (`tests/https.rs`, 6/6 PASS)
+## Live transport proofs (historical `tests/https.rs`, 6/6 PASS; file removed at head)
 Disposable CA + SAN-bound leaf generated per service by the openssl CLI in a
 unique temp dir; loopback `127.0.0.1:0` only; SNI captured in a rustls
 `ResolvesServerCert` implementation. Trust and connect port are injected only
@@ -169,7 +178,7 @@ b19b6140b505a0cd304f4aceb63d80f9d64d06b371b699d6a1febebe89c3c918  tests/common/t
 e16669cacee3d6e75c0a6415903176e9d76ae6fdb896c2c60ed2458ad4d119f8  tests/common/tls/server.rs
 f5e597170616e83b13d300fddc0c482282642d131858a15b212a13685abc6113  tests/common/tls/accept.rs
 71ad5eb636d7bc62bd1c42e3030301bc6bc69836a5df78e00bf0b86f6c6600c5  tests/common/tls/handshake.rs
-dd56e788c18760fc404a17ffed870e584a3705399c68cd46acb1779ce5df2450  tests/https.rs
+dd56e788c18760fc404a17ffed870e584a3705399c68cd46acb1779ce5df2450  tests/https.rs  (REMOVED at head; historical pin only)
 ```
 
 ## Separate blockers (documented, deliberately NOT fixed here)
@@ -177,6 +186,8 @@ Out of scope for this narrowly scoped transport change and left for their own
 reviewed fixes: VAPID `sub` claim JSON escaping, TTL > 24h bound, single fixed
 Topic / dedupe, `Reply.retry_after_ms` ignored by the pump, and the in-memory
 replay Ledger ceiling. These are P1/pump business logic, not transport.
+(Historical: `Reply.retry_after_ms` is now consumed by `src/pump/retry.rs`;
+this list is not a claim about the current head.)
 
 ## Gate status
 This is source + localhost fake-endpoint evidence only. It is NOT actual FCM

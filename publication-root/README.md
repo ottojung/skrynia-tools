@@ -52,15 +52,17 @@ Response body is one little-endian i32:
 
 A trapping syscall produces no response at all; the caller must treat that as
 unknown, never as success. Tickets are fresh random u32 values created with
-create-only exclusive semantics; an in-flight ticket is never reused. A
-pre-invoke write or close failure removes only the ticket file this root just
-created, never a pre-existing colliding file. A trap or an uncertain provider
-outcome can still leave a ticket behind. This repository implements **no**
-age-based janitor: an operator may reclaim such a file only after the provider
-and every potentially in-flight request for that exact ticket are known to have
-finished (for example in a controlled maintenance window), keyed on the exact
-ticket name. Because tickets are never reused, reclaiming an old ticket cannot
-affect any new request.
+create-only exclusive semantics, so concurrent requests cannot overwrite an
+existing ticket file while it exists. This does not make ticket numbers globally
+unique across time: a random u32 is only collision-protected by the currently
+existing file. A pre-invoke write or close failure removes only the ticket file
+this root just created, never a pre-existing colliding file. A trap or an
+uncertain provider outcome can still leave a ticket behind. This repository
+implements **no** age-based janitor or automatic reclamation. An operator may
+reclaim such a file only in a quiesced maintenance window after the provider and
+every potentially in-flight request for that exact ticket are known to have
+finished, keyed on the exact ticket name. Never reclaim by age alone while
+requests could still be in flight.
 
 ## Validation and authority
 

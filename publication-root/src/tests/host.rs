@@ -14,9 +14,9 @@ impl Host for Fake {
     }
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
         if fd == 7 {
-            return Ok(take(&self.verifier, &mut self.vpos, dst));
+            return Ok(super::take(&self.verifier, &mut self.vpos, dst));
         }
-        Ok(take(&self.input, &mut self.pos, dst))
+        Ok(super::take(&self.input, &mut self.pos, dst))
     }
     fn close(&mut self, _: i32) -> Result<(), i32> {
         if self.fail_close { Err(-5) } else { Ok(()) }
@@ -46,11 +46,4 @@ impl Host for Fake {
             self.provider
         })
     }
-}
-
-fn take(src: &[u8], pos: &mut usize, dst: &mut [u8]) -> usize {
-    let n = src.len().saturating_sub(*pos).min(dst.len());
-    dst[..n].copy_from_slice(&src[*pos..*pos + n]);
-    *pos += n;
-    n
 }

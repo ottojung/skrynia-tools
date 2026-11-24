@@ -53,9 +53,10 @@ path, rejects absolute/traversal/NUL/newline/backslash paths, empty or `.`/`..`
 segments, oversize input and private roots (`security`, `programs`,
 `publication-requests`, `operator`, `private`, `tokens`). Tickets come from
 secure randomness with create-only open and bounded retries, so concurrent
-requests cannot overwrite each other; a retry never reuses an in-flight ticket.
-The request file is written, synced and closed before the import; it is removed
-after the import returns on every non-trapping path.
+requests cannot overwrite an existing ticket file while it exists. A random u32
+is collision-protected only by the currently existing file, not by a global
+never-reuse guarantee. The request file is written, synced and closed before the
+import; it is removed after the import returns on every non-trapping path.
 
 Outcome is reported in the response: 0 means the provider confirmed success;
 1..6 are provider failures; -1 invalid request/path, -2 mailbox failure before
@@ -63,11 +64,12 @@ the import, -3 unknown outcome (the import may have taken effect), -4 cleanup
 failure after a confirmed result. A trap produces no response and is therefore
 an unknown outcome, never a success. A pre-invoke write or close failure removes
 only the ticket file the root just created, never a pre-existing colliding file;
-a trap or uncertain outcome can still leave a ticket. No age-based janitor is
-implemented: an operator may reclaim such a file only after the provider and all
-potentially in-flight requests for that exact ticket are known finished, keyed on
-the ticket name. Tickets are never reused, so reclamation cannot affect a new
-request; the provider never writes or deletes requests.
+a trap or uncertain outcome can still leave a ticket. No age-based janitor or
+automatic reclamation is implemented. An operator may reclaim such a file only
+in a quiesced maintenance window after the provider and all potentially
+in-flight requests for that exact ticket are known finished, keyed on the exact
+ticket name. Never reclaim by age alone while requests could still be in flight;
+the provider never writes or deletes requests.
 A deployment helper that POSTs directly to the provider is a convenience path,
 not a WASM lifecycle; only the compiled root program exercises the syscall.
 

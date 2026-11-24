@@ -5,6 +5,7 @@ mod control;
 mod directory;
 mod io;
 mod open;
+mod path;
 mod paths;
 mod wire;
 #[cfg(test)]

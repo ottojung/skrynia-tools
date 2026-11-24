@@ -21,15 +21,26 @@ pub fn open(requests: &Path, disk: &Path, nginx: &Path) -> Result<Roots, String>
     if same(&requests, &disk) || same(&requests, &nginx) || same(&disk, &nginx) {
         return Err("roots must be distinct directories".into());
     }
-    if nginx_abs.starts_with(&req_abs) || nginx_abs.starts_with(&disk_abs) {
-        return Err("private roots must not live under the nginx root".into());
-    }
+    check_boundary(&nginx_abs, &req_abs, "requests")?;
+    check_boundary(&nginx_abs, &disk_abs, "disk")?;
+
     Ok(Roots {
         requests,
         disk,
         nginx,
         disk_abs,
     })
+}
+
+fn check_boundary(nginx: &Path, private: &Path, name: &str) -> Result<(), String> {
+    if nginx.starts_with(private) || private.starts_with(nginx) {
+        return Err(format!(
+            "{name} root and nginx root must not overlap: {} vs {}",
+            private.display(),
+            nginx.display()
+        ));
+    }
+    Ok(())
 }
 
 fn open_dir(path: &Path) -> Result<(OwnedFd, PathBuf), String> {

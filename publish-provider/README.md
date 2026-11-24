@@ -31,8 +31,13 @@ The source root must be mounted at the **identical absolute path** inside the
 nginx container, because the symlink target is an absolute path. nginx needs
 read + execute permission on every source ancestor and on the publication
 directory, and symlink following must be enabled (`disable_symlinks off`).
-The mailbox root must never be mounted into nginx or any public document root;
-the nginx root must not be an ancestor of either private root.
+The mailbox root must never be mounted into nginx or any public document root.
+Public and private roots must not overlap in either direction, so nginx cannot
+serve the mailbox or private disk through a prefix alias. The nginx publication
+root must be owned exclusively by this provider; external writers can race the
+inspect/remove step and cause fail-closed conflicts. Published source ancestors
+must remain trusted/immutable for the publication lifetime, because symlink
+resolution follows the live absolute source path.
 
 ## Syscall ABI
 
@@ -74,9 +79,9 @@ provider write to the mailbox.
 The path grammar matches the kernel's `clean_relative` plus the mailbox
 contract: non-empty UTF-8, no NUL/backslash/newline, no `//`, no trailing `/`,
 no absolute path, no `..` segment, `.` segments ignored, at most 4096 bytes,
-and never the private `publication-requests` directory itself. Public-path
-authorization (for example an `apps/` allowlist) remains the root writer's
-responsibility; the provider enforces confinement, not application policy. All traversal uses pre-opened root descriptors
+and never the private `publication-requests` directory itself. The provider also requires the first path component to be `apps/`, so a hostile
+or malformed ticket cannot publish private operator files outside the public app
+namespace. Finer-grained authorization remains the root writer's responsibility. All traversal uses pre-opened root descriptors
 with `O_NOFOLLOW` on every component. Publish and unpublish calls are
 serialized in-process; repeated identical calls are idempotent.
 

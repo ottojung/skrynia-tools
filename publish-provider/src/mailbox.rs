@@ -14,12 +14,18 @@ pub fn name(ticket: u32) -> String {
 
 pub fn read(root: &OwnedFd, ticket: u32) -> Result<Vec<u8>, u32> {
     let name = CString::new(name(ticket).into_bytes()).map_err(|_| abi::BAD_TICKET)?;
-    let flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+    let flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
     let raw = unsafe { libc::openat(root.as_raw_fd(), name.as_ptr(), flags) };
     if raw < 0 {
         return Err(abi::BAD_TICKET);
     }
-    let mut file = unsafe { std::fs::File::from_raw_fd(raw) };
+    let file = unsafe { std::fs::File::from_raw_fd(raw) };
+    let meta = file.metadata().map_err(|_| abi::BAD_TICKET)?;
+    if !meta.is_file() {
+        return Err(abi::BAD_TICKET);
+    }
+    let mut file = file;
+    // Restore blocking for a regular file so read_to_end cannot spin on O_NONBLOCK.
     let mut bytes = Vec::new();
     file.by_ref()
         .take((path::MAX + 1) as u64)

@@ -30,8 +30,9 @@ fn rejects_bad_tickets_and_paths() {
 #[test]
 fn rejects_conflicts_without_touching_real_files() {
     let f = Fixture::start();
-    std::os::unix::fs::symlink("elsewhere", f.disk.join("link")).expect("source symlink");
-    assert_eq!(code(&f, "publish", 10, b"link"), 3);
+    std::fs::create_dir_all(f.disk.join("apps")).expect("apps dir");
+    std::os::unix::fs::symlink("elsewhere", f.disk.join("apps/link")).expect("source symlink");
+    assert_eq!(code(&f, "publish", 10, b"apps/link"), 3);
 
     source(&f, "apps/real.txt", b"data");
     std::fs::create_dir_all(f.nginx.join("apps")).expect("destination dir");
@@ -50,8 +51,8 @@ fn rejects_conflicts_without_touching_real_files() {
     assert_eq!(code(&f, "publish", 12, b"apps/wrong.txt"), 4);
     assert_eq!(code(&f, "unpublish", 12, b"apps/wrong.txt"), 4);
 
-    source(&f, "aliased/alias.txt", b"x");
-    std::os::unix::fs::symlink(f.disk.join("apps"), f.nginx.join("aliased")).unwrap();
-    assert_eq!(code(&f, "publish", 13, b"aliased/alias.txt"), 4);
+    source(&f, "apps/alias.txt", b"x");
+    std::os::unix::fs::symlink(f.disk.join("apps"), f.nginx.join("apps-link")).unwrap();
+    assert_eq!(code(&f, "publish", 13, b"apps-link/alias.txt"), 2);
     assert!(target(&f, "apps/wrong.txt").is_some());
 }

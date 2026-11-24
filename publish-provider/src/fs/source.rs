@@ -12,7 +12,7 @@ pub fn open(roots: &Roots, parts: &[String]) -> Result<OwnedFd, u32> {
     for (index, part) in parts.iter().enumerate() {
         let name = CString::new(part.as_bytes()).map_err(|_| abi::INVALID_PATH)?;
         let last = index + 1 == parts.len();
-        let mut flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+        let mut flags = libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
         if !last {
             flags |= libc::O_DIRECTORY;
         }
@@ -23,9 +23,11 @@ pub fn open(roots: &Roots, parts: &[String]) -> Result<OwnedFd, u32> {
         let owned = unsafe { OwnedFd::from_raw_fd(raw) };
         if last {
             let file = std::fs::File::from(owned);
-            if !file.metadata().map_err(|_| abi::IO_ERROR)?.is_file() {
+            let meta = file.metadata().map_err(|_| abi::IO_ERROR)?;
+            if !meta.is_file() {
                 return Err(abi::INVALID_SOURCE);
             }
+            // Keep regular file open to pin existence, but O_NONBLOCK is harmless.
             return Ok(file.into());
         }
         opened.push(owned);

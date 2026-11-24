@@ -22,8 +22,6 @@ pub fn encode(code: u32) -> Vec<u8> {
 }
 
 /// Advertises the two names the kernel may configure as HTTP syscalls.
-pub fn version() -> Value {
-    let version = std::env::var("SKRYNIA_VERSION").unwrap_or_else(|_| "development".into());
-    let commit = std::env::var("SKRYNIA_COMMIT").unwrap_or_else(|_| "development".into());
-    json!({"version": version, "commit": commit, "syscalls": ["publish", "unpublish"]})
+pub fn syscalls_list() -> Value {
+    json!(["publish", "unpublish"])
 }

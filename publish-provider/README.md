@@ -47,12 +47,11 @@ application/octet-stream` and a body of exactly four little-endian bytes. A
 successful response is HTTP 200 with exactly four little-endian result bytes.
 The provider accepts no other body length and emits no other response length.
 
-Configure the kernel with `SKRYNIA_SYSCALLS=publish,unpublish` and
-`SKRYNIA_SYSCALL_URL` set to the provider origin with no path prefix (the
-kernel appends the syscall name as a path segment). `POST /version`
-returns the kernel-discovery shape
-`{"version":…,"commit":…,"syscalls":["publish","unpublish"]}`; other methods
-on that endpoint return 404, as on the kernel.
+Configure the kernel with `SKRYNIA_SYSCALL_URL` set to the provider origin with
+no path prefix. The kernel performs `GET <base>/syscalls_list` with no request
+body and expects HTTP 200 with a plain JSON array of strings, for example
+`["publish","unpublish"]`. Per-syscall invocation is unchanged:
+`POST <base>/<name>` with four little-endian bytes in and out.
 
 Result codes (u32 bit patterns):
 

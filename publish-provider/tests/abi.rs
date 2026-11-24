@@ -44,10 +44,9 @@ fn ticket_name_is_fixed_lowercase_hex() {
 }
 
 #[test]
-fn version_advertises_both_syscalls() {
-    let value = abi::version();
+fn syscalls_list_advertises_both_names() {
     assert_eq!(
-        value["syscalls"],
+        abi::syscalls_list(),
         serde_json::json!(["publish", "unpublish"])
     );
 }

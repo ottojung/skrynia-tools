@@ -5,25 +5,22 @@ mod support;
 use support::{Fixture, call, client, request, source, target};
 
 #[test]
-fn version_advertises_both_syscalls() {
+fn syscalls_list_advertises_both_names() {
     let f = Fixture::start();
     let value: serde_json::Value = client()
-        .post(format!("{}/version", f.base))
+        .get(format!("{}/syscalls_list", f.base))
         .send()
-        .expect("version")
+        .expect("syscalls_list")
         .json()
         .expect("json");
-    assert_eq!(
-        value["syscalls"],
-        serde_json::json!(["publish", "unpublish"])
-    );
+    assert_eq!(value, serde_json::json!(["publish", "unpublish"]));
     assert_eq!(
         client()
-            .get(format!("{}/version", f.base))
+            .post(format!("{}/syscalls_list", f.base))
             .send()
-            .expect("get")
+            .expect("post")
             .status(),
-        404
+        405
     );
 }
 

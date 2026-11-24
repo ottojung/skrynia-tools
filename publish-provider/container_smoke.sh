@@ -42,9 +42,18 @@ def post(path, payload):
     assert response.status == 200, (path, response.status)
     return body
 
+def get(path):
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    conn.request("GET", path)
+    response = conn.getresponse()
+    body = response.read()
+    conn.close()
+    assert response.status == 200, (path, response.status)
+    return body
+
 for _ in range(200):
     try:
-        if json.loads(post("/version", b""))["syscalls"] == ["publish", "unpublish"]:
+        if json.loads(get("/syscalls_list")) == ["publish", "unpublish"]:
             break
     except Exception:
         time.sleep(0.05)

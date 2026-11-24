@@ -6,9 +6,9 @@ use super::config::Config;
 use super::fs;
 use axum::body::Bytes;
 use axum::extract::State as AxumState;
-use axum::http::{Method, StatusCode};
-use axum::response::{IntoResponse, Json, Response};
-use axum::{Router, routing::any, routing::post};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Json};
+use axum::{Router, routing::get, routing::post};
 use std::sync::{Arc, Mutex};
 
 pub async fn run(config: Config) -> Result<(), String> {
@@ -17,7 +17,7 @@ pub async fn run(config: Config) -> Result<(), String> {
         lock: Mutex::new(()),
     });
     let app = Router::new()
-        .route("/version", any(version))
+        .route("/syscalls_list", get(syscalls_list))
         .route("/publish", post(publish))
         .route("/unpublish", post(unpublish))
         .with_state(state);
@@ -29,12 +29,9 @@ pub async fn run(config: Config) -> Result<(), String> {
         .map_err(|e| format!("provider serve failed: {e}"))
 }
 
-/// Mirrors the kernel discovery endpoint: only POST succeeds.
-async fn version(method: Method) -> Response {
-    if method != Method::POST {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    Json(abi::version()).into_response()
+/// Kernel discovery: GET with no request body returns a plain JSON array.
+async fn syscalls_list() -> Json<serde_json::Value> {
+    Json(abi::syscalls_list())
 }
 
 async fn publish(AxumState(state): AxumState<Arc<fs::State>>, body: Bytes) -> impl IntoResponse {

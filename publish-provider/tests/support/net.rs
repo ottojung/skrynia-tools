@@ -9,7 +9,7 @@ pub fn client() -> Client {
 
 pub fn wait_ready(base: &str) {
     for _ in 0..100 {
-        if client().post(format!("{base}/version")).send().is_ok() {
+        if client().get(format!("{base}/syscalls_list")).send().is_ok() {
             return;
         }
         std::thread::sleep(Duration::from_millis(50));

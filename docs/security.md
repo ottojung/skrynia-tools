@@ -40,40 +40,36 @@ for the optional client protocols.
 
 ## Publication boundary
 
-Private `open_disk` storage is not a static website root. The root program
-alone imports `syscall.publish` and `syscall.unpublish`; each call carries one
-u32 ticket allocated with create-only semantics, never a guest pointer or raw
-publication authority. The matching `publication-requests/<8 lower hex>` file
-holds exact bounded UTF-8 relative path bytes with no trailing newline. The
-writer never truncates or overwrites another request, invokes the import only
-after the request is synced, and deletes its own ticket on success, provider
-failure and pre-invoke failure. The kernel's root ABI writes by default to the
-private root-writable user disk, so that is the mailbox root; the provider mounts
-only `publication-requests/` read-only from a private directory and shares no
-private disk mount with nginx. Program 0 confines evaluated children to the
-`programs/` prefix, excluding the mailbox entirely.
+Private `open_disk` storage is not a static website root. Only the root program
+imports `syscall.publish`/`syscall.unpublish`; evaluated children cannot import
+that namespace. A dedicated generic publication root program is used for the
+publication lifecycle, while Program 0 remains a dumb token-checking proxy with
+no app policy and no mailbox authority. The root ABI writes by default to the
+private user root, so `publication-requests/<8 lower hex>` lives on that disk;
+the provider mounts only that directory read-only and nginx never mounts it.
 
-Path validation rejects absolute paths, traversal, empty/`.`/`..` segments,
-backslashes, NUL/newlines and oversize or non-UTF-8 input, and permits only
-public regular-file targets under `apps/`. Security material, program code,
-operator data and the mailbox itself are never publishable. Children cannot
-import the syscall namespace; their mediated requests go through the root
-callback, which validates and queues them. The kernel gives the callback the
-child's scoped filesystem authority, so the root executes queued requests only
-after evaluation returns and its own unrestricted root authority is restored.
-The child receives only an acceptance status, not the provider result.
+The root authenticates the operator token, accepts a bounded UTF-8 relative
+path, rejects absolute/traversal/NUL/newline/backslash paths, empty or `.`/`..`
+segments, oversize input and private roots (`security`, `programs`,
+`publication-requests`, `operator`, `private`, `tokens`). Tickets come from
+secure randomness with create-only open and bounded retries, so concurrent
+requests cannot overwrite each other; a retry never reuses an in-flight ticket.
+The request file is written, synced and closed before the import; it is removed
+after the import returns on every non-trapping path.
 
-A trapped or timed-out import can leave a request file behind. Tickets are
-never reused: create-only allocation prevents overwrite, and an uncertain
-outcome requires a fresh ticket plus reconciliation against the authoritative
-public root, never a replay of the old ticket. Stale request files are
-reclaimed by an operator-side janitor using filesystem age well beyond the
-provider timeout; the provider itself never deletes request files.
+Outcome is reported in the response: 0 means the provider confirmed success;
+1..6 are provider failures; -1 invalid request/path, -2 mailbox failure before
+the import, -3 unknown outcome (the import may have taken effect), -4 cleanup
+failure after a confirmed result. A trap produces no response and is therefore
+an unknown outcome, never a success. Stale request files are reclaimed by an
+operator-side age-based janitor; the provider never writes or deletes requests.
+A deployment helper that POSTs directly to the provider is a convenience path,
+not a WASM lifecycle; only the compiled root program exercises the syscall.
 
 Revoke a public entry before deleting or replacing the private bytes it names.
-Otherwise a surviving symlink can resolve to a later file at the same path.
-Version switches and rollback revoke the old entry and publish the selected
-immutable target rather than relying on storage aliasing.
+Otherwise a surviving symlink can resolve to later file bytes. Version switches
+and rollback revoke the old entry before publishing the selected immutable
+target.
 
 ## Transport and isolation
 

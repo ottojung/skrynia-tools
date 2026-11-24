@@ -27,21 +27,25 @@ deployment concerns, not kernel operations.
 
 ## Explicit publication
 
-Private disk bytes are never assumed to be nginx-servable. Exposure is an
-explicit root operation through the operator-defined `syscall` namespace:
-`publish(ticket)` and `unpublish(ticket)` take an opaque u32 ticket whose
-private operator-disk request file (`publication-requests/<8 hex>`) contains
-the bounded UTF-8 relative public path. The root validates that path against
-the public namespace, writes and syncs the request before invoking the import,
-and removes the request file on every exit path. The provider interprets the
-same relative path in the separate public root; no storage alias or private
-data is exposed. Children have no direct `syscall.*` imports and request
-publication only through the root callback after token authorization. Because
-the kernel scopes filesystem authority to the child while that callback runs,
-the root queues validated requests and executes them after evaluation returns
-with its own unrestricted disk authority.
-Any revocation of a mutable target happens before its deletion or replacement
-so a stale link cannot expose later bytes.
+Private disk bytes are never assumed to be nginx-servable. Publication is an
+explicit root-only operation. Only Program 0 may import `syscall.publish` and
+`syscall.unpublish`; the kernel rejects those imports in evaluated children.
+A dedicated generic root WASM, `skrynia-publication-root`, makes those imports
+directly. The ordinary Program 0 stays a token-checking proxy with no
+publication policy, and the native service keeps application semantics.
+
+The publication root authenticates the same operator token, accepts a bounded
+framed request containing one relative path, validates only generic path
+grammar and private-root exclusion, writes the path to
+`publication-requests/<8 hex>` on its private root-writable disk with a fresh
+create-only u32 ticket, invokes the named import synchronously, removes its
+request file, and returns the exact outcome. There is no queue and no effect
+after the response: a trapping import yields no response and therefore an
+unknown outcome. App/version authority stays in the application and deployment
+configuration, never in the root program.
+
+Any revocation of a mutable target happens before its private bytes are
+replaced, so a stale link cannot expose later bytes.
 
 ## Costs and failure boundaries
 

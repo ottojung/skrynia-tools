@@ -86,3 +86,56 @@ jobs:
           cp "$SKRYNIA_V3_NATIVE_SERVICE_WASM" "$FC_ARTIFACTS/service.wasm"
           (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm > SHA256SUMS)
           cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+
+  publication-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: ottojung/Skrynia
+          ref: a339a8cc3bc739276a622dfe2e65cf0fcf06507a
+          path: upstream-skrynia
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          repository: ottojung/skrynia-apps
+          ref: 3737bbc3bc61cffdac1ecee12434fe44b878c251
+          path: upstream-skrynia-apps
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            upstream-skrynia -> target
+      - name: Install real nginx for the publication chain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+      - name: Build real kernel, provider and produced root WASM
+        run: |
+          set -eu
+          cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p libskrynia --bin skrynia-server
+          cargo +1.93.0 build --locked --release -p skrynia-publish-provider
+          cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown \
+            -p skrynia-publication-root -p skrynia-program0
+          python3 publication-root/tests/check_wasm_abi.py \
+            --root target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm \
+            --generic-p0 target/wasm32-unknown-unknown/release/skrynia_program0.wasm
+      - name: Real WASM publication lifecycle with kernel, provider and nginx
+        run: |
+          python3 publication-root/tests/real_wasm_chain.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --provider "$PWD/target/release/skrynia-publish-provider" \
+            --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
+            --apps-harness "$PWD/upstream-skrynia-apps/qualification/publication-isolation" \
+            --results "$RUNNER_TEMP/wasm-publication-results.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wasm-publication-results
+          path: ${{ runner.temp }}/wasm-publication-results.json

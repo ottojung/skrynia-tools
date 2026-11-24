@@ -1,4 +1,4 @@
-use super::{abi, publish};
+use super::abi;
 
 mod close;
 mod control;
@@ -40,7 +40,6 @@ fn dispatch(req: &[u8], dc: usize) -> Vec<u8> {
         Some(wire::TRY_LOCK) => control::try_lock(req),
         Some(wire::RELEASE_LOCK) => control::release_lock(req),
         Some(wire::EXISTS) => paths::exists(req),
-        Some(publish::OP_PUBLISH) | Some(publish::OP_UNPUBLISH) => publish::dispatch(req),
         Some(wire::EVAL) => wire::reply(wire::DENIED, &[]),
         _ => wire::reply(wire::INVALID, &[]),
     }

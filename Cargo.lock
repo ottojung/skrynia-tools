@@ -916,6 +916,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "skrynia-publication-root"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+ "subtle",
+]
+
+[[package]]
 name = "skrynia-tools"
 version = "0.1.0"
 dependencies = [

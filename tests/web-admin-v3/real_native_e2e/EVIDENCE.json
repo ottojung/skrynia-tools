@@ -1,5 +1,8 @@
 {
   "kind": "web-admin-v3 real native HTTP E2E",
+  "evidence_scope": "historical",
+  "exact_head_proof": false,
+  "scope_note": "Generated at source git_head 3f92c133 (not the reviewed head) against externally prebuilt pinned binaries. Retained as historical evidence only; exact-head qualification is the CI compiled-stack job.",
   "p0_frame_pin": "8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217",
   "verified_at": "2026-11-21T23:00:28.093Z",
   "pins": {

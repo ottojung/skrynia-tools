@@ -6,6 +6,13 @@ backend, no injected fake capabilities, no Cargo/Podman/WASM rebuild, no new
 `node_modules`. It reuses the bootstrap/pin helpers already exported by
 `run.mjs` and the shipped `createBinaryPostTransport()` adapter.
 
+> **Evidence provenance — HISTORICAL, not exact-head proof.** The recorded
+> 42/42 runs and the `EVIDENCE*.json` files below were produced at source heads
+> other than the reviewed head (`67212c89…` / `3f92c133…`), against externally
+> prebuilt pinned binaries. They are retained as historical evidence only. The
+> exact-head compiled-stack gate is the CI `compiled-stack` job at the reviewed
+> commit; this document never claims those runs prove the current source tree.
+
 ```
 adapter.post(opaque bytes)  ->  trusted edge gateway (prepends 0x01||token[32])
   ->  kernel POST /  ->  dumb P0 (auth + 33-byte strip, decodes no opcodes)
@@ -76,25 +83,29 @@ Every response is scanned for those values.
   → HTTP 500 at the real P0 kernel boundary, no secret in responses.
 - **Liveness:** after all denials, `GET_ACTIVE` still returns A at revision 3.
 
-Exact runs on marceline-dev, Node `v24.21.0`, HEAD
-`67212c89346e183ac57ca6c0c9c503470ecdc1bb`: both the old pin (`d3686527…`)
-and the acceptance pin (`83a65a2f…`) returned **42/42 PASS**; machine-readable
-results in `EVIDENCE_ADMIN_OPS_OLDPIN.json` and `EVIDENCE_ADMIN_OPS.json`.
+Historical runs on marceline-dev, Node `v24.21.0`, at source HEAD
+`67212c89346e183ac57ca6c0c9c503470ecdc1bb` (not the reviewed head): both the
+old pin (`d3686527…`) and the acceptance pin (`83a65a2f…`) returned **42/42
+PASS**; machine-readable results are in `EVIDENCE_ADMIN_OPS_OLDPIN.json` and
+`EVIDENCE_ADMIN_OPS.json`. They are not exact-head proof.
 
-## Precise gap — what this does NOT claim
+## Current adapter wiring — what this does and does not claim
 
-The shipped PR58 web-admin adapter still implements
-`listApps`/`getAppState`/`getReleaseManifest`/`activateRelease` in
-`web-admin-v3/native_capabilities.js` using **AppPut/AppGet CAS over appdata
-keys** with client-side JSON state, not native opcodes 9/10/11/12/13. The PR58
-dev branch also does not contain the `native-service` Rust crate; the admin API
-exists in the separately built compiled P1. Therefore:
+`web-admin-v3/native_capabilities.js` at the reviewed head emits only native
+opcodes `STAGE=9`, `SEAL=10`, `ACTIVATE=11`, `GET_ACTIVE=12`, `LIST_VERSIONS=13`
+and `LIST_PROGRAMS=14` (see the opcode map at lines 20-22 and the
+`stageRelease`/`sealRelease`/`activateRelease` encoders at lines 279-377). It
+never sends AppPut/AppGet (6/7) and has no client-side appdata JSON CAS. The
+`native-service` crate is a workspace member of this tree. The earlier
+"Precise gap" claim — that the shipped adapter still used AppPut/AppGet and
+that rewiring it was out of scope — was true only of the PR58-era branch and
+has been superseded; Git carries its history.
 
 - This test proves the **real compiled P1 admin ABI is present and correct over
-  the same adapter/gateway/kernel/P0 path** — closing the "admin opcodes absent
-  from compiled service" blocker.
-- It does **not** claim the current UI calls those opcodes. Rewiring
-  `native_capabilities.js` to opcodes 9/10/11/12/13 is a separate adapter change
-  and is deliberately out of scope here. No false success is claimed for the UI.
+  the same adapter/gateway/kernel/P0 path** for the pinned historical artifacts.
+- The shipped UI **is** wired to those opcodes; the deterministic wire test
+  `tests/web-admin-v3/native_capabilities.mjs:184-233` asserts opcodes 9-14 are
+  emitted and 6/7 never are. The real-stack adapter check is
+  `p1_admin_adapter.mjs`.
 - No browser/HTTPS, TLS/DNS, production, deploy, merge, real data or Ivanka
   changes. Kernel and dumb P0 remain generic/dumb and unmodified.

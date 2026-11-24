@@ -1,5 +1,8 @@
 {
   "kind": "ordinary P1 native admin opcode E2E (raw dedicated opcodes 9/10/11/12/13)",
+  "evidence_scope": "historical",
+  "exact_head_proof": false,
+  "scope_note": "Generated at source git_head 67212c89 (not the reviewed head) against externally prebuilt pinned binaries. Retained as historical evidence only; exact-head qualification is the CI compiled-stack job.",
   "p0_frame_pin": "8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217",
   "verified_at": "2026-11-23T08:08:19.000Z",
   "node": "v24.21.0",

@@ -48,9 +48,11 @@ Artifact paths can be overridden with `SKRYNIA_KERNEL_BIN`, `SKRYNIA_P0_WASM`,
 pins are always enforced, so an override cannot silently substitute a binary.
 Set `E2E_EVIDENCE_OUT=<path>` to write the machine-readable result.
 
-Verified on host `marceline-dev`, Node `v24.21.0`, at branch HEAD
-`3f92c1337de01d9796b6a7d0a4c212a88f9de2a1` (plus this harness). See
-`EVIDENCE.json` and the PASS log excerpt below.
+Recorded historically on host `marceline-dev`, Node `v24.21.0`, at branch HEAD
+`3f92c1337de01d9796b6a7d0a4c212a88f9de2a1` (plus this harness). This is **not
+the reviewed head**; see `EVIDENCE.json` (marked `evidence_scope: historical`,
+`exact_head_proof: false`) and the PASS log excerpt below. Exact-head
+qualification is the CI `compiled-stack` job, not this historical artifact.
 
 ## What it proves
 

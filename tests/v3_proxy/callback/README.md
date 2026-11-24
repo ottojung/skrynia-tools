@@ -13,8 +13,9 @@ At the reviewed head the regression is restored in a compile-free form:
   drives the generic callback dispatch with the `EVAL` opcode and with
   out-of-scope/private disk paths, and requires a denial in each case. It fails
   if the callback re-enters evaluation or if path hygiene is weakened.
-- `.github/workflows/native-components.yml` runs it by name in the
-  `native-components` job, so it is a real CI gate rather than an ignored test.
+- The existing `cargo test --locked --workspace --all-targets` step in the
+  `rust` and `native-components` CI jobs compiles and runs this test (it is a
+  program0 unit test, not `#[ignore]`d), so it is a real CI gate.
 
 Scope: this is the skrynia-tools-side source regression. The kernel-side WAT
 fixture `nested_guest_cannot_steal_root_disk_fd_after_callback` (root-FD

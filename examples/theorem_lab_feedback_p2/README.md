@@ -87,10 +87,12 @@ python3 tests/real_kit_p2.py --kernel ... --p0 ... --p1 ... --p2 ...
 The real-stack fixture is **not** a CI gate: this crate is standalone
 (`[workspace]` in its Cargo.toml) and the pinned artifacts must be supplied by
 an operator. It is documented as a manual/NOT-RUN-in-CI acceptance, not as
-exact-head proof. `tests/nonvacuity.py` is the CI-wired guard that proves the
-two security assertions demand denial/non-leak: it feeds the exact adversarial
-responses the old assertions were blind to (a successful forge, and a leaked
-JSON state blob containing `"id":"secret"`) and fails if either would pass.
+exact-head proof. `tests/nonvacuity.py` proves the two security assertions
+demand denial/non-leak: it feeds the exact adversarial responses the old
+assertions were blind to (a successful forge, and a leaked JSON state blob
+containing `"id":"secret"`) and fails if either would pass. It is invoked by
+the root-crate test `tests/p2_assertion_gate.rs`, which the existing
+`cargo test --locked --all-targets` CI step runs; no workflow edit is needed.
 
 Fixture pins are the canonical available kit artifacts: kernel `3508938…`
 (the board-published D1/D2-fixed generic kernel; the earlier `8da114ff…`

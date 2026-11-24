@@ -15,7 +15,7 @@ stub:
   with a root WASM that tries to steal a retained root disk FD through a
   nested callback and asserts the response is `SAFE`.
 - `.github/workflows/native-components.yml` (`compiled-stack` job) pins the
-  kernel at `a339a8cc3bc739276a622dfe2e65cf0fcf06507a` and runs
+  kernel at `806c172402880389eee94162a020c0f9c4c1bff2` and runs
   `cargo test --locked -p libskrynia --test http callback::nested::nested_guest_cannot_steal_root_disk_fd_after_callback -- --exact`
   after building the kernel. (`skrynia-server` is the binary target; the
   Cargo package at this pin is `libskrynia`.)

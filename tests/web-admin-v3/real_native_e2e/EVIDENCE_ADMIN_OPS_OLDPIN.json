@@ -1,0 +1,251 @@
+{
+  "kind": "ordinary P1 native admin opcode E2E (raw dedicated opcodes 9/10/11/12/13)",
+  "p0_frame_pin": "8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217",
+  "verified_at": "2026-11-23T08:07:15.494Z",
+  "node": "v24.21.0",
+  "git_head": "67212c89346e183ac57ca6c0c9c503470ecdc1bb",
+  "pins": {
+    "kernel": {
+      "path": "/workspace/skrynia-v3-integration-kit/wasm-build-record/main-secure-pr122-20261121/skrynia-server",
+      "sha256": "8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f",
+      "note": "secure PR122 kernel, source c39bcbf1"
+    },
+    "p0": {
+      "path": "/workspace/skrynia-v3-integration-kit/artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm",
+      "sha256": "d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa",
+      "note": "clean dumb P0 PR53, source fdf0d027"
+    },
+    "service": {
+      "path": "/workspace/skrynia-v3-integration-kit/artifacts/skrynia_native_service_aa6333a_export_table_d3686527bbf29070.wasm",
+      "sha256": "d3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2",
+      "note": "ordinary nonzero WASM service, aa6333a cb-guest export table"
+    },
+    "echo": {
+      "path": "/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm",
+      "sha256": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5",
+      "note": "ordinary private guest used only to exercise service register/invoke"
+    },
+    "gateway": {
+      "path": "/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway",
+      "sha256": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f",
+      "note": "trusted edge gateway, source commit 71773b52"
+    }
+  },
+  "adapter": "file:///workspace/skrynia-pr58-admin-e2e-20261123/web-admin-v3/binary_transport.js",
+  "adapter_endpoint": "http://127.0.0.1:36735/_skrynia/",
+  "token_policy": "random 32-byte bearer per run, 0600 temp file, never logged; no token/verifier/admin/edge capability in EVIDENCE",
+  "result_count": 42,
+  "results": [
+    {
+      "name": "pin kernel sha256 8da114ff4c6c",
+      "ok": true,
+      "detail": "secure PR122 kernel, source c39bcbf1"
+    },
+    {
+      "name": "pin p0 sha256 d57ab27aacc0",
+      "ok": true,
+      "detail": "clean dumb P0 PR53, source fdf0d027"
+    },
+    {
+      "name": "pin service sha256 d3686527bbf2",
+      "ok": true,
+      "detail": "ordinary nonzero WASM service, aa6333a cb-guest export table"
+    },
+    {
+      "name": "pin echo sha256 dc28e490b107",
+      "ok": true,
+      "detail": "ordinary private guest used only to exercise service register/invoke"
+    },
+    {
+      "name": "pin gateway sha256 9fa4df141d5b",
+      "ok": true,
+      "detail": "trusted edge gateway, source commit 71773b52"
+    },
+    {
+      "name": "pinned kernel booted with P0 root + real P1",
+      "ok": true,
+      "detail": "127.0.0.1:34801"
+    },
+    {
+      "name": "trusted edge gateway booted with server-only token",
+      "ok": true,
+      "detail": "127.0.0.1:36735"
+    },
+    {
+      "name": "R1 register private guest A via adapter",
+      "ok": true,
+      "detail": "native status 0, body 32B"
+    },
+    {
+      "name": "S1 get_active A: ver=3 live=1 rev=1 hash=sha(code)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "L1 list-all-ready = [A]",
+      "ok": true,
+      "detail": "native status 0, body 34B"
+    },
+    {
+      "name": "T1 stage B returns sha256(codeB)",
+      "ok": true,
+      "detail": "native status 0, body 32B"
+    },
+    {
+      "name": "N1 activate B BEFORE seal denied (no ready marker, err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "T2 seal B",
+      "ok": true,
+      "detail": "native status 0, body 0B"
+    },
+    {
+      "name": "L2 list-all-ready = [A,B] sorted",
+      "ok": true,
+      "detail": "native status 0, body 66B"
+    },
+    {
+      "name": "L3 list page limit=1 returns exactly one",
+      "ok": true,
+      "detail": "native status 0, body 34B"
+    },
+    {
+      "name": "L4 list after=first returns the remaining hash",
+      "ok": true,
+      "detail": "native status 0, body 34B"
+    },
+    {
+      "name": "C1 activate A->B (expected rev=1) ok rev=2 hash=B",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "C2 get_active now B rev=2",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "C3 stale revision 1 denied (CAS conflict, err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "C4 activate B->A (expected rev=2) ok rev=3 hash=A (A/B/A)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "C5 get_active back to A rev=3",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "C6 ABA replay of revision 1 denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "C7 future revision denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "N2 random unsealed target denied with correct revision (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "M1 activate with 31-byte target denied (malformed frame)",
+      "ok": true,
+      "detail": "native status 1, err 1"
+    },
+    {
+      "name": "M2 list_versions with limit=0 denied (malformed page)",
+      "ok": true,
+      "detail": "native status 1, err 1"
+    },
+    {
+      "name": "M3 stage with 31-byte admin cap denied (bad auth frame)",
+      "ok": true,
+      "detail": "native status 1, err 9"
+    },
+    {
+      "name": "G1 wrong edge capability -> 401",
+      "ok": true,
+      "detail": "http 401"
+    },
+    {
+      "name": "G2 missing edge capability -> 401",
+      "ok": true,
+      "detail": "http 401"
+    },
+    {
+      "name": "G3 wrong origin -> 403",
+      "ok": true,
+      "detail": "http 403"
+    },
+    {
+      "name": "G4 wrong host -> 403",
+      "ok": true,
+      "detail": "http 403"
+    },
+    {
+      "name": "P1 wrong version 0x00 denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P2 wrong version 0x02 denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P3 wrong version 0xff denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P4 single-bit wrong token denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P5 zero token denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P6 digest-as-token denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P7 empty frame denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P8 1-byte frame denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P9 31-byte truncated header denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P10 32-byte truncated header denied",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "Z1 admin state unchanged after negatives (A rev=3)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    }
+  ],
+  "ALL_OK": true
+}

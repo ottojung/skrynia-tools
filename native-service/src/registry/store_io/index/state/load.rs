@@ -9,7 +9,7 @@ pub fn load<D: Disk>(
     key: [u8; KEY_LEN],
     insert: bool,
 ) -> Result<Option<super::State>, StoreErr<D::Err>> {
-    reclaim::take(disk, s)?;
+    reclaim::recover(disk, s)?;
     let (nd, nl, generation) = util::meta(disk, s)?;
     let raw = if generation == 0 {
         find::empty_dir()
@@ -32,6 +32,17 @@ pub fn load<D: Disk>(
         mutate::leaves(&util::node(disk, s.leaf(old_leaf), LEAF_CAP, KEY_LEN + 1)?)
     };
     super::finish::build::<D>(super::finish::Parts {
-        key, nd, nl, generation, root, di, dir, leaf, old_dir, old_leaf, insert, li,
+        key,
+        nd,
+        nl,
+        generation,
+        root,
+        di,
+        dir,
+        leaf,
+        old_dir,
+        old_leaf,
+        insert,
+        li,
     })
 }

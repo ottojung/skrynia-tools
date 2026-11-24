@@ -53,15 +53,15 @@ Exact compiled stack (release kernel `a1dc4119…`, P0 `44e845a4…`, trusted ed
 from this source with rustup wasm32 + cached registry:
 
 - baseline source `73d8fa1` reproduced kit P1 `c7239fc5…` byte-for-byte;
-- fixed P1 `e838f0df6d1c1876303e03f092b850f1b5175a5894bbaa939b2bdc75fa37ab5e`.
+- fixed P1 `de974ff580070d68b43de62c30911bf446fb8804e5ff11f197b013c738f569e1`.
 
 Command:
 
 ```
 cd <isolated checkout>
 SKRYNIA_P1_OVERRIDE=<target-wasm>/skrynia_native_service.wasm \
-SKRYNIA_P1_OVERRIDE_SHA256=e838f0df6d1c1876303e03f092b850f1b5175a5894bbaa939b2bdc75fa37ab5e \
-E2E_EVIDENCE_OUT=<evidence>/scale1000-fixed-v2-evidence.json \
+SKRYNIA_P1_OVERRIDE_SHA256=de974ff580070d68b43de62c30911bf446fb8804e5ff11f197b013c738f569e1 \
+E2E_EVIDENCE_OUT=<evidence>/scale1000-final-evidence.json \
 node tests/web-admin-v3/p1_admin_scale_1000.mjs
 ```
 
@@ -69,9 +69,9 @@ Result: **78/78 checks PASS** (`ALL_OK=true`), including `SCALE-LIST` (1001
 hashes in 4 pages), `ADAPTER-scale`, `O1`, O2-O5 O(1) activation with a
 byte-exact private-state diff, fail-closed denials and `RST5` (all 1001 ready
 versions listable after kill/restart). Evidence
-`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-fixed-v2-evidence.json`
-sha256 `9c1018c2df3ceb8f70769abac2dbd9ef3c445d385be57f06e3a5edaa4068a03f`;
-log sha256 `0bd5d7e1768ac60ed900d2b059fd48b7a90b38ecd56393ce99cbbb4ebb15773a`.
+`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-final-evidence.json`
+sha256 `41dccc7959b21440a1b989decb289b006b62f51bbda37a7978b593e75ec49249`;
+log sha256 `85ef60b50d27ccf3d0c3cd8881e6a1bd6516cae3a9c487c031e684b344905c62`.
 
 The shipped default pin remains the exact PR102 artifact; the harness override
 is hash-gated and for source-change validation only. Release/cutover still
@@ -87,7 +87,7 @@ the entry (no unbounded tombstone scan); node decoding validates length,
 checksum, ordering and occupancy and a missing committed node is an error;
 u32 counter overflow is rejected before any marker commit; a bounded retired
 ledger lists exactly the fresh/retired node ids so normal operation reclaims
-COW nodes (file count stayed fixed at 2149 in the 1000-version run).
+COW nodes (file count stayed fixed at 2147 in the 1000-version run).
 
 Storage compatibility is explicit: pre-index ready/active state has no index
 meta and therefore fails closed with a native error; there is no silent empty
@@ -95,3 +95,11 @@ listing. Such state requires an explicit owner-controlled migration (replay
 STAGE/SEAL/register under the new build), which is outside this source change.
 The source-only `native-admin` CI job no longer auto-runs the artifact-backed
 scale harness; the pin remains unchanged.
+
+Final journal hardening: the transaction journal now names target_generation,
+fresh leaf/dir head+tail ids and old root/dir/leaf ids; the new root id equals
+the target generation; empty head nodes are encoded as 0. Recovery accepts only
+actual generation target or target-1 (0 only for target 1), otherwise fails
+closed without cleanup, deletes the correct fresh set on uncommitted and old
+set on committed, tolerates absent paths via a pre-read, and propagates real
+delete errors so the journal is cleared only after successful reclamation.

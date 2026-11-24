@@ -9,7 +9,8 @@ impl Registry {
         after: Option<[u8; 32]>,
         limit: u16,
     ) -> Result<Vec<[u8; 32]>, store_io::StoreErr<D::Err>> {
-        if store_io::read_record(disk, &self.dir, iid)?.is_none() {
+        let rec = store_io::read_record(disk, &self.dir, iid)?;
+        if rec.is_none() {
             return Err(store_io::StoreErr::Missing);
         }
         store_io::list_ready(disk, &self.dir, iid, after, limit)

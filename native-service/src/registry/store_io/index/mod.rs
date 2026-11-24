@@ -26,7 +26,7 @@ pub const LEAF_CAP: usize = 124;
 pub const DIR_CAP: usize = 128;
 pub const ROOT_CAP: usize = 256;
 
-fn read<D: crate::cap::Disk>(
+pub(crate) fn read<D: crate::cap::Disk>(
     disk: &D,
     path: String,
 ) -> Result<Option<Vec<u8>>, crate::store_io::StoreErr<D::Err>> {

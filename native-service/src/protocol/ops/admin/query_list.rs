@@ -21,7 +21,10 @@ pub fn handle<D: Disk, L: MutLock>(
     req: &AdminRequest,
 ) -> Option<Vec<u8>> {
     let c = cursor(req).ok()?;
-    let guard = locked(lock).ok()?;
+    let guard = match locked(lock) {
+        Ok(g) => g,
+        Err(e) => return Some(e),
+    };
     let out = match req {
         AdminRequest::ListVersions {
             invoke_id, limit, ..

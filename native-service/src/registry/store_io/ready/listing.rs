@@ -1,6 +1,7 @@
 //! Bounded keyset listing over the immutable ready-version index.
 use super::*;
 use crate::index::{self, Scope};
+use crate::store_io::StoreErr;
 
 pub fn list<D: Disk>(
     disk: &D,

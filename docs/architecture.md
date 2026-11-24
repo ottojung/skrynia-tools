@@ -19,6 +19,10 @@ or ephemeral CI runner, not on an application/deployment server.
    routing, backend execution, HTML rewriting or symlink activation.
 5. GitHub Actions: build on the runner, authenticate with scoped user
    tokens, and publish directly using JavaScript HTTP modules.
+6. Publication provider: a separate loopback-only HTTP service implementing
+   operator-defined `publish`/`unpublish` syscalls. It reads a private ticket
+   mailbox and creates or removes symlinks from source regular files into the
+   nginx document root. It is not kernel code and never serves source bytes.
 
 Skrynia's hierarchical store URLs preserve directory layouts and MIME
 types. Every publish is a series of single-object operations; only

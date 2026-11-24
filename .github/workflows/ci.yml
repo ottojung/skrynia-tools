@@ -107,3 +107,27 @@ jobs:
         env:
           SKRYNIA_TEST_SERVER_BIN: ${{ github.workspace }}/upstream-skrynia/target/release/skrynia-server
         run: bash tests/http/protocols_live.sh
+
+  publish-provider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            publish-provider -> publish-provider/target
+      - name: Provider default rustfmt
+        run: cargo fmt --manifest-path publish-provider/Cargo.toml --all -- --check
+      - name: Provider real HTTP tests
+        run: cargo test --locked --all-targets --manifest-path publish-provider/Cargo.toml
+      - name: Provider clippy (zero warnings)
+        run: cargo clippy --locked --all-targets --manifest-path publish-provider/Cargo.toml -- -D warnings
+      - name: Build provider container image
+        run: docker build -f publish-provider/Dockerfile -t skrynia-publish-provider:ci .
+      - name: Real container HTTP smoke
+        env:
+          CONTAINER_ENGINE: docker
+        run: bash publish-provider/container_smoke.sh skrynia-publish-provider:ci

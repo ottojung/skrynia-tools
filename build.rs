@@ -6,5 +6,7 @@ fn main() {
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=examples");
     println!("cargo:rerun-if-changed=benches");
+    println!("cargo:rerun-if-changed=v3-trusted-edge-gateway");
+    println!("cargo:rerun-if-changed=publish-provider");
     source_lints::check(std::path::Path::new(env!("CARGO_MANIFEST_DIR")));
 }

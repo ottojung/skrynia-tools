@@ -1,5 +1,4 @@
 //! Fail-injecting Disk for COW crash-boundary regressions.
-use skrynia_native_service::index::{self, Scope};
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,

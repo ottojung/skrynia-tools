@@ -1,7 +1,6 @@
 //! A held mutation lock makes queries fail closed as busy.
 use super::lock_support::{Mem, Stub};
 use skrynia_native_service::MutLock;
-use skrynia_native_service::cap::Disk;
 use skrynia_native_service::index;
 use skrynia_native_service::mlock::StdLock;
 use skrynia_native_service::{

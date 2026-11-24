@@ -22,5 +22,8 @@ pub fn dir<D: Disk>(
         nd = inc(nd)?;
         serialize::put_dir(&mut st.root, st.dir[0].0, nd);
     }
+    if st.root.len() > super::super::ROOT_CAP {
+        return Err(StoreErr::BadRecord);
+    }
     Ok((nd, tail))
 }

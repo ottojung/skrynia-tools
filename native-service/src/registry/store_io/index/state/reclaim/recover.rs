@@ -31,7 +31,7 @@ pub fn recover<D: super::super::Disk>(
     let valid = if n[0] == 1 {
         actual <= 1
     } else {
-        actual == n[0] || actual + 1 == n[0]
+        actual == n[0] || actual.checked_add(1) == Some(n[0])
     };
     if !valid {
         return Err(super::super::StoreErr::BadRecord);

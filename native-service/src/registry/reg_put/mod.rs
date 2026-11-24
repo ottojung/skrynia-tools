@@ -27,6 +27,9 @@ impl Registry {
         let code_hash = store::code_hash(&code);
         lock::with_prog_lock(lock, || {
             index::recover(disk, &self.dir).map_err(RegErr::Store)?;
+            index::ensure_program(disk, &self.dir).map_err(RegErr::Store)?;
+            index::preflight(disk, index::scope(&self.dir)).map_err(RegErr::Store)?;
+            index::dry_run(disk, index::scope(&self.dir), iid, true).map_err(RegErr::Store)?;
             let cur = store_io::read_active(disk, &self.dir, &iid).map_err(RegErr::Store)?;
             if cur.is_some() {
                 return Err(RegErr::Conflict);

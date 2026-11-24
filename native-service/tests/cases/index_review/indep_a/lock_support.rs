@@ -1,16 +1,9 @@
 //! Lock-replay regression support.
-use skrynia_native_service::{
-    MutLock,
-    cap::{Disk, Eval, Random},
-    handle::handle,
-    index,
-    mlock::StdLock,
-    reg::Registry,
-    wdec::decode_res,
-    wenc::encode_req,
-    wire::{AdminRequest, Request},
+use skrynia_native_service::cap::{Disk, Random};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
 };
-use std::{cell::RefCell, collections::BTreeMap};
 
 #[derive(Default)]
 pub struct Mem(pub RefCell<BTreeMap<String, Vec<u8>>>);
@@ -27,8 +20,17 @@ impl Disk for Mem {
         self.0.borrow_mut().remove(p);
         Ok(())
     }
-    fn list(&self, _: &str) -> Result<Vec<String>, ()> {
-        panic!("unexpected listing")
+    fn list(&self, path: &str) -> Result<Vec<String>, ()> {
+        let prefix = format!("{}/", path.trim_end_matches('/'));
+        let files = self.0.borrow();
+        Ok(files
+            .keys()
+            .filter_map(|p| p.strip_prefix(&prefix))
+            .filter_map(|p| p.split('/').next())
+            .map(str::to_owned)
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect())
     }
 }
 pub struct Stub;
@@ -37,16 +39,5 @@ impl Random for Stub {
     fn fill(&self, b: &mut [u8]) -> Result<(), ()> {
         b.fill(9);
         Ok(())
-    }
-}
-impl Eval for Stub {
-    type Err = ();
-    fn eval(
-        &self,
-        _: &[u8],
-        _: &[u8],
-        _: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
-    ) -> Result<Vec<u8>, ()> {
-        panic!("unexpected eval")
     }
 }

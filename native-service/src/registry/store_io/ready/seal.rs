@@ -12,10 +12,12 @@ pub fn seal<D: Disk>(
     recover::recover(disk, dir, iid)?;
     let base = store::ready_dir(dir, iid).ok_or(StoreErr::BadId)?;
     let scope = Scope { base: &base };
+    index::dry_run(disk, scope, *hash, true)?;
     if is_ready(disk, dir, iid, hash)? {
         index::insert(disk, scope, *hash)?;
         return Ok(());
     }
+    index::preflight(disk, scope)?;
     index::write_pending(disk, scope, *hash)?;
     let p = store::ready_path(dir, iid, hash).ok_or(StoreErr::BadId)?;
     disk.write_atomic(&p, &marker(hash))

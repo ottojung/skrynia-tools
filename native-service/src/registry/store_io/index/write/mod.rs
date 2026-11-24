@@ -1,6 +1,6 @@
 //! Copy-on-write insert/remove with journal-gated, bounded reclamation.
 pub(crate) use super::{
-    DIR_CAP, Disk, KEY_LEN, LEAF_CAP, Scope, StoreErr, format, mutate, serialize, state,
+    DIR_CAP, Disk, KEY_LEN, LEAF_CAP, Scope, StoreErr, format, serialize, state,
 };
 mod change;
 mod plan;
@@ -15,4 +15,18 @@ pub fn insert<D: Disk>(disk: &D, s: Scope, key: [u8; KEY_LEN]) -> Result<(), Sto
 
 pub fn remove<D: Disk>(disk: &D, s: Scope, key: [u8; KEY_LEN]) -> Result<(), StoreErr<D::Err>> {
     change::change(disk, s, key, false)
+}
+
+/// Capacity/overflow preflight without durable mutation beyond journal replay.
+pub fn dry_run<D: Disk>(
+    disk: &D,
+    s: Scope,
+    key: [u8; KEY_LEN],
+    insert: bool,
+) -> Result<(), StoreErr<D::Err>> {
+    let Some(mut st) = state::load(disk, s, key, insert)? else {
+        return Ok(());
+    };
+    let _ = plan::allocate::<D>(&mut st)?;
+    Ok(())
 }

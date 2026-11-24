@@ -1,9 +1,7 @@
-//! Independent exact index regression cases.
+//! Bounded, crash-consistent pagination and registry regressions.
 mod cases1;
 mod cases2;
-mod crash;
-mod crash_disk;
-mod crash_support;
-mod lock;
-mod lock_support;
+pub mod indep_a;
+pub mod indep_b;
 mod support;
+pub use indep_b::legacy_support;

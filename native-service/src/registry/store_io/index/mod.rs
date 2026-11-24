@@ -19,19 +19,16 @@ pub use page::page;
 pub use pending::{
     clear as clear_pending, recover, scope, take as take_pending, write as write_pending,
 };
-pub use write::{insert, remove};
+pub use state::{ensure_program, preflight};
+pub use write::{dry_run, insert, remove};
 
 pub const KEY_LEN: usize = 32;
 pub const LEAF_CAP: usize = 124;
 pub const DIR_CAP: usize = 128;
 pub const ROOT_CAP: usize = 256;
 
-pub(crate) fn read<D: crate::cap::Disk>(
-    disk: &D,
-    path: String,
-) -> Result<Option<Vec<u8>>, crate::store_io::StoreErr<D::Err>> {
-    disk.read_all(&path)
-        .map_err(crate::store_io::StoreErr::Disk)
+pub(crate) fn read<D: Disk>(disk: &D, path: String) -> Result<Option<Vec<u8>>, StoreErr<D::Err>> {
+    disk.read_all(&path).map_err(StoreErr::Disk)
 }
 
 #[derive(Clone, Copy)]

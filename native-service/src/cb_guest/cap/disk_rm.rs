@@ -8,7 +8,7 @@ pub fn remove(path: &str) -> Result<(), i32> {
         return Err(n);
     }
     if let Some((dir, _)) = path.rsplit_once('/') {
-        let _ = sync_dir(dir);
+        sync_dir(dir)?;
     }
     Ok(())
 }
@@ -16,6 +16,9 @@ pub fn sync_dir(dir: &str) -> Result<(), i32> {
     let mut req = vec![wire::OPEN_DIR];
     wire::put_bytes(&mut req, dir.as_bytes());
     let (fd, _) = call::call(&req)?;
+    if fd == -2 {
+        return Ok(());
+    }
     if fd < 0 {
         return Err(fd);
     }

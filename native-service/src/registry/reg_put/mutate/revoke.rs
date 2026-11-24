@@ -28,6 +28,8 @@ impl Registry {
             if !match_expect(cur, expect) {
                 return Err(RegErr::Conflict);
             }
+            index::preflight(disk, index::scope(&self.dir)).map_err(RegErr::Store)?;
+            index::dry_run(disk, index::scope(&self.dir), iid, false).map_err(RegErr::Store)?;
             index::write_pending(disk, index::scope(&self.dir), iid).map_err(RegErr::Store)?;
             store_io::remove_active(disk, &self.dir, &iid).map_err(RegErr::Store)?;
             index::remove(disk, index::scope(&self.dir), iid).map_err(RegErr::Store)?;

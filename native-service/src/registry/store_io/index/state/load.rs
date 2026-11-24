@@ -19,14 +19,14 @@ pub fn load<D: Disk>(
     let root = mutate::dirs(&raw);
     let di = util::slot(&root, &key);
     let old_dir = root.get(di).map(|e| e.1).unwrap_or(0);
-    let mut dir = if di >= root.len() {
+    let dir = if di >= root.len() {
         Vec::new()
     } else {
         mutate::dirs(&util::node(disk, s.dir(old_dir), DIR_CAP, KEY_LEN + 4)?)
     };
     let li = util::slot(&dir, &key);
     let old_leaf = dir.get(li).map(|e| e.1).unwrap_or(0);
-    let mut leaf = if li >= dir.len() {
+    let leaf = if li >= dir.len() {
         Vec::new()
     } else {
         mutate::leaves(&util::node(disk, s.leaf(old_leaf), LEAF_CAP, KEY_LEN + 1)?)

@@ -1,8 +1,5 @@
 //! Bounded in-memory Disk for exact index regression cases.
-use skrynia_native_service::{
-    cap::Disk,
-    index::{self, Scope},
-};
+use skrynia_native_service::cap::Disk;
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,

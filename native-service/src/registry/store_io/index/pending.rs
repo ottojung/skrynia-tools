@@ -1,5 +1,5 @@
 //! Single-slot write-ahead intent that bridges marker and index commit.
-use super::{Disk, KEY_LEN, Scope, StoreErr, format};
+use super::{Disk, KEY_LEN, Scope, StoreErr, ensure_program, format};
 
 pub fn write<D: Disk>(disk: &D, s: Scope, key: [u8; KEY_LEN]) -> Result<(), StoreErr<D::Err>> {
     let mut b = Vec::with_capacity(KEY_LEN + 1);
@@ -42,5 +42,6 @@ pub fn recover<D: Disk>(disk: &D, dir: &str) -> Result<(), StoreErr<D::Err>> {
         }
         super::clear_pending(disk, s)?;
     }
+    ensure_program(disk, dir)?;
     Ok(())
 }

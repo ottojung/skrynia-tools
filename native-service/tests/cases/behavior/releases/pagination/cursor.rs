@@ -2,7 +2,6 @@
 use super::support::crafted;
 use crate::cases::support::MemDisk;
 use skrynia_native_service::index::{self, Scope};
-use std::sync::atomic::Ordering;
 
 #[test]
 fn adversarial_shared_prefix_sparse_keys_and_arbitrary_cursors() {

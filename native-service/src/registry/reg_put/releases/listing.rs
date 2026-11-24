@@ -29,6 +29,13 @@ impl Registry {
         limit: u16,
     ) -> Result<Vec<[u8; 32]>, store_io::StoreErr<D::Err>> {
         index::recover(disk, &self.dir)?;
+        if disk
+            .read_all(&index::scope(&self.dir).meta())
+            .map_err(store_io::StoreErr::Disk)?
+            .is_none()
+        {
+            return Ok(Vec::new());
+        }
         index::page(disk, index::scope(&self.dir), &after, limit)
     }
 }

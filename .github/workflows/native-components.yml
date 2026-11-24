@@ -84,8 +84,29 @@ jobs:
           install -m 700 v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway "$FC_ARTIFACTS/edge"
           cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
           cp "$SKRYNIA_V3_NATIVE_SERVICE_WASM" "$FC_ARTIFACTS/service.wasm"
+          cp "$PWD/target/wasm32-unknown-unknown/release/theorem_lab_feedback_p2.wasm" "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm"
+          # fullchain-integration validates SHA256SUMS as an exact 5-entry roster.
+          # Keep it to those 5; publish P2 digest separately for downstream reuse.
           (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm > SHA256SUMS)
+          (cd "$FC_ARTIFACTS"; sha256sum theorem_lab_feedback_p2.wasm > SHA256SUMS.p2)
+          {
+            echo "tools_head=$(git rev-parse HEAD)"
+            echo "kernel_head=$(git -C upstream-skrynia rev-parse HEAD)"
+            echo "kernel=806c172402880389eee94162a020c0f9c4c1bff2"
+            echo "sha256_kernel=$(sha256sum "$SKRYNIA_V3_SERVER_BIN" | cut -d' ' -f1)"
+            echo "sha256_p0=$(sha256sum "$SKRYNIA_V3_PROGRAM0_WASM" | cut -d' ' -f1)"
+            echo "sha256_p1=$(sha256sum "$SKRYNIA_V3_NATIVE_SERVICE_WASM" | cut -d' ' -f1)"
+            echo "sha256_edge=$(sha256sum v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway | cut -d' ' -f1)"
+            echo "sha256_echo=$(sha256sum "$FC_ARTIFACTS/echo.wasm" | cut -d' ' -f1)"
+            echo "sha256_p2=$(sha256sum "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm" | cut -d' ' -f1)"
+          } > "$FC_ARTIFACTS/COMMIT_MANIFEST.txt"
           cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+      - name: Upload exact compiled stack (reuse by downstream CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-compiled-stack-806c172
+          path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
+          if-no-files-found: error
 
   publication-wasm:
     runs-on: ubuntu-latest
@@ -132,3 +153,128 @@ jobs:
         with:
           name: wasm-publication-results
           path: ${{ runner.temp }}/wasm-publication-results.json
+  chromium-admin-e2e:
+    # Reuses the exact artifacts built by compiled-stack (kernel 806c172,
+    # P0/P1/edge/echo) rather than duplicating a kernel/guest build.
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack-806c172
+          path: ${{ runner.temp }}/exact-stack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Resolve exact artifact digests
+        id: shas
+        run: |
+          set -eu
+          A="$RUNNER_TEMP/exact-stack"
+          KERNEL="$A/kernel"; P0="$A/root.wasm"; P1="$A/service.wasm"
+          GW="$A/edge"; ECHO="$A/echo.wasm"
+          P2="$A/theorem_lab_feedback_p2.wasm"
+          for f in "$KERNEL" "$P0" "$P1" "$GW" "$ECHO" "$P2"; do test -s "$f" || { echo "missing $f" >&2; exit 1; }; done
+          # Artifact upload/download strips executable bits; restore for spawn.
+          chmod 700 "$KERNEL" "$GW"
+          # Verify against the SHA256SUMS produced by compiled-stack.
+          (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
+          test -s "$A/COMMIT_MANIFEST.txt"
+          echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
+          echo "p0=$P0" >> "$GITHUB_OUTPUT"
+          echo "p1=$P1" >> "$GITHUB_OUTPUT"
+          echo "gw=$GW" >> "$GITHUB_OUTPUT"
+          echo "echo=$ECHO" >> "$GITHUB_OUTPUT"
+          echo "p2=$P2" >> "$GITHUB_OUTPUT"
+          echo "kernel_sha=$(sha256sum "$KERNEL" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "p0_sha=$(sha256sum "$P0" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "p1_sha=$(sha256sum "$P1" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "gw_sha=$(sha256sum "$GW" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "echo_sha=$(sha256sum "$ECHO" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "p2_sha=$(sha256sum "$P2" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Exact compiled stack (reused from compiled-stack)"
+            echo "tools_head=$(git rev-parse HEAD)"
+            cat "$A/COMMIT_MANIFEST.txt"
+            echo "sha256_kernel=$(sha256sum "$KERNEL" | cut -d' ' -f1)"
+            echo "sha256_p0=$(sha256sum "$P0" | cut -d' ' -f1)"
+            echo "sha256_p1=$(sha256sum "$P1" | cut -d' ' -f1)"
+            echo "sha256_gateway=$(sha256sum "$GW" | cut -d' ' -f1)"
+            echo "sha256_echo=$(sha256sum "$ECHO" | cut -d' ' -f1)"
+            echo "sha256_p2=$(sha256sum "$P2" | cut -d' ' -f1)"
+          } | tee "$RUNNER_TEMP/chromium-admin-e2e-shas.txt"
+      - name: P1 admin opcode E2E (real stack)
+        env:
+          TMPDIR: ${{ runner.temp }}
+          SKRYNIA_KERNEL_BIN: ${{ steps.shas.outputs.kernel }}
+          SKRYNIA_KERNEL_SHA256: ${{ steps.shas.outputs.kernel_sha }}
+          SKRYNIA_P0_WASM: ${{ steps.shas.outputs.p0 }}
+          SKRYNIA_P0_SHA256: ${{ steps.shas.outputs.p0_sha }}
+          SKRYNIA_P1_WASM: ${{ steps.shas.outputs.p1 }}
+          SKRYNIA_P1_SHA256: ${{ steps.shas.outputs.p1_sha }}
+          SKRYNIA_ECHO_GUEST: ${{ steps.shas.outputs.echo }}
+          SKRYNIA_ECHO_SHA256: ${{ steps.shas.outputs.echo_sha }}
+          SKRYNIA_EDGE_GATEWAY_BIN: ${{ steps.shas.outputs.gw }}
+          SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
+          SKRYNIA_GIT_HEAD: ${{ github.sha }}
+          E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-p1-admin-ops.json
+        run: node tests/web-admin-v3/real_native_e2e/p1_admin_ops.mjs
+      - name: Adapter + HTTP E2E (real stack)
+        env:
+          TMPDIR: ${{ runner.temp }}
+          SKRYNIA_KERNEL_BIN: ${{ steps.shas.outputs.kernel }}
+          SKRYNIA_KERNEL_SHA256: ${{ steps.shas.outputs.kernel_sha }}
+          SKRYNIA_P0_WASM: ${{ steps.shas.outputs.p0 }}
+          SKRYNIA_P0_SHA256: ${{ steps.shas.outputs.p0_sha }}
+          SKRYNIA_P1_WASM: ${{ steps.shas.outputs.p1 }}
+          SKRYNIA_P1_SHA256: ${{ steps.shas.outputs.p1_sha }}
+          SKRYNIA_ECHO_GUEST: ${{ steps.shas.outputs.echo }}
+          SKRYNIA_ECHO_SHA256: ${{ steps.shas.outputs.echo_sha }}
+          SKRYNIA_EDGE_GATEWAY_BIN: ${{ steps.shas.outputs.gw }}
+          SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
+          E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-adapter.json
+        run: |
+          node tests/web-admin-v3/real_native_e2e/p1_admin_adapter.mjs
+          node tests/web-admin-v3/real_native_e2e/run.mjs
+      - name: Lost reply reconciliation + restart (real stack)
+        env:
+          TMPDIR: ${{ runner.temp }}
+          SKRYNIA_KERNEL_BIN: ${{ steps.shas.outputs.kernel }}
+          SKRYNIA_KERNEL_SHA256: ${{ steps.shas.outputs.kernel_sha }}
+          SKRYNIA_P0_WASM: ${{ steps.shas.outputs.p0 }}
+          SKRYNIA_P0_SHA256: ${{ steps.shas.outputs.p0_sha }}
+          SKRYNIA_P1_WASM: ${{ steps.shas.outputs.p1 }}
+          SKRYNIA_P1_SHA256: ${{ steps.shas.outputs.p1_sha }}
+          SKRYNIA_ECHO_GUEST: ${{ steps.shas.outputs.echo }}
+          SKRYNIA_ECHO_SHA256: ${{ steps.shas.outputs.echo_sha }}
+          SKRYNIA_EDGE_GATEWAY_BIN: ${{ steps.shas.outputs.gw }}
+          SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
+          E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-restart-reconcile.json
+        run: node tests/web-admin-v3/real_native_e2e/fixtures/restart_reconcile.mjs
+      - name: Chromium trusted-origin admin UI (real stack)
+        env:
+          TMPDIR: ${{ runner.temp }}
+          SKRYNIA_KERNEL_BIN: ${{ steps.shas.outputs.kernel }}
+          SKRYNIA_KERNEL_SHA256: ${{ steps.shas.outputs.kernel_sha }}
+          SKRYNIA_P0_WASM: ${{ steps.shas.outputs.p0 }}
+          SKRYNIA_P0_SHA256: ${{ steps.shas.outputs.p0_sha }}
+          SKRYNIA_P1_WASM: ${{ steps.shas.outputs.p1 }}
+          SKRYNIA_P1_SHA256: ${{ steps.shas.outputs.p1_sha }}
+          SKRYNIA_ECHO_GUEST: ${{ steps.shas.outputs.echo }}
+          SKRYNIA_ECHO_SHA256: ${{ steps.shas.outputs.echo_sha }}
+          SKRYNIA_EDGE_GATEWAY_BIN: ${{ steps.shas.outputs.gw }}
+          SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
+          E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-chromium-admin-ui.json
+        run: node tests/web-admin-v3/real_native_e2e/chromium.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chromium-admin-e2e-evidence
+          path: |
+            ${{ runner.temp }}/chromium-admin-e2e-shas.txt
+            ${{ runner.temp }}/evidence-p1-admin-ops.json
+            ${{ runner.temp }}/evidence-adapter.json
+            ${{ runner.temp }}/evidence-restart-reconcile.json
+            ${{ runner.temp }}/evidence-chromium-admin-ui.json

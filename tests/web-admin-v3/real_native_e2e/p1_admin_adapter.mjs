@@ -31,6 +31,7 @@ const {createBinaryPostTransport} = await import(TRANSPORT);
 const P1_ALLOW = new Set([
   'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
   '83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a',
+  ...(process.env.SKRYNIA_P1_SHA256 ? [process.env.SKRYNIA_P1_SHA256.toLowerCase()] : []),
 ]);
 
 export async function main() {

@@ -35,12 +35,16 @@ const ERR = { BADREQ: 1, IO: 7, NOTFOUND: 8, UNAUTH: 9, CONFLICT: 10 };
 
 // Exact-byte allowlist for the ordinary P1 service role. The PR58 default is the
 // old aa6333a pin; the PR55 acceptance pin is also admitted. Any other byte
-// substitution fails the SHA-256 gate below.
+// substitution fails the SHA-256 gate below. CI exact-head runs may supply
+// SKRYNIA_P1_SHA256 for the freshly built service artifact.
 const P1_PINS = {
   d3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2:
     'old aa6333a cb-guest export-table P1 (PR58 run.mjs default)',
   '83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a':
     'PR55 ordinary P1 acceptance pin (source aa6ffd56 lineage)',
+  ...(process.env.SKRYNIA_P1_SHA256
+    ? {[process.env.SKRYNIA_P1_SHA256.toLowerCase()]: `exact-head P1 override ${process.env.SKRYNIA_P1_SHA256.toLowerCase().slice(0, 12)}`}
+    : {}),
 };
 
 // ---- dedicated admin request encoders (mirror native-service wire ABI) ----

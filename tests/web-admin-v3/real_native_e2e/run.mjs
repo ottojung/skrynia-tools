@@ -32,37 +32,33 @@ const ADAPTER = new URL('../../../web-admin-v3/binary_transport.js', import.meta
 const { createBinaryPostTransport } = await import(ADAPTER);
 
 // Exact compiled-artifact pins (SHA-256 of bytes, verified at startup).
+// For CI/exact-head runs, override path+sha256 via env; historical defaults are kept.
+const pin = (envPath, envSha, dfltPath, dfltSha, note) => ({
+  path: process.env[envPath] || dfltPath,
+  sha256: (process.env[envSha] || dfltSha).toLowerCase(),
+  note: process.env[envSha] ? `${note} (sha256 overridden by ${envSha})` : note,
+});
 export const PINS = {
-  kernel: {
-    path: process.env.SKRYNIA_KERNEL_BIN
-      || '/workspace/skrynia-v3-integration-kit/wasm-build-record/main-secure-pr122-20261121/skrynia-server',
-    sha256: '8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f',
-    note: 'secure PR122 kernel, source c39bcbf1',
-  },
-  p0: {
-    path: process.env.SKRYNIA_P0_WASM
-      || '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm',
-    sha256: 'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
-    note: 'clean dumb P0 PR53, source fdf0d027',
-  },
-  service: {
-    path: process.env.SKRYNIA_P1_WASM
-      || '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_native_service_aa6333a_export_table_d3686527bbf29070.wasm',
-    sha256: 'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
-    note: 'ordinary nonzero WASM service, aa6333a cb-guest export table',
-  },
-  echo: {
-    path: process.env.SKRYNIA_ECHO_GUEST
-      || '/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm',
-    sha256: 'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
-    note: 'ordinary private guest used only to exercise service register/invoke',
-  },
-  gateway: {
-    path: process.env.SKRYNIA_EDGE_GATEWAY_BIN
-      || '/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway',
-    sha256: '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
-    note: 'trusted edge gateway, source commit 71773b52',
-  },
+  kernel: pin('SKRYNIA_KERNEL_BIN', 'SKRYNIA_KERNEL_SHA256',
+    '/workspace/skrynia-v3-integration-kit/wasm-build-record/main-secure-pr122-20261121/skrynia-server',
+    '8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f',
+    'secure PR122 kernel, source c39bcbf1'),
+  p0: pin('SKRYNIA_P0_WASM', 'SKRYNIA_P0_SHA256',
+    '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm',
+    'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
+    'clean dumb P0 PR53, source fdf0d027'),
+  service: pin('SKRYNIA_P1_WASM', 'SKRYNIA_P1_SHA256',
+    '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_native_service_aa6333a_export_table_d3686527bbf29070.wasm',
+    'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
+    'ordinary nonzero WASM service, aa6333a cb-guest export table'),
+  echo: pin('SKRYNIA_ECHO_GUEST', 'SKRYNIA_ECHO_SHA256',
+    '/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm',
+    'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
+    'ordinary private guest used only to exercise service register/invoke'),
+  gateway: pin('SKRYNIA_EDGE_GATEWAY_BIN', 'SKRYNIA_EDGE_GATEWAY_SHA256',
+    '/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway',
+    '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
+    'trusted edge gateway, source commit 71773b52'),
 };
 export const P0_FRAME_PIN = '8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217';
 
@@ -167,13 +163,15 @@ export async function startGateway({ dir, port, kernelPort, token, edgeCap, logs
   await writeFile(tokenFile, token, { mode: 0o600 });
   const host = `127.0.0.1:${port}`;
   const origin = `http://${host}`;
+  const hosts = [...new Set([host, ...(appHost ? [appHost] : [])])];
+  const origins = [...new Set([origin, ...(appOrigin ? [appOrigin] : [])])];
   const cfgPath = join(dir, 'config.json');
   await writeFile(cfgPath, JSON.stringify({
     bind: host,
     upstream: `http://127.0.0.1:${kernelPort}/`,
     operator_token_file: tokenFile,
     max_body_bytes: 4 * 1024 * 1024,
-    apps: [{ name: 'webadmin-v3-e2e', hosts: [appHost || host], origins: [appOrigin || origin], edge_capabilities: [edgeCap] }],
+    apps: [{ name: 'webadmin-v3-e2e', hosts, origins, edge_capabilities: [edgeCap] }],
   }), { mode: 0o600 });
   const logPath = join(dir, logs);
   const fd = fsn.openSync(logPath, 'a');

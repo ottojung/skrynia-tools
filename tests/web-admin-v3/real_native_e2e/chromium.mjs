@@ -17,6 +17,7 @@ import { createServer } from 'node:net';
 import http from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import { join, resolve, dirname, extname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -171,7 +172,7 @@ async function main() {
     assert.equal(await hashFile(a.path), a.sha256, `pinned ${name} sha256 mismatch`);
   }
 
-  const tmp = await mkdtemp(join('/tmp/opencode', 'webadmin-v3-chromium-e2e-'));
+  const tmp = await mkdtemp(join(tmpdir(), 'webadmin-v3-chromium-e2e-'));
   const procs = [];
   let staticServer = null;
   let browser = null;

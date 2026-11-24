@@ -14,3 +14,4 @@ __pycache__/
 # Disposable full-chain harness artifacts (never commit)
 /.cargo-target-sender/
 /artifacts/
+webpush-sender/target/

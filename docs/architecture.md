@@ -39,23 +39,11 @@ CAS conflict fails rather than overwriting concurrent activation.
 Lost mutation replies remain ambiguous until reconciled by reading
 the authoritative active pointer.
 
-## Web administration
+## Native web administration
 
-The interactive administrative interface is a static app deployed as
-ordinary Skrynia objects on its **own browser origin**. The one-time
-bootstrap prints the URL and a cryptographically random access secret;
-there is no privileged admin daemon. The admin app fetches its
-publicly readable, **encrypted** credential vault after the user
-unlocks it locally. Skrynia itself authenticates every operation
-using the grant user or issuer token held in the unlocked browser.
-
-The browser lists all apps and their ready release manifests through
-Skrynia's paginated list API. Any backward/forward activation replaces
-only the fixed-size `active.json` pointer with a byte-SHA256 CAS;
-release assets and application data are untouched. The interface
-never promises a multi-object atomic grant workflow, and persists
-an encrypted intent journal before credential mutations.
-
-There is **no CLI binary**. CI uses composite GitHub Actions; interactive
-administration is through the web interface. See
+`web-admin-v3/` is static, CLI-free, and hosted on a separate trusted origin.
+The browser sends opaque binary POST through an operator gateway; root/P0
+tokens never enter browser JS. Activation/listing use native P1 opcodes
+(9-14) with single revision CAS and explicit uncertain-outcome handling.
+No v2 `/store` facade, no bootstrap script, no deployment action CLI.
 [Web administration](web-admin.md).

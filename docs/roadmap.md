@@ -8,20 +8,18 @@ immutable release-qualified assets, and single-key CAS activation.
 
 - Native HTTP client, scoped grants, object operations and optional
   append log, CAS cell, event set, and immutable snapshots.
-- Static web administration: grants, all-app release inventory,
-  retained versions and atomic backward/forward CAS activation.
-- Reusable GitHub composite Actions: build on the ephemeral
-  runner, publish over HTTP via JavaScript modules using scoped
-  Skrynia user tokens; no CLI executable. No SSH, extra
-  deployment server, remote filesystem or cutover variable.
+- Native web administration (`web-admin-v3/`): CLI-free static front-end,
+  trusted gateway, native P1 opcodes 9-14, single revision CAS activation,
+  explicit uncertain-outcome handling.
 - Real Skrynia server integration tests for upload, nested asset paths,
   browser entrypoint, rollback, history, quota and grant compatibility.
 - Optional browser WebAssembly package and cross-browser protocol tests.
 
 ## Remaining work
 
-- Separate immutable asset-create authority from pointer-modify
-  authority in the GitHub Action to enforce historical immutability.
+- Native transport port for generic CAS/log/event-set client bindings
+  (owner-coordinated followup; reserved root protocol library paths not
+  modified in this draft).
 - Robust deployment reconciliation after a lost activation reply.
 - Explicit retention and garbage-collection policy for abandoned
   versions and orphan uploads.

@@ -31,33 +31,12 @@ Revoking a grant never deletes stored object bytes. Data deletion and credential
 
 Independent publishers from mutually untrusted groups need separate HTTPS browser origins. Do not claim that an SDK eliminates same-origin or bearer-token security boundaries.
 
-## HTTP application deployment trust boundary
+## Retired v2 deployment boundary
 
-Skrynia is the only server. Publishing happens on the caller's machine
-or ephemeral CI runner through authenticated object POST and CAS PUT.
-The deployment token is a scoped user credential, not an issuer token or
-root credential. It must not be included in public build artifacts,
-source history, public logs or the build container environment. The
-GitHub Action builds the application before introducing the upload token.
-
-An application release consists of ordinary hierarchical byte objects,
-a JSON manifest with relative paths, SHA-256 digests and byte counts,
-and a fixed-size ready marker. Assets are created before the ready
-marker. The final active pointer is one Skrynia object, changed by
-byte-SHA256 CAS. A concurrent activation produces a conflict; a lost
-network response cannot be safely assumed to mean no change.
-
-Rollback reads only the fixed-size ready marker and bounded active
-pointer and CAS-updates one pointer. A unique random nonce in each
-pointer value avoids ABA for cooperating activation clients. This does
-not guarantee real-time latency and does not migrate application data.
-
-A single broad create/modify/list token covering the whole application
-prefix does **not** make historical assets immutable to adversaries
-holding that token. Strong immutability requires separate create-only
-release authority and narrower mutable-pointer authority. The current
-single-token GitHub Action enforces create-only operation by client
-convention, not by grant separation.
+The v2 HTTP deployment/bootstrap/action path was removed. Native releases
+are sealed and activated through ordinary P1 opcodes behind a trusted
+gateway with single revision CAS. No CLI, no `/store` facade, no
+browser-held root/P0 token.
 
 A fake ready marker or manifest may be supplied by another authorized
 writer. Explicit app verify re-reads each asset and checks the declared

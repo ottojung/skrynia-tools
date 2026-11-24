@@ -7,55 +7,31 @@ reusable client protocols for [Skrynia](https://github.com/ottojung/Skrynia).
 web interface. A one-time `deploy.sh` bootstrap publishes that
 interface; CI publishes apps via GitHub Actions without a CLI executable.
 
-## Web administration
+## Native web administration
 
-The admin site is itself hosted by Skrynia on its own browser origin.
-It stores grant/user capabilities in an encrypted Skrynia object
-protected by a random 256-bit access secret.
+`web-admin-v3/` is the CLI-free native administration front-end. It runs as
+static assets on a separate trusted origin and talks to an operator gateway
+over opaque binary POST bytes. The browser never receives root/P0/operator
+tokens; the gateway performs pinned P0 framing. Activation is a single native
+revision CAS (opcodes 9-14), never AppPut/AppGet 6/7.
 
-It can administer delegated grants, list every app and its ready release
-history, and atomically activate any older or newer retained version by
-SHA-256 CAS on the single `active.json` object. No assets or application
-data are migrated during a code rollback.
+## Native components
 
-The one-time bootstrap uses environment values or interactive prompts:
+- `program0/` — dumb 256-bit token gate and opaque relay only.
+- `native-service/` — ordinary nonzero WASM service: exact-key data, grants,
+  push subscriptions/change hints, wake generation and constant-work CAS.
+- `webpush-sender/` — least-privilege outbound sender (VAPID/ES256,
+  AES128GCM, pinned-IP HTTPS, durable replay ledger).
+- `fullchain-integration/` — disposable real-stack acceptance harness with
+  runtime SHA256 pins (development evidence only).
+- `v3-trusted-edge-gateway/` — authenticated trusted-edge gateway.
 
-~~~sh
-export SKRYNIA_URL=https://vau.place/_skrynia
-export SKRYNIA_TOOLS_GRANT='SCOPED_GRANT_USER_TOKEN'
-export SKRYNIA_TOOLS_ORIGIN=https://tools.a.vau.place
-curl -fsSL https://raw.githubusercontent.com/ottojung/skrynia-tools/main/deploy.sh | bash
-~~~
-
-Use a reviewed pinned commit for both the downloaded installer and
-`SKRYNIA_TOOLS_REF`. It prints the URL and random access secret.
-See [web administration](docs/web-admin.md) for details and security.
-
-## Versioned application releases
-
-~~~text
-apps/hello/index.html
-apps/hello/active.json
-apps/hello/versions/<release-id>.json
-apps/hello/versions/<release-id>.ready
-apps/hello/releases/<release-id>/index.html
-apps/hello/releases/<release-id>/assets/main.js
-~~~
-
-The stable entrypoint selects the release under the app's own browser
-origin, so relative assets continue to resolve within its versioned
-directory. The GitHub [deployment Action](action/deploy/action.yml)
-builds and publishes using Node HTTP modules; the
-[stable PWA Action](action/publish-stable/action.yml) publishes
-`sw.js`, `manifest.webmanifest` and `icon.svg` separately.
-Neither provides a public CLI.
-
-## Libraries
-
-The repository also provides a reusable Rust HTTP client, optional CAS,
-log, event-set and snapshot protocols, and a WebAssembly browser SDK.
-These client protocols do not require a privileged server or particular
-application data model.
+The retired v2 HTTP client, `/store` bootstrap/actions, browser SDK and
+legacy web-admin were removed. Generic CAS/log/event-set client bindings
+are recorded as an exact scoped followup in
+[docs/native-protocol-followup.md](docs/native-protocol-followup.md) pending
+native transport port (owner-coordinated; reserved root protocol library
+paths are not modified in this draft).
 
 [Deployment](docs/deployment.md) ·
 [Web administration](docs/web-admin.md) ·

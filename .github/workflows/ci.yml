@@ -65,3 +65,48 @@ jobs:
         run: |
           cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets -- -D warnings
           cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport -- -D warnings
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Native client browser Wasm compilation
+        run: cargo check --locked --target wasm32-unknown-unknown --lib --no-default-features
+      - name: Build browser Wasm release
+        run: cargo build --locked --release --target wasm32-unknown-unknown --lib --no-default-features
+      - name: Install matching wasm-bindgen CLI
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.130
+      - name: Generate browser JS bindings
+        run: wasm-bindgen --target web --out-dir dist/skrynia-wasm target/wasm32-unknown-unknown/release/skrynia_tools.wasm
+      - name: Assemble and validate installable browser npm package
+        run: bash tests/browser/package.sh
+      - name: Headless browser Wasm native fixture integration
+        run: bash tests/browser/run.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skrynia-tools-browser-wasm
+          path: dist/skrynia-wasm/
+
+  browser-engines:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - name: Install pinned cross-engine browser harness
+        run: npm ci --prefix tests/browser
+      - name: Install Firefox and WebKit with system dependencies
+        run: ./tests/browser/node_modules/.bin/playwright install --with-deps firefox webkit
+      - uses: actions/download-artifact@v4
+        with:
+          name: skrynia-tools-browser-wasm
+          path: dist/skrynia-wasm
+      - name: Headless Firefox and WebKit native fixture integration
+        run: node tests/browser/cross_browser.mjs

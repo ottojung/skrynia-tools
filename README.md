@@ -1,43 +1,41 @@
-# Skrynia Tools
+# Skrynia Tools (native v3)
 
-Browser-based administration, CI application deployment Actions, and
-reusable client protocols for [Skrynia](https://github.com/ottojung/Skrynia).
+Reusable **native** components for [Skrynia](https://github.com/ottojung/Skrynia):
+an optional operator-supplied dumb Program 0 token gate, an ordinary nonzero
+WASM service, a native Rust/WASM client, CLI-free native web administration,
+an outbound WebPush sender and a real-stack acceptance harness.
 
-**There is no command-line application.** Administration happens in the
-web interface. A one-time `deploy.sh` bootstrap publishes that
-interface; CI publishes apps via GitHub Actions without a CLI executable.
+**There is no CLI and no v2 HTTP facade.** No `/store`, `/grants`, GET/HEAD
+parity, fake static server, or application logic in the kernel or Program 0.
+The retired v2 HTTP app/bootstrap/actions were removed.
 
-## Native web administration
+## Components
 
-`web-admin-v3/` is the CLI-free native administration front-end. It runs as
-static assets on a separate trusted origin and talks to an operator gateway
-over opaque binary POST bytes. The browser never receives root/P0/operator
-tokens; the gateway performs pinned P0 framing. Activation is a single native
-revision CAS (opcodes 9-14), never AppPut/AppGet 6/7.
-
-## Native components
-
-- `program0/` — dumb 256-bit token gate and opaque relay only.
-- `native-service/` — ordinary nonzero WASM service: exact-key data, grants,
-  push subscriptions/change hints, wake generation and constant-work CAS.
-- `webpush-sender/` — least-privilege outbound sender (VAPID/ES256,
-  AES128GCM, pinned-IP HTTPS, durable replay ledger).
-- `fullchain-integration/` — disposable real-stack acceptance harness with
-  runtime SHA256 pins (development evidence only).
+- `program0/` — generic constant-time 256-bit token gate and opaque relay/
+  callback gate only. The root token is operator-held, never in browser JS.
+- `native-service/` — ordinary nonzero WASM service: exact-key authorized
+  objects, durable push subscriptions/change hints, fixed-slot wake and bounded
+  legacy fallback, sealed code identity and constant-work revision CAS.
+- `src/client`, `src/wire/native`, `src/cas`, `src/log`, `src/event_set`,
+  `src/browser` — native binary POST client with exact read/write capability
+  separation and strict frames; generic log/CAS/snapshot/EventSet algorithms
+  preserved on native transport (owner commit `f6fd21df`, `b9bb39c0`).
+- `web-admin-v3/` — static native admin front-end on a separate trusted
+  origin. The browser sends opaque binary POST bytes through an operator
+  gateway; root/issuer/P0 tokens stay server-side. Activation uses native
+  opcodes and a single revision CAS, never AppPut/AppGet (6/7).
+- `webpush-sender/` — independently operated least-privilege WebPush sender.
+- `fullchain-integration/` — disposable real-stack acceptance with runtime
+  SHA256 pins (development evidence only).
 - `v3-trusted-edge-gateway/` — authenticated trusted-edge gateway.
 
-The retired v2 HTTP client, `/store` bootstrap/actions, browser SDK and
-legacy web-admin were removed. Generic CAS/log/event-set client bindings
-are recorded as an exact scoped followup in
-[docs/native-protocol-followup.md](docs/native-protocol-followup.md) pending
-native transport port (owner-coordinated; reserved root protocol library
-paths are not modified in this draft).
+## Qualification
 
-[Deployment](docs/deployment.md) ·
-[Web administration](docs/web-admin.md) ·
-[Architecture](docs/architecture.md) ·
-[Security](docs/security.md) ·
-[Optional protocols](docs/protocols.md) ·
-[Contributor rules](AGENTS.md).
+Run the exact gates documented in `AGENTS.md` and the draft PR: default
+rustfmt, structural lints, workspace tests, zero-warning Clippy, native admin
+deterministic tests, native browser WASM fixture, sender tests and the real
+full-chain harness. Board coordination: `w4wgIqJnlASKGYrl1UGd8H-realise`,
+`NHARAlNNTdqYZJHJaqdD8I-splash`, `ZZYan9Ny0XiLvSBD1iIwCF-hall`,
+`5zNqlV9UeXpMI9D84rIEBo-countries`. No production cutover.
 
 Free Software under GNU AGPLv3 or later.

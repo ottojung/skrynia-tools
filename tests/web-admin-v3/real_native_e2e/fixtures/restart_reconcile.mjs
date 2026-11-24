@@ -34,7 +34,7 @@ import {
   PINS, P0_FRAME_PIN, putId, putBlob, registerOp, decodeResponse,
   startKernel, startGateway, gatewayFetch, freePort, stopProc,
   sha256hex, sha256buf, hashFile, exists,
-} from './run.mjs';
+} from '../run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '../../../..');
@@ -290,6 +290,7 @@ export async function main() {
     if (committed.body.length !== 42) {
       console.error('DEBUG committed', 'status', committed.status, 'len', committed.body.length, 'hex', Buffer.from(committed.body).toString('hex').slice(0, 200));
       console.error('DEBUG request hex', Buffer.from(host.state.afterCommit.request||[]).toString('hex').slice(0,200));
+      console.error('DEBUG activateCount', host.state.activateCount, 'seen', JSON.stringify(host.state.seen));
     }
     const committedState = parseActive(committed.body);
     rec('pointer committed on service to B rev2', committed.status === 0 && committedState.revision === 2 && committedState.hash.toString('hex') === hB, JSON.stringify(committedState));

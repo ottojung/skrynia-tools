@@ -17,6 +17,10 @@ pub fn check(root: &Path) {
         "v3-trusted-edge-gateway/tests",
         "v3-trusted-edge-gateway/examples",
         "v3-trusted-edge-gateway/benches",
+        "publish-provider/src",
+        "publish-provider/tests",
+        "publish-provider/examples",
+        "publish-provider/benches",
     ] {
         let folder = root.join(area);
         if folder.is_dir() {

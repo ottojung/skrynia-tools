@@ -34,6 +34,11 @@ pub fn target(f: &Fixture, rel: &str) -> Option<PathBuf> {
     std::fs::read_link(f.nginx.join(rel)).ok()
 }
 
+pub fn code(f: &Fixture, name: &str, ticket: u32, path: &[u8]) -> u32 {
+    request(f, ticket, path);
+    call(f, name, ticket)
+}
+
 impl Drop for Fixture {
     fn drop(&mut self) {
         let _ = self.child.kill();

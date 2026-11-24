@@ -22,7 +22,7 @@ impl EdgeProc {
         fs::create_dir_all(base)?;
         super::edge_cfg::write_cfg(base, port, kernel_port, token, &host, &origin, &cap)?;
         let log = fs::File::create(base.join("edge.log"))?;
-        let child = Command::new(art.join("trusted_edge_9fa4df14"))
+        let child = Command::new(art.join("edge"))
             .env("SKRYNIA_EDGE_GATEWAY_CONFIG", base.join("edge.json"))
             .stdout(Stdio::from(log.try_clone()?))
             .stderr(Stdio::from(log))

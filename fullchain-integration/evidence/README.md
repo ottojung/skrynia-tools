@@ -7,15 +7,23 @@ standalone `fullchain-integration` harness built from source commit
 evidence commit adds only these documentation files, so rebuilding the
 final head produces the same harness binary and the same output.
 
-## Reproduce
+## Reproduce current source
 
-1. Obtain the five pinned artifacts whose SHA256 values are printed in the
-   log (they are gitignored build outputs, never committed) and place them
-   in `fullchain-integration/../artifacts/` under the exact names shown.
-2. `cd fullchain-integration && cargo build --locked`
-3. `FC_ARTIFACTS=../artifacts ./target/debug/fullchain`
-4. Compare stdout to the log: `pin_verify=ok`, five runtime-computed
-   `SHA256 <name> <hex>` lines, the `EVIDENCE ...` lines and `FULLCHAIN_OK`.
+The historical log above records its own commit and artifact digests. The
+current Native components workflow builds the pinned generic kernel and
+the current root proxy, native service and edge, generates the echo guest
+from the compiled-service test fixture, and runs this harness against them.
+
+For an equivalent local run, stage those five trusted build outputs under
+the names `kernel`, `root.wasm`, `service.wasm`, `edge`, `echo.wasm`.
+The trusted build must supply `SHA256SUMS` in that directory, with one
+lowercase SHA256 digest, two spaces, and the artifact name per line.
+Set FC_ARTIFACTS to the absolute directory and run
+`cargo run --manifest-path fullchain-integration/Cargo.toml --locked`.
+Expect `pin_verify=ok`, five SHA256 lines, scenario evidence and
+`FULLCHAIN_OK`. The digest manifest protects against unintended artifact
+substitution; it is not an authenticity proof for an untrusted producer.
+Do not generate a fresh manifest from untrusted supplied binaries.
 
 ## Fail-closed (RED) check
 

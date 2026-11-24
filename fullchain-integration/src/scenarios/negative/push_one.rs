@@ -20,7 +20,7 @@ pub fn one(
     let admin = h(b"a");
     let sender = h(b"s");
     let key = b"k";
-    let echo = std::fs::read(art.join("echo_dc28e490.wasm")).unwrap();
+    let echo = std::fs::read(art.join("echo.wasm")).unwrap();
     setup(&io, &echo, key, sub_json, &sender);
     let push = FakePush::start(plan);
     let cfg = config(sender, h(&admin), key);

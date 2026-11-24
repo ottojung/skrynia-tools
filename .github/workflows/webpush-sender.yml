@@ -1,0 +1,36 @@
+name: WebPush sender crate CI
+
+# Narrow, validation-only CI for the standalone webpush-sender crate.
+# It compiles the crate and runs its full test suite, including the
+# non-default test-only pinned-IP TLS transport feature. It deliberately
+# does not touch deployment workflows, push rules or any production
+# configuration, and never promotes a DRAFT branch.
+on:
+  push:
+    paths:
+      - "webpush-sender/**"
+      - ".github/workflows/webpush-sender.yml"
+  pull_request:
+    paths:
+      - "webpush-sender/**"
+      - ".github/workflows/webpush-sender.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sender-crate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            webpush-sender -> webpush-sender/target
+      - name: Compile and test webpush-sender (default configuration)
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets
+      - name: Compile and test webpush-sender (test-transport feature)
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport

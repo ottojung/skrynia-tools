@@ -9,7 +9,7 @@ configuration comes from the environment.
 
 The kernel sees only a numeric ticket. Path data crosses the boundary through
 an **operator-private mailbox**, never through the kernel RAM or a public HTTP
-parameter. The provider binds a loopback address only and exposes one GET discovery endpoint and two POST operation endpoints. It never serves source bytes and never reads kernel memory.
+parameter. The provider binds a loopback address only and exposes exactly one GET discovery endpoint and two POST operation endpoints. It never serves source bytes and never reads kernel memory.
 
 There are three disjoint roots, mounted separately:
 
@@ -31,8 +31,11 @@ nginx container, because the symlink target is an absolute path. nginx needs
 read + execute permission on every source ancestor and on the publication
 directory, and symlink following must be enabled (`disable_symlinks off`).
 The mailbox root must never be mounted into nginx or any public document root.
-Public and private roots must not overlap in either direction, so nginx cannot
-serve the mailbox or private disk through a prefix alias. The nginx publication
+All three roots (requests/mailbox, source disk and nginx publication) must be
+disjoint in **both** directions, enforced at startup: a mailbox nested under the
+source root could otherwise be published by a generic relative path. The
+publication VM boots its own user root containing only the mailbox; the source
+artifact disk is a separate read-only root. The nginx publication
 root must be owned exclusively by this provider; external writers can race the
 inspect/remove step and cause fail-closed conflicts. Published source ancestors
 must remain trusted/immutable for the publication lifetime, because symlink

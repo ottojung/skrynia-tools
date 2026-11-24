@@ -1,0 +1,14 @@
+[package]
+name = "skrynia-program0"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "AGPL-3.0-or-later"
+description = "Dumb opaque token-checking Program 0 proxy for Skrynia v3"
+
+[dependencies]
+sha2 = "0.10"
+subtle = "2.6"
+
+[lib]
+crate-type = ["rlib", "cdylib"]

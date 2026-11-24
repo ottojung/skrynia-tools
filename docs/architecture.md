@@ -1,65 +1,62 @@
 # Skrynia Tools architecture
 
-**One Skrynia server, HTTP operations only.** Skrynia stores public bytes,
-applies grants, and serializes conditional mutations. Tools is unprivileged
-client software: builds and release publication run on a developer machine
-or ephemeral CI runner, not on an application/deployment server.
+Skrynia is a generic WASM execution kernel. Application protocols belong to
+ordinary user-supplied programs. Tools provides optional components:
 
-## Components
+- **Program 0:** operator-selected root WASM, authenticating a private token
+  and forwarding opaque bytes. Generic callbacks delegate bounded authority;
+  application storage, code registry and push semantics are not root functions.
+- **Ordinary native service:** capability-authorized data, immutable sealed code
+  versions, a revision-checked active pointer, and exact-key change hints.
+- **Trusted edge:** authenticates an app-scoped caller and forwards opaque
+  binary requests to the kernel with the private root token.
+- **Native clients:** Rust and browser WASM adapters for the ordinary service.
+  Optional higher-level data protocols have independent correctness assumptions.
+- **Web administration:** static HTML/JS on a separate trusted HTTPS origin;
+  native admin operations, local encrypted vault, version discovery and
+  atomic activation. No command-line administrative interface.
+- **Publication provider:** separate HTTP syscall service with a private
+  ticket mailbox, explicit publish/unpublish and a distinct nginx root.
+- **Web Push sender:** separate process with narrowly authorized hint access and
+  outbound delivery. Durable service state, not notifications, is authoritative.
 
-1. Native HTTP client: GET, create-if-absent, replacement, deletion,
-   byte-SHA256 CAS, scoped listing, and grant administration.
-2. Optional client data protocols: append-only logs, CAS cells, event sets,
-   and content-addressed snapshots. Deployment does not depend on them.
-3. Release manager: uploads a build tree to release-qualified hierarchical
-   keys, publishes a manifest and ready marker, then CAS-updates a small
-   active-release pointer.
-4. Browser entrypoint: stable HTML fetches the active pointer and
-   navigates to the selected release's index.html. No dynamic server
-   routing, backend execution, HTML rewriting or symlink activation.
-5. GitHub Actions: build on the runner, authenticate with scoped user
-   tokens, and publish directly using JavaScript HTTP modules.
-6. Publication provider: a separate loopback-only HTTP service implementing
-   operator-defined `publish`/`unpublish` syscalls. It reads a private ticket
-   mailbox and creates or removes symlinks from source regular files into the
-   nginx document root. It is not kernel code and never serves source bytes.
+The static host is separate from execution. A stable origin and release
+entrypoint preserve each application's navigation and service worker boundary.
+Building from an exact Git commit and publishing immutable static assets are
+deployment concerns, not kernel operations.
 
-Skrynia's hierarchical store URLs preserve directory layouts and MIME
-types. Every publish is a series of single-object operations; only
-the final pointer change is atomic. Incomplete pre-activation uploads
-remain inert and may need explicit retention management.
+## Explicit publication
 
-The deployment protocol is cooperative: another holder of modify
-authority could rewrite an old release. Separate create-only asset
-and exact-key pointer grants can enforce stronger immutability, but
-the current single-token action does not claim that protection.
+Private disk bytes are never assumed to be nginx-servable. Publication is an
+explicit root-only operation. Only Program 0 may import `syscall.publish` and
+`syscall.unpublish`; the kernel rejects those imports in evaluated children.
+A dedicated generic root WASM, `skrynia-publication-root`, makes those imports
+directly. The ordinary Program 0 stays a token-checking proxy with no
+publication policy, and the native service keeps application semantics.
+
+The publication root authenticates the same operator token, accepts a bounded
+framed request containing one relative path, validates only generic path
+grammar and private-root exclusion, writes the path to
+`publication-requests/<8 hex>` on its private root-writable disk with a fresh
+create-only u32 ticket, invokes the named import synchronously, removes its
+request file, and returns the exact outcome. There is no queue and no effect
+after the response: a trapping import yields no response and therefore an
+unknown outcome. App/version authority stays in the application and deployment
+configuration, never in the root program.
+
+Any revocation of a mutable target happens before its private bytes are
+replaced, so a stale link cannot expose later bytes.
 
 ## Costs and failure boundaries
 
-Uploading scales with bytes and files; listing versions scales with
-history; verification re-reads assets. Rollback reads only a fixed-size
-ready marker and bounded active pointer and performs one CAS.
-CAS conflict fails rather than overwriting concurrent activation.
-Lost mutation replies remain ambiguous until reconciled by reading
-the authoritative active pointer.
+Stage code by content identity, seal it before activation, and activate by one
+revision-checked mutation of the fixed-size active pointer. This operation does
+not copy release bytes, scan historical releases or migrate application data.
+Listing history and verifying artifacts have their own costs.
 
-## Web administration
+A rejected CAS is distinct from a missing or uncertain response. Reconcile
+the authoritative state before another attempt. Separate static asset retention,
+data migration and user-held authorization from code activation.
 
-The interactive administrative interface is a static app deployed as
-ordinary Skrynia objects on its **own browser origin**. The one-time
-bootstrap prints the URL and a cryptographically random access secret;
-there is no privileged admin daemon. The admin app fetches its
-publicly readable, **encrypted** credential vault after the user
-unlocks it locally. Skrynia itself authenticates every operation
-using the grant user or issuer token held in the unlocked browser.
-
-The browser lists all apps and their ready release manifests through
-Skrynia's paginated list API. Any backward/forward activation replaces
-only the fixed-size `active.json` pointer with a byte-SHA256 CAS;
-release assets and application data are untouched. The interface
-never promises a multi-object atomic grant workflow, and persists
-an encrypted intent journal before credential mutations.
-
-There is **no CLI binary**. CI uses composite GitHub Actions; interactive
-administration is through the web interface. See
-[Web administration](web-admin.md).
+See [protocols](protocols.md), [security](security.md), [browser SDK](browser.md),
+and [web administration](../web-admin-v3/README.md).

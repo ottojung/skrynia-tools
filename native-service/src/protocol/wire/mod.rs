@@ -1,0 +1,40 @@
+mod admin;
+mod req;
+mod types;
+pub use admin::AdminRequest;
+pub use req::Request;
+pub use types::{AppPrecond, Response};
+
+pub const VERSION: u8 = 1;
+// The unauthenticated opcode 1 is permanently retired.
+pub const OP_REGISTER: u8 = 1;
+pub const OP_REGISTER_AUTH: u8 = 15;
+pub const OP_SET: u8 = 2;
+pub const OP_INVOKE: u8 = 3;
+pub const OP_LOOKUP: u8 = 4;
+pub const OP_REVOKE: u8 = 5;
+pub const OP_APP_PUT: u8 = 6;
+pub const OP_APP_GET: u8 = 7;
+pub const OP_APP_DELETE: u8 = 8;
+pub const OP_STAGE_CODE: u8 = 9;
+pub const OP_SEAL_CODE: u8 = 10;
+pub const OP_ACTIVATE_CODE: u8 = 11;
+pub const OP_GET_ACTIVE: u8 = 12;
+pub const OP_LIST_VERSIONS: u8 = 13;
+pub const OP_LIST_PROGRAMS: u8 = 14;
+pub const OP_PUSH_SUBSCRIBE: u8 = 16;
+pub const OP_PUSH_UNSUBSCRIBE: u8 = 17;
+pub const OP_PUSH_GRANT: u8 = 18;
+pub const OP_PUSH_SENDER_GRANT: u8 = 19;
+pub const OP_HINT_LIST: u8 = 20;
+pub const OP_HINT_READ: u8 = 21;
+pub const OP_HINT_ACK: u8 = 22;
+pub const OP_PUSH_SUB_FETCH: u8 = 23;
+pub const OP_PUSH_WAKE_GRANT: u8 = 24;
+pub const OP_APP_PUT_WAKE: u8 = 25;
+pub const OP_APP_DELETE_WAKE: u8 = 26;
+pub const STATUS_OK: u8 = 0;
+pub const STATUS_ERR: u8 = 1;
+
+pub const PRECOND_ABSENT: u8 = 0;
+pub const PRECOND_PRESENT: u8 = 1;

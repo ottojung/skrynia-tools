@@ -26,19 +26,45 @@ jobs:
         run: |
           rustc --test source_lints/mod.rs -o "${RUNNER_TEMP}/skrynia-lint-tests"
           "${RUNNER_TEMP}/skrynia-lint-tests"
+      - name: Clippy (zero warnings)
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+  native-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Stable application bootstrap tests
-        run: node tests/http/landing.mjs
-      - name: HTTP deployment action tests
+      - name: Deterministic native admin contract tests
         run: |
-          bash -n action/deploy/build.sh
-          node --check action/deploy/upload.mjs
-          node --check action/publish-stable/upload.mjs
-          bash tests/http/action_smoke.sh
-      - name: Clippy (zero warnings)
-        run: cargo clippy --locked --all-targets -- -D warnings
+          set -eu
+          for f in tests/web-admin-v3/*.mjs; do
+            node --check "$f"
+            node "$f"
+          done
+
+  webpush-sender:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            webpush-sender -> webpush-sender/target
+      - name: Check isolated sender rustfmt
+        run: cargo fmt --manifest-path webpush-sender/Cargo.toml --all -- --check
+      - name: Sender normal security and protocol tests
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets
+      - name: Sender pinned-IP TLS loopback acceptance
+        run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport
+      - name: Sender zero-warning Clippy (normal and test-only transport)
+        run: |
+          cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets -- -D warnings
+          cargo clippy --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport -- -D warnings
 
   wasm:
     runs-on: ubuntu-latest
@@ -47,7 +73,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Browser Wasm compilation
+      - name: Native client browser Wasm compilation
         run: cargo check --locked --target wasm32-unknown-unknown --lib --no-default-features
       - name: Build browser Wasm release
         run: cargo build --locked --release --target wasm32-unknown-unknown --lib --no-default-features
@@ -57,7 +83,7 @@ jobs:
         run: wasm-bindgen --target web --out-dir dist/skrynia-wasm target/wasm32-unknown-unknown/release/skrynia_tools.wasm
       - name: Assemble and validate installable browser npm package
         run: bash tests/browser/package.sh
-      - name: Headless browser Wasm protocol integration
+      - name: Headless browser Wasm native fixture integration
         run: bash tests/browser/run.sh
       - uses: actions/upload-artifact@v4
         with:
@@ -82,31 +108,8 @@ jobs:
         with:
           name: skrynia-tools-browser-wasm
           path: dist/skrynia-wasm
-      - name: Headless Firefox and WebKit Wasm protocol integration
+      - name: Headless Firefox and WebKit native fixture integration
         run: node tests/browser/cross_browser.mjs
-
-  skrynia-protocol-integration:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/checkout@v5
-        with:
-          repository: ottojung/Skrynia
-          ref: 10cbf0d5ad00224e1375a4f2482965f8d3513559
-          path: upstream-skrynia
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            . -> target
-            upstream-skrynia -> target
-      - name: Build pinned real Skrynia Rust server
-        run: cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p skrynia-server
-      - name: Real Skrynia optional-protocol integration
-        env:
-          SKRYNIA_TEST_SERVER_BIN: ${{ github.workspace }}/upstream-skrynia/target/release/skrynia-server
-        run: bash tests/http/protocols_live.sh
 
   publish-provider:
     runs-on: ubuntu-latest

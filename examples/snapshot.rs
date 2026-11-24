@@ -7,9 +7,11 @@ use std::collections::BTreeMap;
 
 fn main() -> Result<()> {
     let url = std::env::var("SKRYNIA_URL")?;
-    let token = std::env::var("SKRYNIA_SNAPSHOT_TOKEN")?;
+    let edge = std::env::var("SKRYNIA_EDGE_CAPABILITY")?;
+    let read = std::env::var("SKRYNIA_READ_CAPABILITY")?;
+    let write = std::env::var("SKRYNIA_WRITE_CAPABILITY")?;
     let prefix = std::env::var("SKRYNIA_SNAPSHOT_PREFIX")?;
-    let client = SkryniaClient::new(&url)?.with_token(token);
+    let client = SkryniaClient::new(&url, &edge, &read, Some(&write))?;
     let store = SnapshotStore::open(&client, &prefix)?;
     store.initialize("00000000000000000000000000000001")?;
     let genesis = store.read()?;

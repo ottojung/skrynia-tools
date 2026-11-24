@@ -1,0 +1,134 @@
+name: Native components
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-components:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo test --locked --workspace --all-targets
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Full-chain harness host tests
+        run: cargo test --manifest-path fullchain-integration/Cargo.toml --locked
+  compiled-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: ottojung/Skrynia
+          ref: 806c172402880389eee94162a020c0f9c4c1bff2
+          path: upstream-skrynia
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            upstream-skrynia -> target
+            v3-trusted-edge-gateway -> target
+      - name: Build generic kernel
+        working-directory: upstream-skrynia
+        run: cargo build --locked --release -p libskrynia --bin skrynia-server
+      - name: Kernel nested-callback LEAK->SAFE regression (compiled)
+        working-directory: upstream-skrynia
+        run: cargo test --locked -p libskrynia --test http callback::nested::nested_guest_cannot_steal_root_disk_fd_after_callback -- --exact
+      - name: Build ordinary guests
+        run: |
+          cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-program0
+          cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
+      - name: Build current Theorem P2 guest
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+        run: cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown --manifest-path examples/theorem_lab_feedback_p2/Cargo.toml
+      - name: Real compiled-stack P2 adversarial fixture
+        run: |
+          set -eu
+          KERNEL="$PWD/upstream-skrynia/target/release/skrynia-server"
+          P0="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          P1="$PWD/target/wasm32-unknown-unknown/release/skrynia_native_service.wasm"
+          P2="$PWD/target/wasm32-unknown-unknown/release/theorem_lab_feedback_p2.wasm"
+          python3 examples/theorem_lab_feedback_p2/tests/real_kit_p2.py \
+            --kernel "$KERNEL" --p0 "$P0" --p1 "$P1" --p2 "$P2" \
+            --kernel-sha256 "$(sha256sum "$KERNEL" | cut -d' ' -f1)" \
+            --p0-sha256 "$(sha256sum "$P0" | cut -d' ' -f1)" \
+            --p1-sha256 "$(sha256sum "$P1" | cut -d' ' -f1)" \
+            --p2-sha256 "$(sha256sum "$P2" | cut -d' ' -f1)"
+      - name: Compiled service and trusted-edge tests
+        run: |
+          export SKRYNIA_REQUIRE_KIT=1
+          export SKRYNIA_V3_SERVER_BIN="$PWD/upstream-skrynia/target/release/skrynia-server"
+          export SKRYNIA_V3_PROGRAM0_WASM="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          export SKRYNIA_V3_NATIVE_SERVICE_WASM="$PWD/target/wasm32-unknown-unknown/release/skrynia_native_service.wasm"
+          git rev-parse HEAD
+          git -C upstream-skrynia rev-parse HEAD
+          sha256sum "$SKRYNIA_V3_SERVER_BIN" "$SKRYNIA_V3_PROGRAM0_WASM" "$SKRYNIA_V3_NATIVE_SERVICE_WASM"
+          export FC_ARTIFACTS="$RUNNER_TEMP/skrynia-fullchain-artifacts"
+          mkdir "$FC_ARTIFACTS"
+          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+          install -m 700 "$SKRYNIA_V3_SERVER_BIN" "$FC_ARTIFACTS/kernel"
+          install -m 700 v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway "$FC_ARTIFACTS/edge"
+          cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
+          cp "$SKRYNIA_V3_NATIVE_SERVICE_WASM" "$FC_ARTIFACTS/service.wasm"
+          (cd "$FC_ARTIFACTS"; sha256sum kernel root.wasm service.wasm edge echo.wasm > SHA256SUMS)
+          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+
+  publication-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: ottojung/Skrynia
+          ref: 806c172402880389eee94162a020c0f9c4c1bff2
+          path: upstream-skrynia
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.93.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            upstream-skrynia -> target
+      - name: Install real nginx for the publication chain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+      - name: Build real kernel, provider and produced root WASM
+        run: |
+          set -eu
+          cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p libskrynia --bin skrynia-server
+          cargo +1.93.0 build --locked --release --manifest-path publish-provider/Cargo.toml
+          cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown \
+            -p skrynia-publication-root -p skrynia-program0
+          python3 publication-root/tests/check_wasm_abi.py \
+            --root target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm \
+            --generic-p0 target/wasm32-unknown-unknown/release/skrynia_program0.wasm
+      - name: Real WASM publication lifecycle with kernel, provider and nginx
+        run: |
+          python3 publication-root/tests/real_wasm_chain.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
+            --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
+            --results "$RUNNER_TEMP/wasm-publication-results.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wasm-publication-results
+          path: ${{ runner.temp }}/wasm-publication-results.json

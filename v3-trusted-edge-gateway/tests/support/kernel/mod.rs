@@ -1,5 +1,5 @@
 mod start;
-mod wasm;
+pub mod wasm;
 
 use std::net::SocketAddr;
 use std::process::Child;

@@ -18,3 +18,4 @@ IDs must be random, unique, stable for an active intent, and not mnemonic. Kinds
 - [App versions and rollback](app-management.md) — app inventory and constant-work code rollback intent.
 - [Web administration](web-administration.md) — self-hosted web admin with release history, atomic backward and forward activation.
 - [App origins](app-origins.md) — stable per-app hosts and relative-link releases.
+- [Explicit publication](explicit-publication.md) — named publish/unpublish imports, mailbox paths and revocation order.

@@ -1,0 +1,12 @@
+pub const VERSION: u8 = 1;
+pub const OP_SUBMIT: u8 = 1;
+pub const STATE_KEY: &[u8] = b"theorem-lab/feedback-v1";
+pub const MAX_INPUT: usize = 64 * 1024;
+pub const MAX_TEXT: usize = 4096;
+pub const MAX_ID: usize = 128;
+pub const MAX_FRAGMENT: usize = 16 * 1024;
+pub const MAX_FRAGMENTS: usize = 16;
+pub const MAX_CHAIN: usize = 16;
+pub const MAX_FEEDBACK: usize = 256;
+pub const MAX_STATE: usize = 512 * 1024;
+pub const CAS_RETRIES: usize = 16;

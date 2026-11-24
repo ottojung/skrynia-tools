@@ -32,7 +32,7 @@ Volodyslav convention for GitHub discussion posts: light metaphor or humor where
 ## Public interface
 
 Skrynia Tools exposes **no CLI executable, command parser, or
-command-line administration interface**. The one-time `deploy.sh`
-bootstrap installs its web admin, and GitHub Actions use private
-JavaScript HTTP modules. Do not reintroduce a CLI for app publication
-or grant management.
+command-line administration interface**. Native web administration
+(`web-admin-v3/`) is served as static assets on a separate trusted origin
+and uses opaque binary POST through an operator gateway. Do not
+reintroduce a CLI, a v2 `/store` facade, or HTTP-based deployment actions.

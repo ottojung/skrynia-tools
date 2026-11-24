@@ -1,5 +1,5 @@
-//! Overlap checks: public and private roots must be disjoint in both
-//! directions so nginx cannot serve private material through a prefix.
+//! Overlap checks: requests/mailbox, source disk and nginx roots must be
+//! disjoint in both directions so one root cannot expose another through a prefix.
 
 use std::os::fd::{AsRawFd, OwnedFd};
 use std::path::Path;
@@ -16,15 +16,19 @@ pub(super) fn roots(
         return Err("roots must be distinct directories".into());
     }
     overlap(nginx_abs, req_abs, "requests")?;
-    overlap(nginx_abs, disk_abs, "disk")
+    overlap(nginx_abs, disk_abs, "disk")?;
+    // A nested mailbox under the source root (or a source nested under the
+    // mailbox) can be published by a generic relative path. Reject both
+    // directions, not just nginx-vs-private overlaps.
+    overlap(disk_abs, req_abs, "requests")
 }
 
-fn overlap(nginx: &Path, private: &Path, name: &str) -> Result<(), String> {
-    if nginx.starts_with(private) || private.starts_with(nginx) {
+fn overlap(a: &Path, b: &Path, name: &str) -> Result<(), String> {
+    if a.starts_with(b) || b.starts_with(a) {
         return Err(format!(
-            "{name} root and nginx root must not overlap: {} vs {}",
-            private.display(),
-            nginx.display()
+            "{name} root must not overlap the compared root: {} vs {}",
+            a.display(),
+            b.display()
         ));
     }
     Ok(())

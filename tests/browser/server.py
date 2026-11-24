@@ -1,76 +1,84 @@
 #!/usr/bin/env python3
-"""Small isolated Skrynia-like HTTP fixture, not a production server."""
+"""Disposable binary-protocol fixture, not a production service."""
 import argparse
 import hashlib
-import json
+import struct
+import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
 
 objects = {}
+lock = threading.Lock()
+WRITE = bytes([42]) * 32
+READ = hashlib.sha256(WRITE).digest()
 
+def parse(frame):
+    def take(n):
+        nonlocal frame
+        if len(frame) < n:
+            raise ValueError("truncated")
+        result, frame = frame[:n], frame[n:]
+        return result
+    def blob(n):
+        return take(int.from_bytes(take(n), "little"))
+    version, op = take(2)
+    if version != 1 or op not in (6, 7, 8):
+        raise ValueError("opcode")
+    cap, key = blob(2), blob(4).decode("ascii")
+    if cap != (READ if op == 7 else WRITE):
+        return 1, b"\x09", key
+    if op == 7:
+        if frame:
+            raise ValueError("trailing")
+        return (0, objects[key], key) if key in objects else (1, b"\x08", key)
+    expected = take(32) if op == 8 else (take(32) if take(1) == b"\x01" else None)
+    value = blob(4) if op == 6 else None
+    if frame:
+        raise ValueError("trailing")
+    old = objects.get(key)
+    current = hashlib.sha256(old).digest() if old is not None else None
+    if expected != current:
+        return 1, b"\x0a\x00", key
+    if op == 8:
+        if old is None:
+            return 1, b"\x08", key
+        del objects[key]
+        return 0, b"", key
+    if key != "test.accepted":
+        objects[key] = value
+    return 0, hashlib.sha256(value).digest(), key
 
 class Handler(SimpleHTTPRequestHandler):
-    def reply(self, code, body=b"", content_type="application/octet-stream"):
+    def reply(self, code, body=b""):
         self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers",
-                         "Authorization, X-Skrynia-If-SHA256, Content-Type")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
-    def do_OPTIONS(self):
-        self.reply(204)
-
     def do_GET(self):
-        route = urlsplit(self.path)
-        if route.path == "/health":
+        if self.path == "/health":
             return self.reply(200, b"ok")
-        if route.path == "/store":
-            matcher = parse_qs(route.query).get("locations", [""])[0].rstrip("*")
-            entries = sorted(k for k in objects if k.startswith(matcher))
-            return self.reply(200, json.dumps({"keys": entries, "next": None}).encode(),
-                              "application/json")
-        if route.path == "/store/test.partial":
-            return self.reply(206, b"part")
-        if route.path.startswith("/store/"):
-            key = route.path[len("/store/"):]
-            return self.reply(200, objects[key]) if key in objects else self.reply(404)
         return super().do_GET()
 
-    def mutation(self):
-        key = urlsplit(self.path).path.removeprefix("/store/")
-        if not key or not self.headers.get("Authorization", "").startswith("Bearer "):
-            return self.reply(403, b'{"error":"forbidden"}', "application/json")
-        size = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(size)
-        if key == "test.accepted":
-            return self.reply(202)
-        if self.command == "POST":
-            if key in objects:
-                return self.reply(409, b'{"error":"already_exists"}', "application/json")
-            objects[key] = body
-            return self.reply(201)
-        if key not in objects:
-            return self.reply(404)
-        wanted = self.headers.get("X-Skrynia-If-SHA256")
-        if wanted is not None and hashlib.sha256(objects[key]).hexdigest() != wanted:
-            return self.reply(412, b'{"error":"content_mismatch"}', "application/json")
-        if self.command == "DELETE":
-            del objects[key]
-        else:
-            objects[key] = body
-        return self.reply(200)
-
-    do_POST = mutation
-    do_PUT = mutation
-    do_DELETE = mutation
-
+    def do_POST(self):
+        if self.path != "/_skrynia/" or self.headers.get("X-Skrynia-Edge-Capability") != "test-edge":
+            return self.reply(403)
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if not 0 <= size <= 16 * 1024 * 1024:
+                raise ValueError("size")
+            frame = self.rfile.read(size)
+            with lock:
+                status, body, key = parse(frame)
+            if key == "test.partial":
+                return self.reply(206, b"partial")
+            if key == "test.accepted":
+                return self.reply(202)
+            return self.reply(200, struct.pack("<BBI", 1, status, len(body)) + body)
+        except (ValueError, UnicodeError):
+            return self.reply(400)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--port", type=int, default=18799)
-    options = args.parse_args()
-    ThreadingHTTPServer(("127.0.0.1", options.port), Handler).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", args.parse_args().port), Handler).serve_forever()

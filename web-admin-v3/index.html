@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https: http://localhost:* http://127.0.0.1:*; base-uri 'none'; form-action 'none'">
+<title>Skrynia v3 Administration</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main>
+<header>
+  <h1>Skrynia v3 Administration</h1>
+  <p>Native POST-only browser administration for immutable app history and atomic activation.</p>
+</header>
+
+<section id="config-section">
+  <h2>Configuration</h2>
+  <p>Operator-supplied Program 0 endpoint and protocol adapter are required once the native ABI is frozen. This build fails closed when no tested capability adapter is injected.</p>
+  <p id="capability-status" class="status-note"></p>
+</section>
+
+<section id="unlock-section">
+  <h2>Unlock encrypted browser vault</h2>
+  <form id="unlock-form">
+    <label>Access secret <input id="vault-secret" type="password" autocomplete="off" spellcheck="false"></label>
+    <label>Vault context <input id="vault-context" type="text" autocomplete="off" spellcheck="false" value="default"></label>
+    <button type="submit">Unlock</button>
+  </form>
+  <p>Credentials are decrypted locally in this browser. The access secret is never sent over the network, stored in public releases, or logged.</p>
+</section>
+
+<div id="workspace" hidden>
+  <div class="toolbar">
+    <strong>Vault unlocked</strong>
+    <button id="lock" type="button">Lock</button>
+  </div>
+
+  <section>
+    <div class="toolbar">
+      <h2>Applications and release history</h2>
+      <button id="refresh-apps" type="button">Refresh</button>
+    </div>
+    <p>Shows every discovered application and every ready historical release. Activation performs one bounded compare-and-swap on the active release pointer only (O(1) in versions and asset bytes). No release assets or application data are copied or migrated.</p>
+    <div id="apps"></div>
+  </section>
+
+  <section>
+    <h2>Manifest inspection</h2>
+    <p id="manifest-empty">Select “Inspect manifest” on a release to view its historical manifest details.</p>
+    <pre id="manifest-view" hidden></pre>
+  </section>
+</div>
+
+<p id="status" role="status" aria-live="polite"></p>
+</main>
+<script type="module" src="./native_bootstrap.js"></script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

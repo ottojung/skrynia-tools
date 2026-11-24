@@ -1,75 +1,42 @@
-# Skrynia Tools
+# Skrynia Tools (native v3)
 
-Browser-based administration, CI application deployment Actions, and
-reusable client protocols for [Skrynia](https://github.com/ottojung/Skrynia).
+Reusable **native** components for [Skrynia](https://github.com/ottojung/Skrynia):
+an optional operator-supplied dumb Program 0 token gate, an ordinary nonzero
+WASM service, a native Rust/WASM client, CLI-free native web administration,
+an outbound WebPush sender and a real-stack acceptance harness.
 
-**There is no command-line application.** Administration happens in the
-web interface. A one-time `deploy.sh` bootstrap publishes that
-interface; CI publishes apps via GitHub Actions without a CLI executable.
+Administration is web-based. The kernel and root proxy do not implement
+application semantics; static hosting is separate.
 
-## Web administration
+## Components
 
-The admin site is itself hosted by Skrynia on its own browser origin.
-It stores grant/user capabilities in an encrypted Skrynia object
-protected by a random 256-bit access secret.
+- `program0/` — generic constant-time 256-bit token gate and opaque relay/
+  callback gate only. The root token is operator-held, never in browser JS.
+- `native-service/` — ordinary nonzero WASM service: exact-key authorized
+  objects, durable push subscriptions/change hints, fixed-slot wake and bounded
+  pending-hint processing, sealed code identity and constant-work revision CAS.
+- `src/client`, `src/wire/native`, `src/cas`, `src/log`, `src/event_set`,
+  `src/browser` — native binary POST client with exact read/write capability
+  separation and strict frames; generic log/CAS/snapshot/EventSet algorithms
+  are optional client protocols. EventSet requires an injected enumerating store.
+- `web-admin-v3/` — static native admin front-end on a separate trusted
+  origin. The browser sends opaque binary POST bytes through an operator
+  gateway; root/issuer/P0 tokens stay server-side. Activation uses native
+  opcodes and a single revision CAS, never AppPut/AppGet (6/7).
+- `publish-provider/` — isolated HTTP syscall provider and container; publishes
+  explicit symlinks from private disk into a separate nginx root.
+- `webpush-sender/` — independently operated least-privilege WebPush sender.
+- `fullchain-integration/` — disposable real-stack acceptance with runtime
+  SHA256 pins (development evidence only).
+- `v3-trusted-edge-gateway/` — authenticated trusted-edge gateway.
 
-It can administer delegated grants, list every app and its ready release
-history, and atomically activate any older or newer retained version by
-SHA-256 CAS on the single `active.json` object. No assets or application
-data are migrated during a code rollback.
+## Qualification
 
-The one-time bootstrap uses environment values or interactive prompts:
-
-~~~sh
-export SKRYNIA_URL=https://vau.place/_skrynia
-export SKRYNIA_TOOLS_GRANT='SCOPED_GRANT_USER_TOKEN'
-export SKRYNIA_TOOLS_ORIGIN=https://tools.a.vau.place
-curl -fsSL https://raw.githubusercontent.com/ottojung/skrynia-tools/main/deploy.sh | bash
-~~~
-
-Use a reviewed pinned commit for both the downloaded installer and
-`SKRYNIA_TOOLS_REF`. It prints the URL and random access secret.
-See [web administration](docs/web-admin.md) for details and security.
-
-## Versioned application releases
-
-~~~text
-apps/hello/index.html
-apps/hello/active.json
-apps/hello/versions/<release-id>.json
-apps/hello/versions/<release-id>.ready
-apps/hello/releases/<release-id>/index.html
-apps/hello/releases/<release-id>/assets/main.js
-~~~
-
-The stable entrypoint selects the release under the app's own browser
-origin, so relative assets continue to resolve within its versioned
-directory. The GitHub [deployment Action](action/deploy/action.yml)
-builds and publishes using Node HTTP modules; the
-[stable PWA Action](action/publish-stable/action.yml) publishes
-`sw.js`, `manifest.webmanifest` and `icon.svg` separately.
-Neither provides a public CLI.
-
-## Publication provider
-
-The [publication provider](publish-provider/README.md) is a separate
-loopback-only HTTP service implementing the operator-defined `publish` and
-`unpublish` syscalls. It is not kernel code and not a CLI. It manages symlinks
-under the nginx document root from a private ticket mailbox and never serves
-private source bytes.
-
-## Libraries
-
-The repository also provides a reusable Rust HTTP client, optional CAS,
-log, event-set and snapshot protocols, and a WebAssembly browser SDK.
-These client protocols do not require a privileged server or particular
-application data model.
-
-[Deployment](docs/deployment.md) ·
-[Web administration](docs/web-admin.md) ·
-[Architecture](docs/architecture.md) ·
-[Security](docs/security.md) ·
-[Optional protocols](docs/protocols.md) ·
-[Contributor rules](AGENTS.md).
+Run the exact gates documented in `AGENTS.md` and the draft PR: default
+rustfmt, structural lints, workspace tests, zero-warning Clippy, native admin
+deterministic tests, native browser WASM fixture, sender tests and the real
+full-chain harness. Board coordination: `w4wgIqJnlASKGYrl1UGd8H-realise`,
+`NHARAlNNTdqYZJHJaqdD8I-splash`, `ZZYan9Ny0XiLvSBD1iIwCF-hall`,
+`5zNqlV9UeXpMI9D84rIEBo-countries`. No production cutover.
 
 Free Software under GNU AGPLv3 or later.

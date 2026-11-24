@@ -1,0 +1,15 @@
+[package]
+name = "skrynia-publication-root"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Generic root WASM bridge for operator-defined publish/unpublish syscalls"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+sha2 = "0.10"
+subtle = "2.6"

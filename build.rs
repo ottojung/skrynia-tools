@@ -9,6 +9,7 @@ fn main() {
     println!("cargo:rerun-if-changed=fullchain-integration");
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     source_lints::check(root);
+    source_lints::check(&root.join("program0"));
     source_lints::check(&root.join("native-service"));
     source_lints::check(&root.join("fullchain-integration"));
 }

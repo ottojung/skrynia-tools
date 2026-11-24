@@ -1,8 +1,10 @@
+//! Corrupt notification counter stays visible and fail-closed, but never
+//! aborts an authorized source CAS.
 use super::Disk;
 use super::{AppPrecond, MemDisk, State, WriteAuth, caps, io, ops, push, seed_sender};
 
 #[test]
-fn invalid_highwater_must_fail_closed_before_cas() {
+fn corrupt_notification_counter_does_not_abort_committed_cas() {
     let disk = MemDisk::default();
     let (writer, _, _) = caps();
     let sender = [21u8; 32];
@@ -20,6 +22,17 @@ fn invalid_highwater_must_fail_closed_before_cas() {
         &AppPrecond::Absent,
         b"value",
     );
-    assert!(got.is_err(), "bad durable counter must prevent CAS");
-    assert_eq!(io::read_state(&disk, "d", &ns, key).unwrap(), State::Absent);
+    assert!(
+        got.is_ok(),
+        "notification corruption is not a data-plane failure"
+    );
+    assert_eq!(
+        io::read_state(&disk, "d", &ns, key).unwrap(),
+        State::Present(b"value".to_vec())
+    );
+    assert_eq!(
+        disk.read_all(&path).unwrap(),
+        Some(b"bad-state".to_vec()),
+        "corrupt notification state remains visible for recovery"
+    );
 }

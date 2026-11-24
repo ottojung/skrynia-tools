@@ -39,9 +39,14 @@ list/read/ACK protocol returns the latest pending generation, an opaque
 clear g+1, including after restart or when the sender rereads an old hint.
 
 The slot remains constant-size even after more than 1,024 offline mutations.
-A failed slot write aborts the source mutation; no wake backlog/quota or
-old-hint pruning error blocks a healthy-disk data write. The ordinary
-**non-wake** exact-object notification queue still has its separate quota.
+A failed durable slot write aborts the source mutation; a healthy-disk
+notification backlog does not. For **ordinary non-wake exact data keys**, the
+legacy bounded, per-sequence hash hint queue is preserved when it can accept
+writes; a separate generation-conditional dirty slot acts as an overflow or
+crash fallback. A full/corrupt old hint queue can neither make an authorized
+source CAS fail nor lose a later committed change after the sender ACKs
+already-read older entries. Both kinds of hints are invalidations, not event
+logs, and clients must re-read authoritative state.
 
 ## Acceptance and remaining release work
 

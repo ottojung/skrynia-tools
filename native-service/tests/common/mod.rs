@@ -3,6 +3,8 @@
 mod app;
 mod faildata;
 mod fault;
+pub mod issue5z;
+pub mod issue5z_prims;
 mod memdisk;
 mod queries;
 mod sender;

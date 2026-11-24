@@ -23,12 +23,12 @@ pub(super) fn roots(
     overlap(disk_abs, req_abs, "requests")
 }
 
-fn overlap(nginx: &Path, private: &Path, name: &str) -> Result<(), String> {
-    if nginx.starts_with(private) || private.starts_with(nginx) {
+fn overlap(a: &Path, b: &Path, name: &str) -> Result<(), String> {
+    if a.starts_with(b) || b.starts_with(a) {
         return Err(format!(
-            "{name} root and nginx root must not overlap: {} vs {}",
-            private.display(),
-            nginx.display()
+            "{name} root must not overlap the compared root: {} vs {}",
+            a.display(),
+            b.display()
         ));
     }
     Ok(())

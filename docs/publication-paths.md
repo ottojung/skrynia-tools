@@ -47,6 +47,10 @@ kernel, the produced root WASM, the real provider and real nginx.
   `<nginx-root>/apps/x/releases/<id>/a.js`.
 - skrynia-apps nginx configs keep `disable_symlinks on` globally and enable it
   only in publication locations. No private storage is directly servable.
-- Version switching and rollback revoke the old public path before replacing
-  the mutable private pointer, then publish the selected immutable target.
-  A CAS A-B-A switch is covered by the real-chain fixture.
+- A stable public entry (for example `active.json`) is published once as a
+  symlink to an immutable source target. A-B-A version switching and rollback
+  rewrite only that private pointer atomically: the public symlink is retained,
+  both immutable releases remain available and no unpublish/republish gap is
+  introduced. A named published asset is revoked before its backing bytes are
+  deleted or repurposed; an immutable-pointer switch is not such a revocation.
+  The CAS A-B-A switch is covered by the real-chain fixture.

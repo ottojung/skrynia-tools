@@ -91,7 +91,7 @@ def write_atomic(path: str, payload: bytes) -> None:
     os.replace(tmp, path)
 
 
-def seed_private(private: str, release: str, payload: bytes) -> str:
+def seed_private(source: str, release: str, payload: bytes) -> str:
     rel = f"apps/qual/releases/{release}/asset.js"
     path = os.path.join(source, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -258,7 +258,8 @@ def main() -> int:
         nginx.start()
         url = kernel.url if hasattr(kernel, "url") else f"http://127.0.0.1:{kernel_port}/"
         syscalls = json.loads(request(f"http://127.0.0.1:{kernel_port}/version", None, "POST")[1])
-        record("kernel_discovers_provider", "publish" in syscalls.get("syscalls", []))
+        record("kernel_discovers_exact_names",
+               sorted(syscalls.get("syscalls", [])) == ["publish", "unpublish"])
         record("before_publish_inaccessible", get(nginx_port, "/" + rel)[0] == 404)
 
         record("wasm_publish_returns_zero", wasm_call(url, token, OP_PUBLISH, rel) == 0)
@@ -290,15 +291,19 @@ def main() -> int:
         record("concurrent_bytes_exact", all(get(nginx_port, "/" + p) == (200, p.encode()) for p in paths))
         record("mailbox_clean_after_concurrency", not os.listdir(mailbox))
 
+        # Active pointer is published ONCE as a permanent symlink. A-B-A switches
+        # rewrite only its private source bytes atomically; the public symlink
+        # is never unlink/republish, so the switch is a single CAS-visible rename.
+        write_atomic(os.path.join(source, active), b'{"release":"' + OLD_RELEASE.encode() + b'"}')
+        record("active_published_once", wasm_call(url, token, OP_PUBLISH, active) == 0)
         switch_ok = True
-        for version, payload in [(OLD_RELEASE, b"OLD RELEASE BYTES"), (RELEASE, b"REAL WASM PUBLICATION BYTES"),
-                                 (OLD_RELEASE, b"OLD RELEASE BYTES")]:
+        for version in (RELEASE, OLD_RELEASE, RELEASE):
             write_atomic(os.path.join(source, active), b'{"release":"' + version.encode() + b'"}')
-            switch_ok &= wasm_call(url, token, OP_UNPUBLISH, active) == 0
-            switch_ok &= wasm_call(url, token, OP_PUBLISH, active) == 0
             status, body = get(nginx_port, "/" + active)
             switch_ok &= status == 200 and version.encode() in body
         record("cas_aba_version_switch_follows_pointer", switch_ok)
+        record("both_releases_retained",
+               pathlib.Path(source, old_rel).exists() and pathlib.Path(source, rel).exists())
         record("old_release_asset_unserved", get(nginx_port, "/" + old_rel)[0] == 404)
     finally:
         nginx.stop()

@@ -73,10 +73,11 @@ the provider never writes or deletes requests.
 A deployment helper that POSTs directly to the provider is a convenience path,
 not a WASM lifecycle; only the compiled root program exercises the syscall.
 
-Revoke a public entry before deleting or replacing the private bytes it names.
-Otherwise a surviving symlink can resolve to later file bytes. Version switches
-and rollback revoke the old entry before publishing the selected immutable
-target.
+Revoke a named public entry before deleting or repurposing the private bytes it
+names; otherwise a surviving symlink can resolve to later file bytes. A stable
+public pointer such as `active.json` is published once; A-B-A version switches
+and rollback atomically rewrite only its private target pointer while both
+immutable releases remain retained, so no unpublish/republish gap occurs.
 
 ## Transport and isolation
 

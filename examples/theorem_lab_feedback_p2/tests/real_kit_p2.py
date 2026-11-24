@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real protocol fixture: compiled Theorem Lab P2 over kernel PR122 + P0 PR53 + P1 aa6333a.
+"""Real protocol fixture: compiled Theorem Lab P2 over the fixed generic kernel + PR53 P0 + clean P1.
 
 Runs the real compiled binaries over HTTP in disposable dirs. No mocks, no real
 credentials (fake 32-byte bearer only). Verifies mediated self-namespace CAS,
@@ -7,12 +7,20 @@ restart persistence, sibling isolation, unauth invoke deny and write-cap forging
 """
 from __future__ import annotations
 import argparse, hashlib, os, pathlib, shutil, socket, struct, subprocess, tempfile, time, json
+from assertions import forge_denied, sibling_no_leak
 
 KEY = b'theorem-lab/feedback-v1'
+# Canonical available kit pins. The previous kernel pin 8da114ff is the
+# pre-D1/D2-fix binary and fails this fixture's functional checks; 3508938 is
+# the board-published D1/D2-fixed kernel for the same ABI. The former p0 pin
+# ec74523b was lost in a container restart and is not reproducible; d57ab27a
+# is the PR53-source rebuild used by the kit. The former p1 pin d3686527 is the
+# retired aa6333a export-table lineage; 83a65a2f is the current clean-P1 kit
+# artifact and is ABI-compatible with this P2 on the fixed kernel.
 SHA = {
-    'kernel': '8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f',
-    'p0': 'ec74523be4d537969b6a9b93d702ba5f550a1205ca7fa85c3dc3261c5e1645dc',
-    'p1': 'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
+    'kernel': '3508938239c4b7f27591000e2d1d1d36f3b3cc1f976c470fe0e5f84274e3176d',
+    'p0': 'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
+    'p1': '83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a',
     'p2': '5a26657858f515d29deaff012fc0109ea2d03a428d19895255239e8b780ad2bc',
 }
 
@@ -127,12 +135,17 @@ def run(work, kernel, p0, p1, p2, results):
         d = srv.send(b'\x01\x03' + put_id(iid) + put_blob(submit_payload(iid, 'e1')), 'submit-e1-again')
         v = parse_json(results, 'submit-e1-again', d)
         rec(results, 'idempotent-not-created', bool(v and v.get('ok') and not v.get('created')), d)
-        # write-cap forging: iid as write_cap must NOT write the iid namespace
+        # Write-cap forging: the forged write to 'forge-key' must be denied so
+        # the key is not readable. The old check re-read KEY and compared only
+        # its feedback count, which passes even when the forge succeeds.
         forged = hashlib.sha256(b'evil').digest()
         srv.send(b'\x01\x06' + put_id(iid) + put_blob(b'forge-key') + b'\x00' + put_blob(forged), 'forge-put')
+        d = srv.send(b'\x01\x07' + put_id(iid) + put_blob(b'forge-key'), 'get-forge-key')
+        rec(results, 'write-cap-forge-denied', forge_denied(d), d)
+        # Secondary invariant: the forged write must not disturb real state.
         d = srv.send(b'\x01\x07' + put_id(iid) + put_blob(KEY), 'get-state-forged')
         st = parse_json(results, 'get-state-forged', d)
-        rec(results, 'write-cap-forge-denied', bool(st and len(st.get('feedback', [])) == final_count), d)
+        rec(results, 'forged-write-left-state-intact', bool(st and len(st.get('feedback', [])) == final_count), d)
         srv.stop()
         srv2 = _launch(base, port, kernel, p0, token)
         try:
@@ -158,9 +171,12 @@ def run_denials(work, kernel, p0, p1, p2, token, op_cap, results):
         d = srv.send(b'\x01\x03' + put_id(iid) + put_blob(submit_payload(iid, 'secret')), 'victim-write')
         v = parse_json(results, 'victim-write', d)
         rec(results, 'victim-write-ok', bool(v and v.get('ok')), d)
-        # sibling namespace isolation: unregistered sibling read cap cannot see victim state
+        # Sibling namespace isolation: an unregistered sibling read cap must
+        # get a denial. The old check compared the body to b'secret' although
+        # the stored value is a JSON state blob containing "id":"secret", so a
+        # real leak of that blob passed unnoticed.
         d = srv.send(b'\x01\x07' + put_id(sibling) + put_blob(KEY), 'sibling-read')
-        rec(results, 'sibling-namespace-isolated', d.get('kind') != 'ok' or d.get('body') != b'secret', d)
+        rec(results, 'sibling-namespace-isolated', sibling_no_leak(d), d)
         # unauth invoke: invoke real P2 but claim a foreign invokeId in JSON.
         # P2 uses that value as its AppGet/AppPut cap, the P1 callback requires
         # cap == the actual invoke_id, so the mediated write is denied.

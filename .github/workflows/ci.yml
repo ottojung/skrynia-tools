@@ -28,6 +28,8 @@ jobs:
           "${RUNNER_TEMP}/skrynia-lint-tests"
       - name: Clippy (zero warnings)
         run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Theorem P2 security-assertion non-vacuity (stdlib only)
+        run: python3 examples/theorem_lab_feedback_p2/tests/nonvacuity.py
 
   native-admin:
     runs-on: ubuntu-latest

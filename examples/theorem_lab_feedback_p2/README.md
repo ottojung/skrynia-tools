@@ -79,9 +79,25 @@ exactly `skrynia.invoke`, `skrynia.read`, `skrynia.write`; export is
 ## Tests
 
 ```
+python3 tests/nonvacuity.py                   # std-only assertion gate, runs in CI
 cargo test --lib --tests                      # host contract/merge/CAS unit tests
 python3 tests/real_kit_p2.py --kernel ... --p0 ... --p1 ... --p2 ...
 ```
+
+The real-stack fixture is **not** a CI gate: this crate is standalone
+(`[workspace]` in its Cargo.toml) and the pinned artifacts must be supplied by
+an operator. It is documented as a manual/NOT-RUN-in-CI acceptance, not as
+exact-head proof. `tests/nonvacuity.py` is the CI-wired guard that proves the
+two security assertions demand denial/non-leak: it feeds the exact adversarial
+responses the old assertions were blind to (a successful forge, and a leaked
+JSON state blob containing `"id":"secret"`) and fails if either would pass.
+
+Fixture pins are the canonical available kit artifacts: kernel `3508938…`
+(the board-published D1/D2-fixed generic kernel; the earlier `8da114ff…`
+pre-fix binary fails this fixture), P0 `d57ab27a…` (the lost `ec74523b…`
+artifact is replaced by the PR53-source rebuild), P1 `83a65a2f…` (the retired
+aa6333a `d3686527…` lineage is replaced by the clean-P1 kit artifact), and
+this P2 `5a266578…`. All four SHA-256s are verified from bytes at startup.
 
 The Python fixture runs the real compiled kernel + P0 + P1 + this P2 over HTTP
 with fake 32-byte bearers in disposable dirs. It verifies registration, submit,

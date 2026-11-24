@@ -1,3 +1,7 @@
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub use super::{abi_stubs::*, abi_stubs2::*};
+
+#[cfg(target_arch = "wasm32")]
 #[link(wasm_import_module = "skrynia")]
 unsafe extern "C" {
     pub fn open_disk(path: u32, len: u32, mode: u32) -> i32;

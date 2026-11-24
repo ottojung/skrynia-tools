@@ -50,6 +50,14 @@ builds and publishes using Node HTTP modules; the
 `sw.js`, `manifest.webmanifest` and `icon.svg` separately.
 Neither provides a public CLI.
 
+## Publication provider
+
+The [publication provider](publish-provider/README.md) is a separate
+loopback-only HTTP service implementing the operator-defined `publish` and
+`unpublish` syscalls. It is not kernel code and not a CLI. It manages symlinks
+under the nginx document root from a private ticket mailbox and never serves
+private source bytes.
+
 ## Libraries
 
 The repository also provides a reusable Rust HTTP client, optional CAS,

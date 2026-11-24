@@ -85,6 +85,19 @@ publisher does not modify that stable worker as part of rollback. The tool refus
 unsafe paths, and overlong keys. It leaves abandoned partial releases
 in place rather than deleting unknown data.
 
+## Publication provider boundary
+
+The separate `publish-provider` service is not Skrynia and grants no public
+publication authority. It binds loopback only, takes request paths solely from
+an operator-private mailbox and returns a four-byte result code through the
+kernel syscall ABI. Source files are read-only there; destination directories
+hold only symlinks with the exact expected absolute source target. Ancestor
+traversal is confined with pre-opened `O_NOFOLLOW` directory descriptors, and
+real destination files are never overwritten or removed. nginx must mount the
+source root at the identical absolute path and have read/execute access to it;
+the mailbox must never be part of a public document root. See
+[the provider contract](../publish-provider/README.md).
+
 ## GitHub build and provenance
 
 Source builds execute make build locally on the developer machine

@@ -8,6 +8,8 @@ import init, { BrowserClient, sha256Hex } from "../../dist/skrynia-wasm/skrynia_
 function check(ok, message) { if (!ok) throw new Error(message); }
 try {
   await init();
+  const read = "544e62cee8033709e389e5b2755343d0d0fa8c4850215cfb6331717e80d1aea3";
+  const write = "2a".repeat(32);
   for (const url of [
     `http://acc:secret@${location.host}/`,
     `http://acc@${location.host}/`,
@@ -16,11 +18,11 @@ try {
     "javascript:alert(1)"
   ]) {
     let rejected = false;
-    try { new BrowserClient(url, "narrow-test-token"); }
+    try { new BrowserClient(url, "test-edge", read, write); }
     catch (_) { rejected = true; }
     check(rejected, "reject unsafe base URL: " + url);
   }
-  const client = new BrowserClient(location.origin, "narrow-test-token");
+  const client = new BrowserClient(location.origin + "/_skrynia/", "test-edge", read, write);
   const input = new TextEncoder().encode("hello wasm");
   check(await client.get("test.object") === undefined, "missing read");
   let partialAccepted = false;
@@ -37,7 +39,11 @@ try {
   check(new TextDecoder().decode(old) === "hello wasm", "public bytes");
   check(!(await client.replace("test.object", input, "0".repeat(64))), "CAS mismatch");
   check(await client.replace("test.object", input, sha256Hex(old)), "CAS success");
-  check((await client.listPage("test.*")).includes("test.object"), "authenticated listing");
+  const reader = new BrowserClient(location.origin + "/_skrynia/", "test-edge", read);
+  check(new TextDecoder().decode(await reader.get("test.object")) === "hello wasm", "read-only authority");
+  let denied = false;
+  try { await reader.create("test.unauthorized", input); } catch (_) { denied = true; }
+  check(denied, "read-only client cannot write");
   await client.initializeLog("test.log");
   const operationId = "0123456789abcdef0123456789abcdef";
   const first = await client.appendLog("test.log", operationId, input);

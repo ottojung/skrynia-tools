@@ -1,18 +1,12 @@
-use super::BrowserClient;
+use super::{BrowserClient, error, native};
 use wasm_bindgen::prelude::*;
-
 #[wasm_bindgen]
 impl BrowserClient {
     #[wasm_bindgen(js_name = get)]
     pub async fn get(&self, key: String) -> Result<Option<js_sys::Uint8Array>, JsValue> {
-        let url = self.key_url(&key)?;
-        let response = self.fetch("GET", &url, None, false, None).await?;
-        if response.status() == 404 {
-            return Ok(None);
-        }
-        Self::accept_exact(&response, 200)?;
-        Ok(Some(js_sys::Uint8Array::from(
-            Self::bytes(&response).await?.as_slice(),
-        )))
+        let frame = native::get(&self.caps.read, &key).map_err(error)?;
+        Ok(native::read(&self.post(frame).await?)
+            .map_err(error)?
+            .map(|value| js_sys::Uint8Array::from(value.as_slice())))
     }
 }

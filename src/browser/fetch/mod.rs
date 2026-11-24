@@ -1,43 +1,34 @@
-pub(super) use super::types::BrowserClient;
+use super::{types::BrowserClient, wire::native};
 use wasm_bindgen::{JsCast, prelude::*};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Request, RequestInit, Response};
-mod bytes;
-mod policy;
+use web_sys::{Request, RequestCache, RequestInit, RequestRedirect, Response};
 
 impl BrowserClient {
-    pub(super) async fn fetch(
-        &self,
-        method: &str,
-        url: &str,
-        body: Option<&[u8]>,
-        authorize: bool,
-        digest: Option<&str>,
-    ) -> Result<Response, JsValue> {
+    pub(super) async fn post(&self, frame: Vec<u8>) -> Result<Vec<u8>, JsValue> {
         let init = RequestInit::new();
-        init.set_method(method);
-        policy::apply(&init, method);
-        if let Some(bytes) = body {
-            let data = js_sys::Uint8Array::from(bytes);
-            init.set_body(&data.into());
-        }
-        let request = Request::new_with_str_and_init(url, &init)?;
-        if authorize {
-            let token = self
-                .token
-                .as_deref()
-                .ok_or_else(|| JsValue::from_str("missing user token"))?;
-            request
-                .headers()
-                .set("Authorization", &format!("Bearer {token}"))?;
-        }
-        if let Some(value) = digest {
-            request.headers().set("X-Skrynia-If-SHA256", value)?;
-        }
+        init.set_method("POST");
+        init.set_redirect(RequestRedirect::Error);
+        init.set_cache(RequestCache::NoStore);
+        init.set_body(&js_sys::Uint8Array::from(frame.as_slice()).into());
+        let request = Request::new_with_str_and_init(self.endpoint.as_str(), &init)?;
+        request.headers().set(native::EDGE_HEADER, &self.edge)?;
+        request
+            .headers()
+            .set("Content-Type", "application/octet-stream")?;
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("window unavailable"))?;
-        let response = JsFuture::from(window.fetch_with_request(&request)).await?;
-        response
+        let response: Response = JsFuture::from(window.fetch_with_request(&request))
+            .await
+            .map_err(|_| JsValue::from_str("transport failed; outcome unknown"))?
             .dyn_into()
-            .map_err(|_| JsValue::from_str("invalid fetch response"))
+            .map_err(|_| JsValue::from_str("invalid response"))?;
+        if response.status() != 200 {
+            return Err(JsValue::from_str("unexpected HTTP status; outcome unknown"));
+        }
+        let buffer = JsFuture::from(response.array_buffer()?).await?;
+        let array = js_sys::Uint8Array::new(&buffer);
+        if array.length() as usize > native::MAX_FRAME {
+            return Err(JsValue::from_str("response too large; outcome unknown"));
+        }
+        Ok(array.to_vec())
     }
 }

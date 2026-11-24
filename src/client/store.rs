@@ -1,38 +1,33 @@
-use super::types::{CreateResult, SkryniaClient, Store};
+use super::{CreateResult, SkryniaClient, Store, native};
 use anyhow::Result;
-use reqwest::StatusCode;
 
 impl Store for SkryniaClient {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         self.read(key)
     }
     fn create(&self, key: &str, data: &[u8]) -> Result<CreateResult> {
-        let req = self.http.post(self.object_path(key)?).body(data.to_vec());
-        let response = Self::mutating(self.auth(req)?.send())?;
-        if response.status() == StatusCode::CONFLICT {
-            return Ok(CreateResult::Exists);
-        }
-        Self::committed(response, StatusCode::CREATED, "create")?;
-        Ok(CreateResult::Created)
+        let frame = native::put(self.caps.writer()?, key, None, data)?;
+        Ok(if native::written(&self.post(frame)?, data)? {
+            CreateResult::Created
+        } else {
+            CreateResult::Exists
+        })
     }
 }
 impl SkryniaClient {
-    pub fn replace(&self, key: &str, data: &[u8], digest: Option<&str>) -> Result<()> {
-        let mut req = self
-            .auth(self.http.put(self.object_path(key)?))?
-            .body(data.to_vec());
-        if let Some(digest) = digest {
-            req = req.header("X-Skrynia-If-SHA256", digest);
-        }
-        Self::committed(Self::mutating(req.send())?, StatusCode::OK, "replace")?;
-        Ok(())
+    pub fn read(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        native::read(&self.post(native::get(&self.caps.read, key)?)?)
     }
-    pub fn delete(&self, key: &str, digest: Option<&str>) -> Result<()> {
-        let mut req = self.auth(self.http.delete(self.object_path(key)?))?;
-        if let Some(digest) = digest {
-            req = req.header("X-Skrynia-If-SHA256", digest);
-        }
-        Self::committed(Self::mutating(req.send())?, StatusCode::OK, "delete")?;
-        Ok(())
+    pub fn digest(data: &[u8]) -> String {
+        hex::encode(native::digest(data))
+    }
+    pub fn compare_replace(&self, key: &str, data: &[u8], expected_sha: &str) -> Result<bool> {
+        let expected = native::parse_cap(expected_sha)?;
+        let frame = native::put(self.caps.writer()?, key, Some(&expected), data)?;
+        native::written(&self.post(frame)?, data)
+    }
+    pub fn delete(&self, key: &str, digest: &str) -> Result<bool> {
+        let frame = native::delete(self.caps.writer()?, key, &native::parse_cap(digest)?)?;
+        native::deleted(&self.post(frame)?)
     }
 }

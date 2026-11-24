@@ -1,11 +1,13 @@
+use super::native::Capabilities;
 use anyhow::{Result, bail};
 use reqwest::{Url, blocking::Client};
 
 #[derive(Clone)]
 pub struct SkryniaClient {
-    pub(super) base: Url,
+    pub(super) endpoint: Url,
     pub(super) http: Client,
-    pub(super) token: Option<String>,
+    pub(super) edge: String,
+    pub(super) caps: Capabilities,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CreateResult {
@@ -17,31 +19,30 @@ pub trait Store {
     fn create(&self, key: &str, data: &[u8]) -> Result<CreateResult>;
 }
 impl SkryniaClient {
-    pub fn new(url: &str) -> Result<Self> {
-        let mut base = Url::parse(url)?;
-        if !matches!(base.scheme(), "http" | "https")
-            || base.query().is_some()
-            || base.fragment().is_some()
-            || base.cannot_be_a_base()
-            || !base.username().is_empty()
-            || base.password().is_some()
+    pub fn new(url: &str, edge: &str, read: &str, write: Option<&str>) -> Result<Self> {
+        let endpoint = Url::parse(url).map_err(|_| anyhow::anyhow!("invalid endpoint"))?;
+        let loopback = matches!(
+            endpoint.host_str(),
+            Some("localhost" | "127.0.0.1" | "[::1]")
+        );
+        if !(endpoint.scheme() == "https" || (loopback && endpoint.scheme() == "http"))
+            || endpoint.query().is_some()
+            || endpoint.fragment().is_some()
+            || !endpoint.username().is_empty()
+            || endpoint.password().is_some()
+            || edge.is_empty()
+            || !edge.bytes().all(|c| c.is_ascii_graphic())
         {
-            bail!("invalid Skrynia base URL");
-        }
-        if !base.path().ends_with('/') {
-            base.set_path(&format!("{}/", base.path()));
+            bail!("invalid endpoint or edge capability");
         }
         Ok(Self {
-            base,
+            endpoint,
+            edge: edge.to_owned(),
+            caps: Capabilities::new(read, write)?,
             http: Client::builder()
                 .timeout(std::time::Duration::from_secs(60))
                 .redirect(reqwest::redirect::Policy::none())
                 .build()?,
-            token: None,
         })
-    }
-    pub fn with_token(mut self, token: String) -> Self {
-        self.token = Some(token);
-        self
     }
 }

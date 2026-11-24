@@ -217,7 +217,7 @@ def main() -> int:
         results["checks"][name] = {"ok": bool(ok), "detail": str(detail)}
         print(("PASS" if ok else "FAIL"), name, detail, flush=True)
 
-    tmp = tempfile.mkdtemp(prefix="skrynia-wasm-pub-", dir="/tmp/opencode")
+    tmp = tempfile.mkdtemp(prefix="skrynia-wasm-pub-")
     operator = os.path.join(tmp, "operator")
     private = os.path.join(tmp, "private-disk")
     nginx_root = os.path.join(tmp, "nginx-root")

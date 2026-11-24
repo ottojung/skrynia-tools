@@ -1,4 +1,5 @@
 use super::{dispatch, open, paths, wire::*};
+const VERIFIER: &[u8] = b"/security/program0.sha256";
 fn code(out: Vec<u8>) -> i32 {
     i32::from_le_bytes(out[..4].try_into().unwrap())
 }
@@ -48,5 +49,5 @@ fn leak_safe_nested_callback_isolation() {
     // fails if the corresponding guard is weakened or removed.
     assert_eq!(code(dispatch(&[EVAL], 4)), DENIED);
     assert_eq!(code(open::call(&open_req(b"a/../b"))), DENIED);
-    assert_eq!(code(open::call(&open_req(b"/security/program0.sha256"))), DENIED);
+    assert_eq!(code(open::call(&open_req(VERIFIER))), DENIED);
 }

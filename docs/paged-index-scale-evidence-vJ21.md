@@ -60,7 +60,7 @@ Command:
 ```
 cd <isolated checkout>
 SKRYNIA_P1_OVERRIDE=<target-wasm>/skrynia_native_service.wasm \
-SKRYNIA_P1_OVERRIDE_SHA256=b0e94de5bd2c43256b4dd28fad3829e1f991b86128fc53f33b0ff064e1970a6b \
+SKRYNIA_P1_SHA256_OVERRIDE=b0e94de5bd2c43256b4dd28fad3829e1f991b86128fc53f33b0ff064e1970a6b \
 E2E_EVIDENCE_OUT=<evidence>/scale1000-final64-evidence.json \
 node tests/web-admin-v3/p1_admin_scale_1000.mjs
 ```

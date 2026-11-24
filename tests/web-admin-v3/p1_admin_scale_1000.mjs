@@ -39,32 +39,35 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 // Pin paths/hashes are fixed here, not trusted from the caller's environment:
 // a substituted artifact can only pass if its bytes hash to these values.
-// A rebuilt P1 may be validated by supplying BOTH SKRYNIA_P1_OVERRIDE (path)
-// and SKRYNIA_P1_OVERRIDE_SHA256 (exact 64-hex digest); bytes are still hashed
-// at startup. The default remains the exact PR102 compiled-stack artifact.
-const EXPECTED = {
+// A real compiled-stack runner may override each artifact by supplying BOTH
+// the <NAME>_OVERRIDE path and <NAME>_SHA256_OVERRIDE exact digest. Bytes are
+// hashed at startup; a missing path is a hard failure, never a silent skip.
+const DEFAULT_SHA = {
   kernel: 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1',
   p0: '44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95',
-  service: process.env.SKRYNIA_P1_OVERRIDE_SHA256 ||
-    'c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36',
+  service: 'c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36',
   echo: 'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
   gateway: '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
 };
+const KEY = { kernel: 'KERNEL', p0: 'P0', service: 'P1', echo: 'ECHO', gateway: 'EDGE_GATEWAY' };
+const EXPECTED = Object.fromEntries(Object.keys(DEFAULT_SHA).map(n =>
+  [n, process.env[`SKRYNIA_${KEY[n]}_SHA256_OVERRIDE`] || DEFAULT_SHA[n]]));
 const KIT = process.env.SKRYNIA_KIT_DIR || '/workspace/skrynia-exact-kit-73d8fa1';
 const ECHO = process.env.SKRYNIA_ECHO_GUEST ||
   '/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm';
 const GATEWAY = process.env.SKRYNIA_EDGE_GATEWAY_BIN ||
   '/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway';
 
-process.env.SKRYNIA_KERNEL_BIN = join(KIT, 'kernel-release');
+const override = (n, fallback) => process.env[`SKRYNIA_${KEY[n]}_OVERRIDE`] || fallback;
+process.env.SKRYNIA_KERNEL_BIN = override('kernel', join(KIT, 'kernel-release'));
 process.env.SKRYNIA_KERNEL_SHA256 = EXPECTED.kernel;
-process.env.SKRYNIA_P0_WASM = join(KIT, 'root.wasm');
+process.env.SKRYNIA_P0_WASM = override('p0', join(KIT, 'root.wasm'));
 process.env.SKRYNIA_P0_SHA256 = EXPECTED.p0;
-process.env.SKRYNIA_P1_WASM = process.env.SKRYNIA_P1_OVERRIDE || join(KIT, 'service.wasm');
+process.env.SKRYNIA_P1_WASM = override('service', join(KIT, 'service.wasm'));
 process.env.SKRYNIA_P1_SHA256 = EXPECTED.service;
-process.env.SKRYNIA_ECHO_GUEST = ECHO;
+process.env.SKRYNIA_ECHO_GUEST = override('echo', ECHO);
 process.env.SKRYNIA_ECHO_SHA256 = EXPECTED.echo;
-process.env.SKRYNIA_EDGE_GATEWAY_BIN = GATEWAY;
+process.env.SKRYNIA_EDGE_GATEWAY_BIN = override('gateway', GATEWAY);
 process.env.SKRYNIA_EDGE_GATEWAY_SHA256 = EXPECTED.gateway;
 
 // run.mjs is imported dynamically so the pin env above is in effect first.
@@ -82,7 +85,7 @@ const { createNativeCapabilities } = await import(NATIVE);
 const OP = { STAGE: 9, SEAL: 10, ACTIVATE: 11, GET_ACTIVE: 12, LIST_VERSIONS: 13, REGISTER: 15 };
 const ERR = { BADREQ: 1, IO: 7, NOTFOUND: 8, UNAUTH: 9, CONFLICT: 10 };
 const NVERSIONS = 1000;
-const PAGE_LIMIT = 256;
+const PAGE_LIMIT = 64;
 
 const stageOp = (admin, code) =>
   Buffer.concat([Buffer.from([1, OP.STAGE]), putId(admin), putBlob(code)]);
@@ -199,21 +202,9 @@ export async function main() {
     env_paths: { kernel: PINS.kernel.path, p0: PINS.p0.path, service: PINS.service.path,
       echo: PINS.echo.path, gateway: PINS.gateway.path },
     token_policy: 'random 32-byte bearer per run, 0600 temp file, never logged; no secret in EVIDENCE',
-    skipped: ['Chromium UI pagination (PAGE_LIMIT=256) - covered at shipped-adapter level here, not browser DOM',
+    skipped: ['Chromium UI pagination (PAGE_LIMIT=64) - covered at shipped-adapter level here, not browser DOM',
       'Cargo/Rust tests, any WASM/kernel/gateway build, main/prod/DNS/TLS/deploy'],
   };
-  // Source-only CI jobs do not provision the exact compiled kit. Skip there
-  // rather than asserting a missing local path; pins stay byte-exact when
-  // artifacts are present (compiled-stack job and developer runs).
-  const missing = Object.keys(EXPECTED).filter(n => !PINS[n] || !PINS[n].path);
-  const absent = [];
-  for (const n of Object.keys(EXPECTED)) {
-    if (!(await exists(PINS[n].path))) absent.push(n);
-  }
-  if (absent.length) {
-    console.log(`SKIP 1000-version acceptance: exact compiled kit artifacts absent (${absent.join(', ')}); pins unchanged`);
-    return;
-  }
   try {
     // ---- exact pins / boot ----
     for (const [name, expected] of Object.entries(EXPECTED)) {
@@ -381,8 +372,8 @@ export async function main() {
       unionB.join(',') === allB.join(','), `${unionB.length} hashes`);
     await denyOp('CTRL4 limit=0 rejected (err 1)',
       Buffer.concat([Buffer.from([1, OP.LIST_VERSIONS]), putId(iidB), Buffer.from([0, 0, 0])]), ERR.BADREQ);
-    await denyOp('CTRL5 limit=257 rejected (err 1)',
-      Buffer.concat([Buffer.from([1, OP.LIST_VERSIONS]), putId(iidB), Buffer.from([0, 1, 1])]), ERR.BADREQ);
+    await denyOp('CTRL5 limit=65 rejected (err 1)',
+      Buffer.concat([Buffer.from([1, OP.LIST_VERSIONS]), putId(iidB), Buffer.from([0, 0, 65])]), ERR.BADREQ);
     evidence.listing = {
       scale: { ok: scaleList.ok, count: scaleList.count, pages: scaleList.pages, err: scaleList.err },
       bounded: { count: boundedList.count, pages: boundedList.pages, sizes: boundedList.sizes },

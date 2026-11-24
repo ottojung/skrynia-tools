@@ -57,7 +57,7 @@ const activateOp = (admin, revision, target) => {
   return Buffer.concat([Buffer.from([1, OP.ACTIVATE]), putId(admin), r, Buffer.from(target)]);
 };
 const getActiveOp = iid => Buffer.concat([Buffer.from([1, OP.GET_ACTIVE]), putId(iid)]);
-const listVersionsOp = (iid, after = null, limit = 256) => {
+const listVersionsOp = (iid, after = null, limit = 64) => {
   const l = Buffer.alloc(2); l.writeUInt16LE(limit);
   const page = after
     ? Buffer.concat([Buffer.from([1]), Buffer.from(after), l])
@@ -186,7 +186,7 @@ export async function main() {
       const xs = parseList(d.body); return xs.length === 1;
     });
     const firstHash = parseList(firstPage.body)[0];
-    await okOp('L4 list after=first returns the remaining hash', listVersionsOp(iid, firstHash, 256), d => {
+    await okOp('L4 list after=first returns the remaining hash', listVersionsOp(iid, firstHash, 64), d => {
       const xs = parseList(d.body); return xs.length === 1 && !eqBuf(xs[0], firstHash) &&
         sortedHex([...xs, firstHash]) === sortedHex([hA, hB]);
     });

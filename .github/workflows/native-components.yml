@@ -117,6 +117,26 @@ jobs:
             echo "sha256_p2=$(sha256sum "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm" | cut -d' ' -f1)"
           } > "$FC_ARTIFACTS/COMMIT_MANIFEST.txt"
           cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+      - name: 1000-version / restart exact-stack acceptance (real compiled kit)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          A="$RUNNER_TEMP/skrynia-fullchain-artifacts"
+          for f in kernel root.wasm service.wasm echo.wasm edge; do
+            test -s "$A/$f"
+          done
+          sha256sum "$A/"*
+          export SKRYNIA_KERNEL_OVERRIDE="$A/kernel"
+          export SKRYNIA_KERNEL_SHA256_OVERRIDE=$(sha256sum "$A/kernel" | cut -d' ' -f1)
+          export SKRYNIA_P0_OVERRIDE="$A/root.wasm"
+          export SKRYNIA_P0_SHA256_OVERRIDE=$(sha256sum "$A/root.wasm" | cut -d' ' -f1)
+          export SKRYNIA_P1_OVERRIDE="$A/service.wasm"
+          export SKRYNIA_P1_SHA256_OVERRIDE=$(sha256sum "$A/service.wasm" | cut -d' ' -f1)
+          export SKRYNIA_ECHO_OVERRIDE="$A/echo.wasm"
+          export SKRYNIA_ECHO_SHA256_OVERRIDE=$(sha256sum "$A/echo.wasm" | cut -d' ' -f1)
+          export SKRYNIA_EDGE_GATEWAY_OVERRIDE="$A/edge"
+          export SKRYNIA_EDGE_GATEWAY_SHA256_OVERRIDE=$(sha256sum "$A/edge" | cut -d' ' -f1)
+          node tests/web-admin-v3/p1_admin_scale_1000.mjs
       - name: Upload exact compiled stack (reuse by downstream CI)
         uses: actions/upload-artifact@v4
         with:

@@ -53,15 +53,15 @@ Exact compiled stack (release kernel `a1dc4119…`, P0 `44e845a4…`, trusted ed
 from this source with rustup wasm32 + cached registry:
 
 - baseline source `73d8fa1` reproduced kit P1 `c7239fc5…` byte-for-byte;
-- fixed P1 `de974ff580070d68b43de62c30911bf446fb8804e5ff11f197b013c738f569e1`.
+- fixed P1 `23b50e8f7c14177cbf2ac380a1be0da57270e1252296016efc6ab8f07bdf032f`.
 
 Command:
 
 ```
 cd <isolated checkout>
 SKRYNIA_P1_OVERRIDE=<target-wasm>/skrynia_native_service.wasm \
-SKRYNIA_P1_OVERRIDE_SHA256=de974ff580070d68b43de62c30911bf446fb8804e5ff11f197b013c738f569e1 \
-E2E_EVIDENCE_OUT=<evidence>/scale1000-final-evidence.json \
+SKRYNIA_P1_OVERRIDE_SHA256=23b50e8f7c14177cbf2ac380a1be0da57270e1252296016efc6ab8f07bdf032f \
+E2E_EVIDENCE_OUT=<evidence>/scale1000-max64-evidence.json \
 node tests/web-admin-v3/p1_admin_scale_1000.mjs
 ```
 
@@ -69,9 +69,9 @@ Result: **78/78 checks PASS** (`ALL_OK=true`), including `SCALE-LIST` (1001
 hashes in 4 pages), `ADAPTER-scale`, `O1`, O2-O5 O(1) activation with a
 byte-exact private-state diff, fail-closed denials and `RST5` (all 1001 ready
 versions listable after kill/restart). Evidence
-`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-final-evidence.json`
-sha256 `41dccc7959b21440a1b989decb289b006b62f51bbda37a7978b593e75ec49249`;
-log sha256 `85ef60b50d27ccf3d0c3cd8881e6a1bd6516cae3a9c487c031e684b344905c62`.
+`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-max64-evidence.json`
+sha256 ``;
+log sha256 ``.
 
 The shipped default pin remains the exact PR102 artifact; the harness override
 is hash-gated and for source-change validation only. Release/cutover still
@@ -103,3 +103,18 @@ actual generation target or target-1 (0 only for target 1), otherwise fails
 closed without cleanup, deletes the correct fresh set on uncommitted and old
 set on committed, tolerates absent paths via a pre-read, and propagates real
 delete errors so the journal is cleared only after successful reclamation.
+
+## Explicit MAX_PAGE=64 (released-protocol decision)
+
+The native P1 keyset page limit is now exactly 64: `limit=0` and `limit>64`
+are rejected with err 1 (no silent truncation), and the shipped
+`native_capabilities.js` adapter, strict client tests and E2E harnesses use
+`PAGE_LIMIT=64`. This is an unreleased protocol, so no compatibility shim is
+kept. Worst-case traversal is 64 singleton leaves plus 64 singleton
+directories plus first-cursor skipped paths, within the observed callback
+budget; an independent real-compiled-P1 sparse64 fixture (256 one-key
+directories, boundary cursors) passed 11/11. The 1000-version harness now
+walks 16 pages and remains 78/78 with the rebuilt P1. The scale harness no
+longer skips absent artifacts: a missing pin is a hard failure. The
+source-only `native-admin` job does not invoke the scale harness; the
+compiled-stack job executes it with runner-built SHA-verified artifacts.

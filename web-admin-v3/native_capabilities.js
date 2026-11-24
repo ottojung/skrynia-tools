@@ -16,7 +16,7 @@ import {createBinaryPostTransport} from './binary_transport.js';
 import {assertAppName, assertReleaseId, normalizeManifest} from './capabilities.js';
 
 const textEncoder = new TextEncoder();
-const PAGE_LIMIT = 256; // compiled service rejects limit=0 and limit>256
+const PAGE_LIMIT = 64; // native P1 requires 1..64; reject >64, never silently truncate
 const OP = {
   STAGE: 9, SEAL: 10, ACTIVATE: 11, GET_ACTIVE: 12, LIST_VERSIONS: 13, LIST_PROGRAMS: 14,
 };

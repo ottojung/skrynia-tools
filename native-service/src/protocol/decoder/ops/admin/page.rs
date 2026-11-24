@@ -7,7 +7,7 @@ pub fn page(src: &mut &[u8]) -> Result<(Option<Vec<u8>>, u16), DecodeErr> {
     };
     let n: [u8; 2] = take(src, 2)?.try_into().unwrap();
     let limit = u16::from_le_bytes(n);
-    if limit == 0 || limit > 256 {
+    if limit == 0 || limit > 64 {
         return Err(DecodeErr::Op);
     }
     Ok((after, limit))

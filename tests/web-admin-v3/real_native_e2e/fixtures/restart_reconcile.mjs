@@ -54,7 +54,7 @@ const activateOp = (admin, revision, target) => {
   return Buffer.concat([Buffer.from([1, OP.ACTIVATE]), putId(admin), r, Buffer.from(target)]);
 };
 const getActiveOp = iid => Buffer.concat([Buffer.from([1, OP.GET_ACTIVE]), putId(iid)]);
-const listVersionsOp = (iid, after = null, limit = 256) => {
+const listVersionsOp = (iid, after = null, limit = 64) => {
   const l = Buffer.alloc(2); l.writeUInt16LE(limit);
   const page = after
     ? Buffer.concat([Buffer.from([1]), Buffer.from(after), l])

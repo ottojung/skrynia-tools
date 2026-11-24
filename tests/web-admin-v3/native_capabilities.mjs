@@ -46,7 +46,7 @@ function readPage(b, at) {
   return {after, limit};
 }
 function makePage(hashes, after, limit) {
-  if (limit === 0 || limit > 256) return envelope(1, Buffer.from([1]));
+  if (limit === 0 || limit > 64) return envelope(1, Buffer.from([1]));
   const sorted = [...hashes].map(h => Buffer.from(h)).sort((a, b) => a.compare(b));
   const cursor = after ? Buffer.from(after) : null;
   const start = cursor ? sorted.findIndex(h => h.compare(cursor) > 0) : 0;

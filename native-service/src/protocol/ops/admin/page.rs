@@ -12,7 +12,7 @@ pub fn encode(selected: &[[u8; 32]]) -> Vec<u8> {
 pub type Cursor = Option<[u8; 32]>;
 
 pub fn after(after: &Option<Vec<u8>>, limit: u16) -> Option<Cursor> {
-    if limit == 0 || limit > 256 || after.as_ref().is_some_and(|v| v.len() != 32) {
+    if limit == 0 || limit > 64 || after.as_ref().is_some_and(|v| v.len() != 32) {
         return None;
     }
     Some(match after {

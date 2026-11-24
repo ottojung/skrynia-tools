@@ -4,7 +4,7 @@ This agent's GitHub OAuth token lacks the `workflow` scope, so GitHub
 refused a push that modifies `.github/workflows/native-components.yml`.
 The exact patch below must be applied by a workflow-scoped actor to
 complete the kernel pin and compiled regression gates. Saved at
-$/tmp/opencode/pr98fix/evidence/workflow-kernel-p2.patch on the host.
+/tmp/opencode/pr98fix/evidence/workflow-kernel-p2.patch on the host.
 
 ```diff
 diff --git a/.github/workflows/native-components.yml b/.github/workflows/native-components.yml

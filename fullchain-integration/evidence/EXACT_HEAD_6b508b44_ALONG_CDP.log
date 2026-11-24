@@ -1,0 +1,54 @@
+Chromium: Chromium 147.0.7727.137
+origin: http://localhost:44685 | sw.js sha256: b1c9135be629bf0bdee47fbb247b9921f846090590f2d9d3105f9e46e8b23739
+browser registration: {"scope":"http://localhost:44685/","script":"http://localhost:44685/sw.js","secure":true,"controlled":true,"origin":"http://localhost:44685"}
+  ok - CDP ServiceWorker.deliverPushMessage is supported by local Chromium
+  ok - same-origin page provisions the worker over MessageChannel and persists a verified baseline
+  ok - malformed hints and unchanged authoritative data suppress; valid hints use only binary AppGet POST /_skrynia/
+  ok - missing author/traveller state fails closed without advancing the baseline
+  ok - fresh match + fresh other-authored message notify once and baseline advances after notification
+  ok - notification tags deduplicate a repeated wake-up
+  ok - self-authored messages are suppressed
+  ok - revocation and unknown identity fail closed
+  ok - fingerprint rotation resets baseline; cross-identity refresh is refused
+  ok - fresh other-authored message notifies once and is recorded in the durable baseline
+  ok - durable notification state survives a real Chromium restart on the same profile
+  ok - post-restart push uses the persisted baseline and notifies only on genuinely new activity
+  ok - all native reads are app-scoped binary POSTs with only the app edge capability; no token or key material
+{
+  "test": "real Chromium CDP ServiceWorker.deliverPushMessage (browser-handled, not provider delivery)",
+  "testHead": "a2c87c6c8294c885147b4c304994ac5570437998",
+  "chromium": "/var/guix/profiles/per-user/puser/guix-profile/bin/chromium",
+  "chromiumVersion": "Chromium 147.0.7727.137",
+  "playwright": "/workspace/skrynia-tools/tests/browser/node_modules/playwright-core",
+  "playwrightVersion": "1.65.1",
+  "node": "v24.21.0",
+  "origin": "http://localhost:44685",
+  "swSha256": "b1c9135be629bf0bdee47fbb247b9921f846090590f2d9d3105f9e46e8b23739",
+  "scriptSha256": "b3508f867c656ce1bf2190db62773cb60c8b3fc0957b977748fad0f0462766c3",
+  "registrationId": "0",
+  "profileBytes": 4394729,
+  "cdpCommand": "ServiceWorker.deliverPushMessage",
+  "pushPayload": "opaque 32-byte hint supplied by CDP as raw string bytes",
+  "claims": {
+    "externalWebPushProviderDelivery": false,
+    "browserSubscriptionOrCredentials": false,
+    "vapidPrivateKey": false,
+    "compiledKernelP0P1": false
+  },
+  "checks": [
+    "CDP ServiceWorker.deliverPushMessage is supported by local Chromium",
+    "same-origin page provisions the worker over MessageChannel and persists a verified baseline",
+    "malformed hints and unchanged authoritative data suppress; valid hints use only binary AppGet POST /_skrynia/",
+    "missing author/traveller state fails closed without advancing the baseline",
+    "fresh match + fresh other-authored message notify once and baseline advances after notification",
+    "notification tags deduplicate a repeated wake-up",
+    "self-authored messages are suppressed",
+    "revocation and unknown identity fail closed",
+    "fingerprint rotation resets baseline; cross-identity refresh is refused",
+    "fresh other-authored message notifies once and is recorded in the durable baseline",
+    "durable notification state survives a real Chromium restart on the same profile",
+    "post-restart push uses the persisted baseline and notifies only on genuinely new activity",
+    "all native reads are app-scoped binary POSTs with only the app edge capability; no token or key material"
+  ]
+}
+PASS real Chromium CDP push: 13 browser-handled gates

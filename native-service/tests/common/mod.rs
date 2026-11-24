@@ -1,6 +1,8 @@
 //! Shared P1 appdata helpers for the wake regression integration tests.
 #![allow(dead_code)]
 mod app;
+pub mod crosskey;
+pub mod crosskey_query;
 mod faildata;
 mod fault;
 mod memdisk;

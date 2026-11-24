@@ -82,12 +82,26 @@ never encodes them.
 ## Release deployment gate
 
 Release deployment must boot this generated root WASM through the kernel. A
-deployment helper that POSTs directly to the HTTP provider is a convenience path
-only; it does not satisfy the WASM publication lifecycle gate and must not be
-recorded as its substitute. The downstream deployment owner wires the exact
-compiled root artifact into the release flow and records its hash. Until that is
-done and evidenced, the deployment gate is open (NOT RUN), regardless of this
-program's source and CI status.
+deployment helper that POSTs directly to the HTTP provider is a diagnostic
+convenience path only; it does not satisfy the WASM publication lifecycle gate
+and must not be recorded as its substitute.
+
+The downstream WASM-root gate is now qualified in disposable CI, not "NOT RUN":
+
+- Apps PR #342 merged as `9e1781ec85e8ed4f15ad2b5b30f9a433a475b81e`,
+  integrating the real WASM-root publication lifecycle and bounded activation
+  (39/39 local lifecycle checks, 31/31 unit checks, exact-head CI green).
+- Apps PR #350 head `d6fd2d50038f89f81a96eae07d33cdd307256943` merged as
+  `735d186bd3b2ae8abe057f7b9677a8182a82d263` with 5/5 exact-head check-runs,
+  including the `static-publication` workflow: 31/31 unit checks and a real
+  lifecycle `ALL_OK`, with pinned source identities and the served publication
+  contract recorded.
+
+That downstream evidence means the real lifecycle has been exercised; it is not
+production authorization. Production DNS/TLS, credentials, application data
+migration and cutover remain separate operator gates, documented downstream in
+`docs/static-host-v3-deployment.md` and
+`qualification/publication-isolation/README.md` in `skrynia-apps`.
 
 ## Build and verify
 

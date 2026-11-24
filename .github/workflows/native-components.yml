@@ -124,6 +124,65 @@ jobs:
           path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
           if-no-files-found: error
 
+  enospc-recovery:
+    # Genuine ENOSPC on a private, disposable 8 MiB tmpfs. Reuses the exact
+    # compiled stack built by compiled-stack (kernel 806c172, P0/P1/P2/edge).
+    # No kernel or guest rebuild; no shared-host fills and no privileged mounts
+    # outside this disposable runner. sudo is used only for mount/umount of VOL.
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack-806c172
+          path: ${{ runner.temp }}/exact-stack
+      - name: Pin exact source, kernel source and artifact hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="$RUNNER_TEMP/exact-stack"
+          (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
+          grep -qx 'kernel=806c172402880389eee94162a020c0f9c4c1bff2' "$A/COMMIT_MANIFEST.txt"
+          grep -qx 'kernel_head=806c172402880389eee94162a020c0f9c4c1bff2' "$A/COMMIT_MANIFEST.txt"
+          # The compiled artifact and this job check out the same workflow commit.
+          grep -qx "tools_head=$(git rev-parse HEAD)" "$A/COMMIT_MANIFEST.txt"
+      - name: Unit-test ENOSPC harness (safe, no mounts or fills)
+        run: python3 tests/v3_proxy/enospc_recovery.py --self-test
+      - name: Genuine ENOSPC on private tmpfs (real compiled ordinary P1)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          A="$RUNNER_TEMP/exact-stack"
+          VOL="$RUNNER_TEMP/skrynia-enospc-volume"
+          LOGS="$RUNNER_TEMP/skrynia-enospc-logs"
+          mkdir -p "$VOL" "$LOGS"
+          cleanup() {
+            sudo umount "$VOL" 2>/dev/null || true
+            rm -rf "$VOL"
+          }
+          trap cleanup EXIT
+          sudo mount -t tmpfs -o size=8m,nosuid,nodev,noexec tmpfs "$VOL"
+          df -hT "$VOL"
+          chmod 700 "$A/kernel"
+          python3 tests/v3_proxy/enospc_recovery.py \
+            --kernel "$A/kernel" \
+            --p0 "$A/root.wasm" \
+            --p1 "$A/service.wasm" \
+            --guest "$A/theorem_lab_feedback_p2.wasm" \
+            --volume "$VOL" \
+            --log-dir "$LOGS" \
+            --manifest "$A/COMMIT_MANIFEST.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enospc-recovery-log
+          path: ${{ runner.temp }}/skrynia-enospc-logs/kernel.log
+          if-no-files-found: warn
+
   publication-wasm:
     runs-on: ubuntu-latest
     timeout-minutes: 45

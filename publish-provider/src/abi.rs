@@ -1,4 +1,4 @@
-//! Four-byte little-endian ABI shared with the kernel HTTP syscall fallback.
+//! Four-byte little-endian ABI shared with the reference HTTP syscall protocol.
 
 use serde_json::{Value, json};
 
@@ -21,7 +21,7 @@ pub fn encode(code: u32) -> Vec<u8> {
     code.to_le_bytes().to_vec()
 }
 
-/// Advertises the two names the kernel may configure as HTTP syscalls.
+/// Advertises the complete list of supported syscalls.
 pub fn syscalls_list() -> Value {
     json!(["publish", "unpublish"])
 }

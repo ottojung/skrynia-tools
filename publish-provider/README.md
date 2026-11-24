@@ -9,8 +9,7 @@ configuration comes from the environment.
 
 The kernel sees only a numeric ticket. Path data crosses the boundary through
 an **operator-private mailbox**, never through the kernel RAM or a public HTTP
-parameter. The provider binds a loopback address only and exposes exactly one GET discovery endpoint and two
-POST syscall endpoints. It never serves source bytes and never reads kernel memory.
+parameter. The provider binds a loopback address only and exposes exactly one GET discovery endpoint and two POST operation endpoints. It never serves source bytes and never reads kernel memory.
 
 There are three disjoint roots, mounted separately:
 
@@ -41,7 +40,7 @@ resolution follows the live absolute source path.
 
 ## Syscall ABI
 
-The kernel's HTTP syscall transport (Skrynia main, `rust-server/src/sys/extensions/http`)
+The reference Skrynia kernel
 posts to `<SKRYNIA_SYSCALL_URL>/<name>` with `Content-Type:
 application/octet-stream` and a body of exactly four little-endian bytes. A
 successful response is HTTP 200 with exactly four little-endian result bytes.
@@ -50,7 +49,7 @@ The provider accepts no other body length and emits no other response length.
 Configure the kernel with `SKRYNIA_SYSCALL_URL` set to the provider origin with
 no path prefix. The kernel performs `GET <base>/syscalls_list` with no request
 body and expects HTTP 200 with a plain JSON array of strings, for example
-`["publish","unpublish"]`. Per-syscall invocation is unchanged:
+`["publish","unpublish"]`. Per-syscall invocation:
 `POST <base>/<name>` with four little-endian bytes in and out.
 
 Result codes (u32 bit patterns):
@@ -64,6 +63,11 @@ Result codes (u32 bit patterns):
 | 4 | destination conflict: real file, wrong symlink target, or symlinked ancestor |
 | 5 | I/O error |
 | 6 | internal invariant failure |
+
+This HTTP service defines the publication syscalls' operational behavior. A
+custom executable using `libskrynia` may eliminate the HTTP transport only
+by reproducing this complete discovery list and the same results and effects.
+There is no separate class of syscall names or precedence rule.
 
 ## Mailbox contract
 
@@ -95,7 +99,7 @@ podman build -f publish-provider/Dockerfile -t skrynia-publish-provider:test .
 CONTAINER_ENGINE=podman bash publish-provider/container_smoke.sh skrynia-publish-provider:test
 ```
 
-The Rust tests spawn the real binary over loopback HTTP and cover `/version`,
+The Rust tests spawn the real binary over loopback HTTP and cover `GET /syscalls_list`,
 published symlink targets, idempotent repetition, concurrent tickets, missing
 tickets, hostile path grammars, symlinked sources, conflicting real files,
 wrong symlink targets and symlinked destination ancestors. The container smoke

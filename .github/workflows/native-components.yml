@@ -51,6 +51,15 @@ jobs:
         run: |
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-program0
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
+      - name: Compiled Program0 operator-root isolation
+        run: |
+          rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown \
+            --crate-type cdylib -C opt-level=s -C panic=abort -C strip=symbols \
+            tests/v3_proxy/callback/probe.rs -o "$RUNNER_TEMP/scope-probe.wasm"
+          python3 tests/v3_proxy/callback/real_scope.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm" \
+            --guest "$RUNNER_TEMP/scope-probe.wasm"
       - name: Build current Theorem P2 guest
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target

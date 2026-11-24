@@ -6,19 +6,23 @@ use std::process::{Command, Stdio};
 
 pub fn start(bin: &str, p0_wasm: &str, token: [u8; 32]) -> Kernel {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(dir.path().join("programs")).unwrap();
-    std::fs::create_dir_all(dir.path().join("security")).unwrap();
-    set_mode(dir.path().join("security"), 0o700);
+    let operator = dir.path().join("operator");
+    let user = dir.path().join("user");
+    std::fs::create_dir_all(operator.join("programs")).unwrap();
+    std::fs::create_dir_all(operator.join("security")).unwrap();
+    std::fs::create_dir(&user).unwrap();
+    set_mode(operator.join("security"), 0o700);
     let digest = <sha2::Sha256 as sha2::Digest>::digest(token);
-    let sec = dir.path().join("security/program0.sha256");
+    let sec = operator.join("security/program0.sha256");
     std::fs::write(&sec, digest).unwrap();
     set_mode(&sec, 0o600);
-    std::fs::write(dir.path().join("programs/root.wasm"), wasm::echo_wasm()).unwrap();
+    std::fs::write(operator.join("programs/root.wasm"), wasm::echo_wasm()).unwrap();
     let addr: SocketAddr = format!("127.0.0.1:{}", free_port()).parse().unwrap();
     let mut child = Command::new(bin)
         .env("SKRYNIA_ROOT_WASM", p0_wasm)
         .env("SKRYNIA_BIND", addr.to_string())
-        .env("SKRYNIA_DATA_DIR", dir.path())
+        .env("SKRYNIA_OPERATOR_DIR", &operator)
+        .env("SKRYNIA_USER_DIR", &user)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()

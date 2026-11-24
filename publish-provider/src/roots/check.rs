@@ -1,11 +1,10 @@
-//! Root-overlap validation. Public and private roots must not be the same
-//! directory and must not contain one another in either direction.
+//! Overlap checks: public and private roots must be disjoint in both
+//! directions so nginx cannot serve private material through a prefix.
 
-use super::identity::same;
-use std::os::fd::OwnedFd;
+use std::os::fd::{AsRawFd, OwnedFd};
 use std::path::Path;
 
-pub(crate) fn check(
+pub(super) fn roots(
     requests: &OwnedFd,
     disk: &OwnedFd,
     nginx: &OwnedFd,
@@ -29,4 +28,15 @@ fn overlap(nginx: &Path, private: &Path, name: &str) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn same(a: &OwnedFd, b: &OwnedFd) -> bool {
+    let mut sa: libc::stat = unsafe { std::mem::zeroed() };
+    let mut sb: libc::stat = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat(a.as_raw_fd(), &mut sa) } != 0
+        || unsafe { libc::fstat(b.as_raw_fd(), &mut sb) } != 0
+    {
+        return false;
+    }
+    sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino
 }

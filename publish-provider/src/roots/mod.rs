@@ -1,7 +1,8 @@
 //! Three disjoint, operator-owned roots opened once as confined directory
 //! descriptors. The source root is never served; only symlinks are published.
 
-use super::boundary;
+mod check;
+
 use std::ffi::CString;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::os::unix::ffi::OsStrExt;
@@ -18,7 +19,7 @@ pub fn open(requests: &Path, disk: &Path, nginx: &Path) -> Result<Roots, String>
     let (requests, req_abs) = open_dir(requests)?;
     let (disk, disk_abs) = open_dir(disk)?;
     let (nginx, nginx_abs) = open_dir(nginx)?;
-    boundary::check(&requests, &disk, &nginx, &req_abs, &disk_abs, &nginx_abs)?;
+    check::roots(&requests, &disk, &nginx, &req_abs, &disk_abs, &nginx_abs)?;
     Ok(Roots {
         requests,
         disk,

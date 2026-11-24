@@ -93,7 +93,7 @@ def write_atomic(path: str, payload: bytes) -> None:
 
 def seed_private(private: str, release: str, payload: bytes) -> str:
     rel = f"apps/qual/releases/{release}/asset.js"
-    path = os.path.join(private, rel)
+    path = os.path.join(source, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     pathlib.Path(path).write_bytes(payload)
     return rel
@@ -219,7 +219,6 @@ def main() -> int:
 
     tmp = tempfile.mkdtemp(prefix="skrynia-wasm-pub-")
     operator = os.path.join(tmp, "operator")
-    private = os.path.join(tmp, "private-disk")
     nginx_root = os.path.join(tmp, "nginx-root")
     # Publication VM user root (mailbox) is disjoint from the source artifact root.
     pub_user = os.path.join(tmp, "publication-user")
@@ -231,10 +230,10 @@ def main() -> int:
     os.makedirs(os.path.join(operator, "security"), exist_ok=True)
     pathlib.Path(operator, "security", "program0.sha256").write_bytes(hashlib.sha256(token).digest())
 
-    rel = seed_private(private, RELEASE, b"REAL WASM PUBLICATION BYTES")
-    old_rel = seed_private(private, OLD_RELEASE, b"OLD RELEASE BYTES")
+    rel = seed_private(source, RELEASE, b"REAL WASM PUBLICATION BYTES")
+    old_rel = seed_private(source, OLD_RELEASE, b"OLD RELEASE BYTES")
     active = "apps/qual/active.json"
-    write_atomic(os.path.join(private, active), b'{"release":"' + OLD_RELEASE.encode() + b'"}')
+    write_atomic(os.path.join(source, active), b'{"release":"' + OLD_RELEASE.encode() + b'"}')
 
     provider_port, kernel_port, nginx_port = free_port(), free_port(), free_port()
     provider = Process(args.provider, provider_port, {
@@ -269,7 +268,7 @@ def main() -> int:
 
         record("wasm_unpublish_returns_zero", wasm_call(url, token, OP_UNPUBLISH, rel) == 0)
         record("after_unpublish_inaccessible", get(nginx_port, "/" + rel)[0] == 404)
-        record("source_file_intact", pathlib.Path(private, rel).read_bytes() == b"REAL WASM PUBLICATION BYTES")
+        record("source_file_intact", pathlib.Path(source, rel).read_bytes() == b"REAL WASM PUBLICATION BYTES")
 
         bad = [b"security/program0.sha256", b"programs/root.wasm", b"publication-requests/00000001",
                b"apps/../../etc/passwd", b"/apps/qual/x", b"apps/qual/\0x"]
@@ -284,7 +283,7 @@ def main() -> int:
 
         paths = [f"apps/qual/releases/{RELEASE}/part{i}.js" for i in range(16)]
         for p in paths:
-            pathlib.Path(private, p).write_bytes(p.encode())
+            pathlib.Path(source, p).write_bytes(p.encode())
         with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
             codes = list(pool.map(lambda p: wasm_call(url, token, OP_PUBLISH, p), paths))
         record("concurrent_wasm_publications", codes == [0] * 16, codes)
@@ -294,7 +293,7 @@ def main() -> int:
         switch_ok = True
         for version, payload in [(OLD_RELEASE, b"OLD RELEASE BYTES"), (RELEASE, b"REAL WASM PUBLICATION BYTES"),
                                  (OLD_RELEASE, b"OLD RELEASE BYTES")]:
-            write_atomic(os.path.join(private, active), b'{"release":"' + version.encode() + b'"}')
+            write_atomic(os.path.join(source, active), b'{"release":"' + version.encode() + b'"}')
             switch_ok &= wasm_call(url, token, OP_UNPUBLISH, active) == 0
             switch_ok &= wasm_call(url, token, OP_PUBLISH, active) == 0
             status, body = get(nginx_port, "/" + active)

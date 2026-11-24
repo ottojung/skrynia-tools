@@ -24,8 +24,5 @@ pub fn hashes(body: &[u8]) -> Vec<[u8; 32]> {
     assert!(body.len() >= 2);
     let len = u16::from_le_bytes(body[0..2].try_into().unwrap()) as usize;
     assert_eq!(body.len(), 2 + len * 32);
-    body[2..]
-        .chunks_exact(32)
-        .map(|x| x.try_into().unwrap())
-        .collect()
+    body[2..].as_chunks::<32>().0.to_vec()
 }

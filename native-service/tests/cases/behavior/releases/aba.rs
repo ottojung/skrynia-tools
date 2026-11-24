@@ -28,7 +28,7 @@ fn ready_history_allows_but_nonce_prevents_aba_and_revoke_reuse() {
     r.register(&d, &lock, &admin, b"first".to_vec()).unwrap();
     assert_eq!(r.active_info(&d, &id).unwrap().revision, 5);
     assert!(r.activate_release(&d, &lock, &admin, 1, &h2).is_err());
-    assert_eq!(r.list_ready(&d, &id).unwrap(), {
+    assert_eq!(super::support::list_all(&r, &d, &id), {
         let mut hashes = vec![first.hash, h2];
         hashes.sort();
         hashes

@@ -13,22 +13,26 @@ pub fn handle<D: Disk>(reg: &Registry, disk: &D, req: &AdminRequest) -> Option<V
             invoke_id,
             after,
             limit,
-        } => match reg.list_ready(disk, invoke_id) {
-            Ok(hashes) => super::page::page(hashes, after, *limit),
-            Err(StoreErr::Missing) => res::mk_err(8),
-            Err(StoreErr::BadId) => res::mk_err(9),
-            Err(_) => res::mk_err(7),
-        },
-        AdminRequest::ListPrograms { after, limit } => match reg.list_programs(disk) {
-            Ok(ids) => {
-                let hashes = ids.into_iter().map(|id| id.try_into()).collect();
-                match hashes {
-                    Ok(v) => super::page::page(v, after, *limit),
-                    Err(_) => res::mk_err(7),
-                }
+        } => {
+            let Some(cursor) = super::page::after(after, *limit) else {
+                return Some(res::mk_err(1));
+            };
+            match reg.list_ready(disk, invoke_id, Some(cursor), *limit) {
+                Ok(hashes) => super::page::encode(&hashes),
+                Err(StoreErr::Missing) => res::mk_err(8),
+                Err(StoreErr::BadId) => res::mk_err(9),
+                Err(_) => res::mk_err(7),
             }
-            Err(_) => res::mk_err(7),
-        },
+        }
+        AdminRequest::ListPrograms { after, limit } => {
+            let Some(cursor) = super::page::after(after, *limit) else {
+                return Some(res::mk_err(1));
+            };
+            match reg.list_programs(disk, Some(cursor), *limit) {
+                Ok(ids) => super::page::encode(&ids),
+                Err(_) => res::mk_err(7),
+            }
+        }
         _ => return None,
     })
 }

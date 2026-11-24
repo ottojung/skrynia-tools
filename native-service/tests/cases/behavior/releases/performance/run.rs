@@ -18,7 +18,7 @@ fn activation_touches_constant_bytes_even_with_thousand_historical_versions() {
         reg.seal_release(&d, &lock, &admin, &hash).unwrap();
         hashes.push(hash);
     }
-    assert_eq!(reg.list_ready(&d, &iid).unwrap().len(), 1001);
+    assert_eq!(super::super::support::list_all(&reg, &d, &iid).len(), 1001);
     let before = d.stats();
     let first = reg
         .activate_release(&d, &lock, &admin, 1, &hashes[0])

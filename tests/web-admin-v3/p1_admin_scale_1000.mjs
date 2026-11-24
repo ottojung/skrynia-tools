@@ -39,10 +39,14 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 // Pin paths/hashes are fixed here, not trusted from the caller's environment:
 // a substituted artifact can only pass if its bytes hash to these values.
+// A rebuilt P1 may be validated by supplying BOTH SKRYNIA_P1_OVERRIDE (path)
+// and SKRYNIA_P1_OVERRIDE_SHA256 (exact 64-hex digest); bytes are still hashed
+// at startup. The default remains the exact PR102 compiled-stack artifact.
 const EXPECTED = {
   kernel: 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1',
   p0: '44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95',
-  service: 'c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36',
+  service: process.env.SKRYNIA_P1_OVERRIDE_SHA256 ||
+    'c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36',
   echo: 'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
   gateway: '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
 };
@@ -56,7 +60,7 @@ process.env.SKRYNIA_KERNEL_BIN = join(KIT, 'kernel-release');
 process.env.SKRYNIA_KERNEL_SHA256 = EXPECTED.kernel;
 process.env.SKRYNIA_P0_WASM = join(KIT, 'root.wasm');
 process.env.SKRYNIA_P0_SHA256 = EXPECTED.p0;
-process.env.SKRYNIA_P1_WASM = join(KIT, 'service.wasm');
+process.env.SKRYNIA_P1_WASM = process.env.SKRYNIA_P1_OVERRIDE || join(KIT, 'service.wasm');
 process.env.SKRYNIA_P1_SHA256 = EXPECTED.service;
 process.env.SKRYNIA_ECHO_GUEST = ECHO;
 process.env.SKRYNIA_ECHO_SHA256 = EXPECTED.echo;
@@ -398,7 +402,8 @@ export async function main() {
     const beforeSnap = await snapshotPrivate(kernel.us);
     rec('O1 snapshot has fixed 42B pointer + full 1001-version A ready history resident',
       (beforeSnap[activeRel]?.size === 42) &&
-      Object.keys(beforeSnap).filter(k => k.startsWith(`ready/${iidHex}/`)).length === NVERSIONS + 1 &&
+      Object.keys(beforeSnap).filter(k => k.startsWith(`ready/${iidHex}/`) &&
+        /^[0-9a-f]{64}\.ready$/.test(k.slice(`ready/${iidHex}/`.length))).length === NVERSIONS + 1 &&
       Object.keys(beforeSnap).filter(k => k.startsWith('blob/')).length >= NVERSIONS + 1,
       `${Object.keys(beforeSnap).length} files total (incl. bounded control object)`);
 

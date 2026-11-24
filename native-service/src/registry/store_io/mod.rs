@@ -1,5 +1,6 @@
 mod active;
 mod blob;
+pub mod index;
 mod ready;
 use super::cap::Disk;
 use crate::id;

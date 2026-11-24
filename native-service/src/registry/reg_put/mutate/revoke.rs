@@ -1,5 +1,6 @@
 use super::expect::match_expect;
 use super::{Disk, MutLock, RegErr, Registry, with_prog_lock};
+use crate::index;
 use crate::store;
 use crate::store_io;
 use crate::wire::AppPrecond;
@@ -20,13 +21,17 @@ impl Registry {
         {
             return Err(RegErr::BadAuth);
         }
-        let iid = store::invoke_id(admin_cap).to_vec();
+        let iid = store::invoke_id(admin_cap);
         with_prog_lock(lock, || {
+            index::recover(disk, &self.dir).map_err(RegErr::Store)?;
             let cur = store_io::read_active(disk, &self.dir, &iid).map_err(RegErr::Store)?;
             if !match_expect(cur, expect) {
                 return Err(RegErr::Conflict);
             }
+            index::write_pending(disk, index::scope(&self.dir), iid).map_err(RegErr::Store)?;
             store_io::remove_active(disk, &self.dir, &iid).map_err(RegErr::Store)?;
+            index::remove(disk, index::scope(&self.dir), iid).map_err(RegErr::Store)?;
+            index::clear_pending(disk, index::scope(&self.dir)).map_err(RegErr::Store)?;
             Ok(())
         })?;
         Ok(())

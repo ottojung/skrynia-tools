@@ -52,16 +52,30 @@ Requires Node with ESM top-level await (verified `v24.21.0`).
   pagination, drop-after-commit `uncertain` handling, no blind CAS replay,
   refresh reconciliation and post-restart continuation.
 
-## Known platform ceiling (honest FAIL, not a false pass)
+## Bounded pagination and the compiled P1 pin
 
-`LIST_VERSIONS` over the 1000-version object returns native err 7 (`IO`) on
-this exact pinned stack. Independent diagnosis shows the boundary at **198
-ready markers OK / 199 FAIL**, for page limits 1, 16 and 256 alike: the native
-`list_ready` enumerates and reads every marker before slicing the page, so
-pagination cannot avoid the ceiling. The three gate checks that depend on
-listing 1001 versions (`SCALE-LIST`, `ADAPTER-scale`, `RST5`) therefore FAIL by
-design until the kernel/gateway callback budget is raised or the native list
-path is made incremental. Everything else at 1000-version scale passes.
+The default pin remains the exact PR102 compiled stack (`service.wasm`
+`c7239fc5…`). That artifact predates the bounded-index fix and still fails the
+1000-version listing gate (native err 7), because its `list_ready` enumerates
+and reads every ready marker before slicing a page.
 
-This is DEV acceptance evidence only: not a release, merge, cutover, TLS/DNS
-or production approval.
+The source fix in `native-service/src/registry/store_io/index/` replaces that
+path with a fixed-depth, copy-on-write sorted index. A page reads one meta,
+one root, a few directory nodes and a bounded number of leaves — independent of
+history size and hash distribution — with a single pending-intent record making
+marker/index visibility atomic across traps and restarts. Activation still reads
+only the fixed 42-byte pointer and the direct 33-byte ready marker.
+
+To validate a rebuilt P1 against this harness, supply **both** a path and its
+exact digest (the test still hashes bytes at startup):
+
+```sh
+SKRYNIA_P1_OVERRIDE=/path/to/skrynia_native_service.wasm \
+SKRYNIA_P1_OVERRIDE_SHA256=<sha256> \
+node tests/web-admin-v3/p1_admin_scale_1000.mjs
+```
+
+With the rebuilt service, all four listing-dependent gates pass: `SCALE-LIST`,
+`ADAPTER-scale`, `O1` and `RST5` (1001 hashes in four pages, correct marker
+count, durable across restart). This is DEV acceptance evidence only: not a
+release, merge, cutover, TLS/DNS or production approval.

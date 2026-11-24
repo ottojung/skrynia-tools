@@ -1,10 +1,10 @@
-use super::support::Calls;
+//! A full page reads bounded nodes and never enumerates the directory.
 use super::list_all;
+use super::support::Calls;
 use crate::cases::support::NoLock;
 use skrynia_native_service::reg::Registry;
 use std::sync::atomic::Ordering;
 
-//! A full page reads bounded nodes and never enumerates the directory.
 #[test]
 fn page_reads_are_bounded_and_never_enumerate_directory() {
     let d = Calls::default();
@@ -26,4 +26,3 @@ fn page_reads_are_bounded_and_never_enumerate_directory() {
     assert!(used <= 32, "bounded page used {used} disk calls");
     assert_eq!(list_all(&reg, &d, &iid).len(), 1001);
 }
-

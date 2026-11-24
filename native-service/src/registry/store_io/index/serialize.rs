@@ -28,3 +28,10 @@ pub fn dir(es: &[DirEntry]) -> Vec<u8> {
 pub fn root(es: &[DirEntry]) -> Vec<u8> {
     nodes(es, ROOT_CAP)
 }
+
+pub fn put_dir(es: &mut Vec<DirEntry>, key: [u8; KEY_LEN], id: u32) {
+    match es.binary_search_by(|e| e.0.cmp(&key)) {
+        Ok(i) => es[i].1 = id,
+        Err(i) => es.insert(i, (key, id)),
+    }
+}

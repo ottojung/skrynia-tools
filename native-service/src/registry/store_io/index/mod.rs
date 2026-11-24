@@ -3,17 +3,17 @@
 //! All reads traverse at most three fixed-width nodes plus a bounded number of
 //! leaves, independent of history length. The meta record is the single atomic
 //! commit point; every other node is immutable and copy-on-write.
-use super::{Disk, StoreErr, read_active};
+pub(crate) use super::{Disk, StoreErr, read_active};
 
-mod find;
-mod format;
-mod mutate;
-mod page;
-mod pending;
-mod serialize;
-mod state;
-mod walk;
-mod write;
+pub(crate) mod find;
+pub(crate) mod format;
+pub(crate) mod mutate;
+pub(crate) mod page;
+pub(crate) mod pending;
+pub(crate) mod serialize;
+pub(crate) mod state;
+pub(crate) mod walk;
+pub(crate) mod write;
 
 pub use page::page;
 pub use pending::{

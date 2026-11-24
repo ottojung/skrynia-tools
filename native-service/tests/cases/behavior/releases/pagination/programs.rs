@@ -25,7 +25,11 @@ fn program_index_lists_many_ids_and_tombstones_revoked() {
         let mut cap = [0u8; 32];
         cap[0] = i;
         cap[1] = 1;
-        let id: [u8; 32] = reg.register(&d, &lock, &cap, format!("app-{i}").into_bytes()).unwrap().try_into().unwrap();
+        let id: [u8; 32] = reg
+            .register(&d, &lock, &cap, format!("app-{i}").into_bytes())
+            .unwrap()
+            .try_into()
+            .unwrap();
         ids.push(id);
     }
     ids.sort();
@@ -35,7 +39,8 @@ fn program_index_lists_many_ids_and_tombstones_revoked() {
     cap[1] = 1;
     let id7 = store::invoke_id(&cap);
     let state = reg.active_info(&d, &id7).unwrap();
-    reg.revoke(&d, &lock, &cap, &AppPrecond::Present(state.hash.to_vec())).unwrap();
+    reg.revoke(&d, &lock, &cap, &AppPrecond::Present(state.hash.to_vec()))
+        .unwrap();
     let got = all(&reg, &d, 256);
     assert!(!got.contains(&id7));
     assert_eq!(got.len(), 249);

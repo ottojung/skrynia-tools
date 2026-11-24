@@ -1,5 +1,5 @@
-//! Meta/node/slot helpers for index path loading.
-use super::{Disk, KEY_LEN, Scope, StoreErr, find, format, mutate, read};
+//! Meta/node/slot helpers with fail-closed node validation.
+use super::{Disk, KEY_LEN, Scope, StoreErr, find, format, read};
 
 pub fn meta<D: Disk>(disk: &D, s: Scope) -> Result<(u32, u32, u32), StoreErr<D::Err>> {
     match read(disk, s.meta())? {
@@ -10,14 +10,40 @@ pub fn meta<D: Disk>(disk: &D, s: Scope) -> Result<(u32, u32, u32), StoreErr<D::
     }
 }
 
-pub fn node<D: Disk>(disk: &D, p: String) -> Result<Vec<u8>, StoreErr<D::Err>> {
-    match read(disk, p)? {
-        Some(b) => format::open(&b).ok_or(StoreErr::BadRecord),
-        None => Ok(find::empty_dir()),
+pub fn node<D: Disk>(
+    disk: &D,
+    p: String,
+    cap: usize,
+    step: usize,
+) -> Result<Vec<u8>, StoreErr<D::Err>> {
+    let b = read(disk, p)?.ok_or(StoreErr::Missing)?;
+    let body = format::open(&b).ok_or(StoreErr::BadRecord)?;
+    if body.len() != cap * step {
+        return Err(StoreErr::BadRecord);
     }
+    let mut last: Option<&[u8]> = None;
+    for i in 0..cap {
+        if step == KEY_LEN + 4 && find::dir_leaf(&body, i) == Some(0) {
+            continue;
+        }
+        if step == KEY_LEN + 1 && find::leaf_flag(&body, i) != Some(true) {
+            continue;
+        }
+        let k = if step == KEY_LEN + 4 {
+            find::dir_key(&body, i)
+        } else {
+            find::leaf_key(&body, i)
+        }
+        .ok_or(StoreErr::BadRecord)?;
+        if last.is_some_and(|prev| prev >= k) {
+            return Err(StoreErr::BadRecord);
+        }
+        last = Some(k);
+    }
+    Ok(body)
 }
 
-pub fn slot(es: &[mutate::DirEntry], k: &[u8; KEY_LEN]) -> usize {
+pub fn slot(es: &[super::mutate::DirEntry], k: &[u8; KEY_LEN]) -> usize {
     match es.binary_search_by(|e| e.0.cmp(k)) {
         Ok(i) => i,
         Err(0) => 0,

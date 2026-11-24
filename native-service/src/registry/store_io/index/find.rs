@@ -11,7 +11,7 @@ pub fn dir_leaf(body: &[u8], i: usize) -> Option<u32> {
 pub fn leaf_key(body: &[u8], i: usize) -> Option<&[u8]> {
     body.get(i * (KEY_LEN + 1)..i * (KEY_LEN + 1) + KEY_LEN)
 }
-pub fn leaf_live(body: &[u8], i: usize) -> Option<bool> {
+pub fn leaf_flag(body: &[u8], i: usize) -> Option<bool> {
     Some(body.get(i * (KEY_LEN + 1) + KEY_LEN)? != &0)
 }
 

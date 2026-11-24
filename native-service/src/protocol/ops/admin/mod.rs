@@ -1,6 +1,8 @@
+mod lock;
 mod mutate;
 mod page;
 mod query;
+mod query_list;
 use super::res;
 use super::{Disk, MutLock, Registry};
 use crate::wire::{AdminRequest, Request};
@@ -17,5 +19,5 @@ pub fn handle<D: Disk, L: MutLock>(
     if let Some(v) = mutate::handle(reg, disk, lock, &admin) {
         return Some(v);
     }
-    query::handle(reg, disk, &admin)
+    query::handle(reg, disk, lock, &admin)
 }

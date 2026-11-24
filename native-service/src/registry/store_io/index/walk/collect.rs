@@ -15,7 +15,7 @@ pub fn collect(
         let Some(k) = find::leaf_key(body, i) else {
             return;
         };
-        if find::leaf_live(body, i) != Some(true) || first && after.is_some_and(|a| k <= a) {
+        if find::leaf_flag(body, i) != Some(true) || first && after.is_some_and(|a| k <= a) {
             continue;
         }
         let mut key = [0u8; KEY_LEN];

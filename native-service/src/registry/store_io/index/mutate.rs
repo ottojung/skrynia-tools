@@ -7,15 +7,15 @@ pub type DirEntry = ([u8; KEY_LEN], u32);
 pub fn leaves(body: &[u8]) -> Vec<LeafEntry> {
     let mut out = Vec::new();
     for i in 0..body.len() / (KEY_LEN + 1) {
-        let Some(k) = find::leaf_key(body, i) else {
-            break;
-        };
-        if k.iter().all(|b| *b == 0) {
+        let (Some(k), true) = (
+            find::leaf_key(body, i),
+            find::leaf_flag(body, i).unwrap_or(false),
+        ) else {
             continue;
-        }
+        };
         let mut key = [0u8; KEY_LEN];
         key.copy_from_slice(k);
-        out.push((key, find::leaf_live(body, i).unwrap_or(false)));
+        out.push((key, find::leaf_flag(body, i).unwrap_or(false)));
     }
     out
 }
@@ -23,15 +23,9 @@ pub fn leaves(body: &[u8]) -> Vec<LeafEntry> {
 pub fn dirs(body: &[u8]) -> Vec<DirEntry> {
     let mut out = Vec::new();
     for i in 0..body.len() / (KEY_LEN + 4) {
-        let Some(k) = find::dir_key(body, i) else {
-            break;
-        };
-        let Some(id) = find::dir_leaf(body, i) else {
-            break;
-        };
-        if id == 0 {
+        let (Some(k), Some(id @ 1..)) = (find::dir_key(body, i), find::dir_leaf(body, i)) else {
             continue;
-        }
+        };
         let mut key = [0u8; KEY_LEN];
         key.copy_from_slice(k);
         out.push((key, id));
@@ -46,9 +40,12 @@ pub fn put_leaf(es: &mut Vec<LeafEntry>, key: [u8; KEY_LEN], live: bool) {
     }
 }
 
-pub fn put_dir(es: &mut Vec<DirEntry>, key: [u8; KEY_LEN], id: u32) {
-    match es.binary_search_by(|e| e.0.cmp(&key)) {
-        Ok(i) => es[i].1 = id,
-        Err(i) => es.insert(i, (key, id)),
+pub fn remove_leaf(es: &mut Vec<LeafEntry>, key: &[u8; KEY_LEN]) -> bool {
+    match es.binary_search_by(|e| e.0.cmp(key)) {
+        Ok(i) => {
+            es.remove(i);
+            true
+        }
+        Err(_) => false,
     }
 }

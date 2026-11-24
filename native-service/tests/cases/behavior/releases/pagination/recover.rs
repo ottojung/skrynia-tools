@@ -1,10 +1,11 @@
+//! A pending seal intent is committed or discarded on recovery.
 use super::list_all;
 use crate::cases::support::{MemDisk, NoLock};
+use skrynia_native_service::cap::Disk;
 use skrynia_native_service::index::{self, Scope};
 use skrynia_native_service::reg::Registry;
 use skrynia_native_service::store;
 
-//! A pending seal intent is committed or discarded on recovery.
 #[test]
 fn pending_seal_intent_is_recovered_or_discarded() {
     let d = MemDisk::default();
@@ -28,4 +29,3 @@ fn pending_seal_intent_is_recovered_or_discarded() {
     assert!(!listed.contains(&h2));
     assert!(index::take_pending(&d, scope).unwrap().is_none());
 }
-

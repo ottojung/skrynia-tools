@@ -27,6 +27,13 @@ pub fn open(bytes: &[u8]) -> Option<Vec<u8>> {
     Some(bytes[..split].to_vec())
 }
 
+pub fn checked(bytes: &[u8], len: usize) -> Option<Vec<u8>> {
+    if bytes.len() != len + 32 {
+        return None;
+    }
+    open(bytes)
+}
+
 pub fn parse_meta(body: &[u8]) -> Option<(u32, u32, u32)> {
     if body.len() != META_LEN - 32 || &body[..4] != MAGIC {
         return None;

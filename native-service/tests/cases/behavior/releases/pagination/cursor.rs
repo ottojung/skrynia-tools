@@ -1,15 +1,8 @@
+//! Sparse keys, long shared prefixes and arbitrary/stale cursors.
 use super::support::crafted;
 use crate::cases::support::MemDisk;
-use skrynia_native_service::index;
+use skrynia_native_service::index::{self, Scope};
 use std::sync::atomic::Ordering;
-
-//! Sparse keys, long shared prefixes and arbitrary/stale cursors.
-fn crafted(prefix: &[u8], tail: u16) -> [u8; 32] {
-    let mut k = [0u8; 32];
-    k[..prefix.len()].copy_from_slice(prefix);
-    k[30..].copy_from_slice(&tail.to_be_bytes());
-    k
-}
 
 #[test]
 fn adversarial_shared_prefix_sparse_keys_and_arbitrary_cursors() {
@@ -46,4 +39,3 @@ fn adversarial_shared_prefix_sparse_keys_and_arbitrary_cursors() {
     let p2 = index::page(&d, scope, &Some(stale), 3).unwrap();
     assert!(!p2.is_empty() && p2.iter().all(|k| k > &stale));
 }
-

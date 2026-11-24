@@ -40,11 +40,11 @@ Rust (rustup 1.93.0, cached registry, `--offline`):
 - `cargo fmt --all -- --check` clean.
 - build-script structural lint clean (50 LOC / 10 entries / sibling imports).
 - `cargo test -p skrynia-native-service -p skrynia-program0 --locked --all-targets --offline`:
-  27 + 35 + 7 + 10 + 22 + 4 tests pass; 0 fail. Four new regression cases:
+  27 + 43 + 7 + 10 + 22 + 4 tests pass; 0 fail. Four new regression cases:
   bounded calls per page (<=32) with zero directory enumerations at 1000
   versions; adversarial 16-byte shared prefixes with sparse keys and
   arbitrary/stale cursors; pending-intent recovery and discard; program index
-  listing 250 IDs with tombstoning.
+  listing 250 IDs with tombstoning; zero key survives, missing committed root fails closed, 2499 removals keep page reads <=32, 100 idempotent inserts keep file count <=16.
 - `cargo clippy ... -D clippy::correctness -D clippy::suspicious -D clippy::perf
   -D clippy::complexity` clean.
 
@@ -53,15 +53,15 @@ Exact compiled stack (release kernel `a1dc4119…`, P0 `44e845a4…`, trusted ed
 from this source with rustup wasm32 + cached registry:
 
 - baseline source `73d8fa1` reproduced kit P1 `c7239fc5…` byte-for-byte;
-- fixed P1 `c0ac3357a67c3b09d15a2907ea08c8329569e9c0b034ca53cede661d51250820`.
+- fixed P1 `e838f0df6d1c1876303e03f092b850f1b5175a5894bbaa939b2bdc75fa37ab5e`.
 
 Command:
 
 ```
 cd <isolated checkout>
 SKRYNIA_P1_OVERRIDE=<target-wasm>/skrynia_native_service.wasm \
-SKRYNIA_P1_OVERRIDE_SHA256=c0ac3357a67c3b09d15a2907ea08c8329569e9c0b034ca53cede661d51250820 \
-E2E_EVIDENCE_OUT=<evidence>/scale1000-fixed-evidence.json \
+SKRYNIA_P1_OVERRIDE_SHA256=e838f0df6d1c1876303e03f092b850f1b5175a5894bbaa939b2bdc75fa37ab5e \
+E2E_EVIDENCE_OUT=<evidence>/scale1000-fixed-v2-evidence.json \
 node tests/web-admin-v3/p1_admin_scale_1000.mjs
 ```
 
@@ -69,10 +69,29 @@ Result: **78/78 checks PASS** (`ALL_OK=true`), including `SCALE-LIST` (1001
 hashes in 4 pages), `ADAPTER-scale`, `O1`, O2-O5 O(1) activation with a
 byte-exact private-state diff, fail-closed denials and `RST5` (all 1001 ready
 versions listable after kill/restart). Evidence
-`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-fixed-evidence.json`
-sha256 `ecb695c849402129cbeeeb30420f27bb59029a54b89fe03cf0371842856921b1`;
-log sha256 `47988abf75c676cf4e509fd3cc20b741cd0f48e6d290e6e0d79ffaf0fc1f2733`.
+`/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-fixed-v2-evidence.json`
+sha256 `9c1018c2df3ceb8f70769abac2dbd9ef3c445d385be57f06e3a5edaa4068a03f`;
+log sha256 `0bd5d7e1768ac60ed900d2b059fd48b7a90b38ecd56393ce99cbbb4ebb15773a`.
 
 The shipped default pin remains the exact PR102 artifact; the harness override
 is hash-gated and for source-change validation only. Release/cutover still
 requires owner qualification of a rebuilt compiled kit.
+
+## Review-driven corrections and legacy compatibility
+
+Addressing the exact-head NO-GO review: query-time replay and page reads now
+hold the mutation lock (busy maps to err 11 with no effects); leaf occupancy is
+an explicit flag so the all-zero key is never a sentinel and an absent cursor
+is distinct from a cursor equal to zero; program removal physically deletes
+the entry (no unbounded tombstone scan); node decoding validates length,
+checksum, ordering and occupancy and a missing committed node is an error;
+u32 counter overflow is rejected before any marker commit; a bounded retired
+ledger lists exactly the fresh/retired node ids so normal operation reclaims
+COW nodes (file count stayed fixed at 2149 in the 1000-version run).
+
+Storage compatibility is explicit: pre-index ready/active state has no index
+meta and therefore fails closed with a native error; there is no silent empty
+listing. Such state requires an explicit owner-controlled migration (replay
+STAGE/SEAL/register under the new build), which is outside this source change.
+The source-only `native-admin` CI job no longer auto-runs the artifact-backed
+scale harness; the pin remains unchanged.

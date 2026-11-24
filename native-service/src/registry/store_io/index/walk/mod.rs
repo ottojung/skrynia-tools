@@ -21,7 +21,8 @@ pub fn walk<D: Disk>(
             continue;
         };
         let raw = read(disk, s.dir(id))?.ok_or(StoreErr::Missing)?;
-        let dir = super::format::open(&raw).ok_or(StoreErr::BadRecord)?;
+        let dir =
+            super::format::checked(&raw, DIR_CAP * (KEY_LEN + 4)).ok_or(StoreErr::BadRecord)?;
         let first_dir = d == start_dir;
         let start_leaf = if first_dir {
             find::slot(&dir, &key, KEY_LEN + 4, DIR_CAP)
@@ -36,7 +37,8 @@ pub fn walk<D: Disk>(
                 continue;
             };
             let raw = read(disk, s.leaf(lid))?.ok_or(StoreErr::Missing)?;
-            let leaf = super::format::open(&raw).ok_or(StoreErr::BadRecord)?;
+            let leaf = super::format::checked(&raw, super::LEAF_CAP * (KEY_LEN + 1))
+                .ok_or(StoreErr::BadRecord)?;
             collect::collect(
                 &leaf,
                 first_dir && l == start_leaf,

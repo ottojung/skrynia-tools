@@ -120,7 +120,7 @@ jobs:
         run: |
           set -eu
           cargo build --locked --release --manifest-path upstream-skrynia/Cargo.toml -p libskrynia --bin skrynia-server
-          cargo +1.93.0 build --locked --release -p skrynia-publish-provider
+          cargo +1.93.0 build --locked --release --manifest-path publish-provider/Cargo.toml
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown \
             -p skrynia-publication-root -p skrynia-program0
           python3 publication-root/tests/check_wasm_abi.py \
@@ -130,7 +130,7 @@ jobs:
         run: |
           python3 publication-root/tests/real_wasm_chain.py \
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
-            --provider "$PWD/target/release/skrynia-publish-provider" \
+            --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
             --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
             --apps-harness "$PWD/upstream-skrynia-apps/qualification/publication-isolation" \
             --results "$RUNNER_TEMP/wasm-publication-results.json"

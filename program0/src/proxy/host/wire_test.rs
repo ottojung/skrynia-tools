@@ -1,4 +1,4 @@
-use super::{open, paths, wire::*};
+use super::{dispatch, open, paths, wire::*};
 fn code(out: Vec<u8>) -> i32 {
     i32::from_le_bytes(out[..4].try_into().unwrap())
 }
@@ -40,4 +40,13 @@ fn unsafe_open_delete_rename_paths_denied_before_abi() {
         assert_eq!(code(paths::rename(&rename_req(b"data/ok", p))), DENIED);
     }
     assert_ne!(code(open::call(&open_req(b"data/ok"))), DENIED);
+}
+#[test]
+fn leak_safe_nested_callback_isolation() {
+    // The generic callback a nested guest invokes must not re-enter EVAL or
+    // open an out-of-scope/private path (the LEAK->SAFE boundary). Each assert
+    // fails if the corresponding guard is weakened or removed.
+    assert_eq!(code(dispatch(&[EVAL], 4)), DENIED);
+    assert_eq!(code(open::call(&open_req(b"a/../b"))), DENIED);
+    assert_eq!(code(open::call(&open_req(b"/security/program0.sha256"))), DENIED);
 }

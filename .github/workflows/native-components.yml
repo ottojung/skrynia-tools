@@ -18,6 +18,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo test --locked --workspace --all-targets
+      - name: Nested-callback LEAK->SAFE isolation regression (program0)
+        run: cargo test --locked -p skrynia-program0 --lib leak_safe_nested_callback -- --nocapture
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - name: Full-chain harness host tests
         run: cargo test --manifest-path fullchain-integration/Cargo.toml --locked

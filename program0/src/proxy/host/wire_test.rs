@@ -44,9 +44,11 @@ fn unsafe_open_delete_rename_paths_denied_before_abi() {
 }
 #[test]
 fn leak_safe_nested_callback_isolation() {
-    // The generic callback a nested guest invokes must not re-enter EVAL or
-    // open an out-of-scope/private path (the LEAK->SAFE boundary). Each assert
-    // fails if the corresponding guard is weakened or removed.
+    // Supplemental source guard for the LEAK->SAFE boundary: the generic
+    // callback must not re-enter EVAL or open an out-of-scope/private path.
+    // The authoritative compiled regression is the upstream kernel test
+    // callback::nested::nested_guest_cannot_steal_root_disk_fd_after_callback
+    // run by the compiled-stack CI job; this test only guards the local logic.
     assert_eq!(code(dispatch(&[EVAL], 4)), DENIED);
     assert_eq!(code(open::call(&open_req(b"a/../b"))), DENIED);
     assert_eq!(code(open::call(&open_req(VERIFIER))), DENIED);

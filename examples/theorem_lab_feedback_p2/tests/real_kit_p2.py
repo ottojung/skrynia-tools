@@ -228,13 +228,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--kernel', required=True); ap.add_argument('--p0', required=True)
     ap.add_argument('--p1', required=True); ap.add_argument('--p2', required=True)
+    # CI supplies digests computed by the trusted build step so the freshly
+    # compiled artifacts are still pin-verified from bytes at startup.
+    for k in ['kernel', 'p0', 'p1', 'p2']:
+        ap.add_argument(f'--{k}-sha256', dest=f'{k}_sha256')
     ap.add_argument('--workdir'); ap.add_argument('--keep', action='store_true')
     args = ap.parse_args()
     paths = {k: pathlib.Path(getattr(args, k)) for k in ['kernel', 'p0', 'p1', 'p2']}
     for k, p in paths.items():
         if not p.is_file(): raise SystemExit(f'missing {k}: {p}')
+        want = getattr(args, f'{k}_sha256') or SHA[k]
         got = hashlib.sha256(p.read_bytes()).hexdigest()
-        if got != SHA[k]: raise SystemExit(f'{k} sha mismatch: expected {SHA[k]} got {got}')
+        if got != want: raise SystemExit(f'{k} sha mismatch: expected {want} got {got}')
         print(f'{k} sha OK {got[:16]}', flush=True)
     work = pathlib.Path(args.workdir) if args.workdir else pathlib.Path(tempfile.mkdtemp(prefix='theorem-p2-kit-'))
     work.mkdir(parents=True, exist_ok=True)

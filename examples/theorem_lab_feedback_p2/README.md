@@ -84,10 +84,11 @@ cargo test --lib --tests                      # host contract/merge/CAS unit tes
 python3 tests/real_kit_p2.py --kernel ... --p0 ... --p1 ... --p2 ...
 ```
 
-The real-stack fixture is **not** a CI gate: this crate is standalone
-(`[workspace]` in its Cargo.toml) and the pinned artifacts must be supplied by
-an operator. It is documented as a manual/NOT-RUN-in-CI acceptance, not as
-exact-head proof. `tests/nonvacuity.py` proves the two security assertions
+The real-stack fixture **is** a CI gate in the `compiled-stack` job: that job
+builds the current kernel, P0, P1 and this P2 from source, computes each
+SHA-256 from the built bytes and passes them to `--*-sha256`, so the fixture
+verifies the artifacts it actually runs. It remains runnable manually with
+operator-supplied pinned artifacts outside CI. `tests/nonvacuity.py` proves the two security assertions
 demand denial/non-leak: it feeds the exact adversarial responses the old
 assertions were blind to (a successful forge, and a leaked JSON state blob
 containing `"id":"secret"`) and fails if either would pass. It is invoked by

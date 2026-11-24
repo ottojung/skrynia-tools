@@ -55,6 +55,13 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown --manifest-path examples/theorem_lab_feedback_p2/Cargo.toml
+      - name: Real compiled registry recovery (interrupted stage and I/O obstruction)
+        run: |
+          python3 tests/v3_proxy/registry_recovery.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm" \
+            --p1 "$PWD/target/wasm32-unknown-unknown/release/skrynia_native_service.wasm" \
+            --guest "$PWD/target/wasm32-unknown-unknown/release/theorem_lab_feedback_p2.wasm"
       - name: Real compiled-stack P2 adversarial fixture
         run: |
           set -eu

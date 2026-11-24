@@ -70,8 +70,8 @@ hashes in 4 pages), `ADAPTER-scale`, `O1`, O2-O5 O(1) activation with a
 byte-exact private-state diff, fail-closed denials and `RST5` (all 1001 ready
 versions listable after kill/restart). Evidence
 `/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/evidence/scale1000-max64-evidence.json`
-sha256 ``;
-log sha256 ``.
+sha256 `beb882c99c8d16e0437f36aff646111a6c172be4c934ca81617af944dce2331f`;
+log sha256 `bf084cda6bef2f520d43b85e510752b7202e967df249b29ac6635ff936f2a447`.
 
 The shipped default pin remains the exact PR102 artifact; the harness override
 is hash-gated and for source-change validation only. Release/cutover still

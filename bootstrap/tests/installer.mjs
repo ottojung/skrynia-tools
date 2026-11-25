@@ -146,3 +146,24 @@ test('SHA256SUMS covers all published web-admin-v3 assets', async () => {
   }
   assert.match(sums, /\.\.\/web-admin-v3\/crypto\.js$/m, 'crypto.js must be covered');
 });
+
+test('sha256sum -c detects a byte mutation of a published JS asset', async t => {
+  const {cp} = await import('node:fs/promises');
+  const {spawnSync} = await import('node:child_process');
+  const dir = await mkdtemp(join(tmpdir(), 'bootstrap-sums-'));
+  t.after(() => rm(dir, {recursive: true, force: true}));
+  await cp(new URL('../', import.meta.url), join(dir, 'bootstrap'), {recursive: true});
+  await cp(new URL('../../web-admin-v3/', import.meta.url), join(dir, 'web-admin-v3'), {recursive: true});
+  const cwd = join(dir, 'bootstrap');
+  const check = () => spawnSync('sha256sum', ['-c', 'SHA256SUMS'], {cwd, encoding: 'utf8'});
+  const clean = check();
+  assert.equal(clean.status, 0, 'unmodified bundle must verify: ' + clean.stderr);
+  assert.equal((clean.stdout.match(/: OK$/gm) || []).length, 17, '17 OK lines');
+  const asset = join(dir, 'web-admin-v3', 'main.js');
+  const mutated = Buffer.from(await readFile(asset));
+  mutated[0] ^= 0x01; // flip exactly one byte of a published JS asset
+  await writeFile(asset, mutated);
+  const bad = check();
+  assert.notEqual(bad.status, 0, 'mutated JS asset must fail sha256sum -c');
+  assert.match(bad.stdout + bad.stderr, /main\.js: FAILED/, 'detects main.js mutation');
+});

@@ -29,7 +29,7 @@ function publicPath(rel, app) {
   if (rel.includes('\\') || rel.includes('\0') || rel.includes('\n') || rel.includes('\r')
       || rel.endsWith('/') || rel.split('/').some(p => !p || p.startsWith('.'))
       || Buffer.byteLength(rel, 'utf8') > 4096) throw Error('unsafe publication path');
-  const nginxRoot = process.env.SKYRNIA_NGINX_ROOT;
+  const nginxRoot = process.env['SKRYNIA_NGINX_ROOT'];
   if (nginxRoot) {
     const root = resolve(nginxRoot), out = resolve(join(root, rel));
     if (out !== root && !out.startsWith(root + sep)) throw Error('path escapes nginx root');
@@ -50,14 +50,14 @@ function publicationUrl() {
   const u = urlFromEnv('SKRYNIA_PUBLICATION_URL');
   const loopback = ['127.0.0.1', '::1', '[::1]'].includes(u.hostname);
   if (u.protocol === 'http:' && !loopback) throw Error('plain HTTP publication only on literal loopback');
-  if (u.protocol === 'https:' && process.env.SKYRNIA_PUBLICATION_ALLOW_TLS !== '1') {
+  if (u.protocol === 'https:' && process.env['SKRYNIA_PUBLICATION_ALLOW_TLS'] !== '1') {
     throw Error('https publication endpoint requires explicit review flag');
   }
   return u;
 }
 
 async function token() {
-  const file = process.env.SKYRNIA_PUBLICATION_TOKEN_FILE;
+  const file = process.env['SKRYNIA_PUBLICATION_TOKEN_FILE'];
   if (!file) throw Error('SKRYNIA_PUBLICATION_TOKEN_FILE is required');
   const st = await lstat(file);
   if (st.isSymbolicLink() || !st.isFile() || st.nlink !== 1) throw Error('invalid token file');

@@ -33,6 +33,7 @@ pub fn scope(dir: &str) -> Scope<'_> {
 }
 
 pub fn recover<D: Disk>(disk: &D, dir: &str) -> Result<(), StoreErr<D::Err>> {
+    ensure_program(disk, dir)?;
     let s = scope(dir);
     if let Some(iid) = super::take_pending(disk, s)? {
         if super::read_active(disk, dir, &iid)?.is_some() {
@@ -42,6 +43,5 @@ pub fn recover<D: Disk>(disk: &D, dir: &str) -> Result<(), StoreErr<D::Err>> {
         }
         super::clear_pending(disk, s)?;
     }
-    ensure_program(disk, dir)?;
     Ok(())
 }

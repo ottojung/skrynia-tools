@@ -40,3 +40,10 @@ fn response_decode_is_fail_closed() {
     assert_eq!(decode(&[1, 0, 9, 0, 0, 0]), Err(Error::Wire("len")));
     assert_eq!(decode(&[1]), Err(Error::Wire("short")));
 }
+
+#[test]
+fn file_ledger_store_rejects_oversized_and_enforces_mode() {
+    common::ledger_hard::oversized_and_nonfile_rejected();
+    common::ledger_hard::writes_private_mode();
+    common::ledger_tmp::stale_tmp_and_symlink_safe();
+}

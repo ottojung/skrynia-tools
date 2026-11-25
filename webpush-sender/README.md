@@ -79,34 +79,42 @@ Run qualification in a disposable container/VM with synthetic config only. Do
 not mount or pass real operational credentials, production endpoints, or real
 VAPID keys. Tests must not contact external endpoints.
 
-Example (Podman, disposable, no network needed for tests):
+The multi-stage `Dockerfile` in this directory builds the standalone binary in
+a Rust stage and copies only the binary into a runtime stage. Build-time crate
+resolution needs network; the runtime container is started with `--network=none`
+and receives only a synthetic config plus a disposable ledger directory.
 
 ```sh
-# from repo root, disposable container with Rust toolchain
-podman run --rm -it --network=none \
-  -v "$PWD":/src:ro -w /src/webpush-sender \
-  rust:1.93-bookworm \
-  cargo test --offline --lib --tests
-```
+# build (network allowed for crates only); from repo root
+podman build -t skrynia-sender-qualify -f webpush-sender/Dockerfile webpush-sender
 
-For a local smoke run against a disposable test harness (not production), create
-a private temp directory and a synthetic config file:
-
-```sh
+# prepare disposable inputs; uid 10001 matches the runtime-stage user
 umask 077
 tmp=$(mktemp -d)
 mkdir -p "$tmp/ledgers"
 chmod 0700 "$tmp/ledgers"
+chown 10001:10001 "$tmp/ledgers"
 cat > "$tmp/config.json" <<'JSON'
 { "...synthetic fields only..." }
 JSON
 chmod 0600 "$tmp/config.json"
-WEBPUSH_SENDER_CONFIG="$tmp/config.json" cargo run --offline
+chown 10001:10001 "$tmp/config.json"
+
+# run: no network, read-only root, synthetic config only
+podman run --rm --network=none --read-only \
+  -v "$tmp/config.json":/home/sender/config.json:ro \
+  -v "$tmp/ledgers":/home/sender/ledgers \
+  -e WEBPUSH_SENDER_CONFIG=/home/sender/config.json \
+  skrynia-sender-qualify
 ```
 
-The example config must be filled with disposable/synthetic values and a test
-edge that is locally controlled; never use real production secrets or public
-push endpoints during qualification.
+Fill the example config with disposable/synthetic values and a locally
+controlled P1 edge; never use real production secrets or public push endpoints.
+`ledger_dir` inside the container must be `/home/sender/ledgers`. For an
+actual-process qualification with a synthetic loopback P1 edge and exact exit
+codes, use `ci/sender_process_review.py` against a freshly built
+`target/release/webpush-sender` binary (the same script runs as a dedicated CI
+job). It makes no external requests and records the binary SHA256.
 
 ## Validation
 

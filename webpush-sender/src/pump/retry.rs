@@ -17,7 +17,9 @@ impl Backoff {
     }
 }
 
-/// Retry only transient failures; never retry auth/SSRF/malformed responses.
+/// Retry only transient failures. 404/410 are terminal per subscription
+/// (Gone) so one expired endpoint cannot block ACK for other recipients.
+/// 401/403/other permanent status fail closed.
 pub fn send_with_retry(
     req: &PushRequest,
     out: &impl PushTransport,
@@ -29,6 +31,12 @@ pub fn send_with_retry(
     loop {
         let server_delay_ms = match out.send(req) {
             Ok(reply) if (200..300).contains(&reply.status) => return Ok(()),
+            Ok(reply) if reply.status == 404 || reply.status == 410 => {
+                return Err(Error::Transport("gone"));
+            }
+            Ok(reply) if reply.status == 401 || reply.status == 403 => {
+                return Err(Error::Auth("push"));
+            }
             Ok(reply) if reply.status == 429 || reply.status >= 500 => {
                 reply.retry_after_ms.unwrap_or(0).min(60_000)
             }

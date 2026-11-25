@@ -34,3 +34,29 @@ jobs:
         run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets
       - name: Compile and test webpush-sender (test-transport feature)
         run: cargo test --manifest-path webpush-sender/Cargo.toml --locked --all-targets --features test-transport
+
+  sender-process:
+    # Disposable actual-process qualification. All P1 responses are synthetic
+    # loopback fixtures; no external endpoints, production config or secrets.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            webpush-sender -> webpush-sender/target
+      - name: Build release standalone sender
+        run: cargo build --manifest-path webpush-sender/Cargo.toml --locked --release --bin webpush-sender
+      - name: Record binary SHA256 for independent rerun
+        run: sha256sum webpush-sender/target/release/webpush-sender | tee webpush-sender/target/release/webpush-sender.sha256
+      - name: Actual-process runtime qualification (loopback only)
+        run: python3 webpush-sender/ci/sender_process_review.py webpush-sender/target/release/webpush-sender
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webpush-sender-process-binary
+          path: |
+            webpush-sender/target/release/webpush-sender
+            webpush-sender/target/release/webpush-sender.sha256
+          if-no-files-found: error

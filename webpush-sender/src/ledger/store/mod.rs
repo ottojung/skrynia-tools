@@ -1,9 +1,11 @@
 //! Production store: operator-supplied directory, grant-hash filename,
 //! atomic durable replace. No shared, hardcoded or unsecured path.
+mod read;
 use super::{Error, LedgerStore, Result};
-use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
+
+pub(super) const MAX_LEDGER_BYTES: u64 =
+    (super::format::HEAD + 16 * crate::config::MAX_HINTS + super::format::TRAILER) as u64;
 
 pub struct FileLedgerStore {
     final_path: PathBuf,
@@ -38,15 +40,7 @@ impl FileLedgerStore {
 
 impl LedgerStore for FileLedgerStore {
     fn load(&self) -> Result<Option<Vec<u8>>> {
-        let mut file = match File::open(&self.final_path) {
-            Ok(file) => file,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(_) => return Err(Error::Transport("ledger-read")),
-        };
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)
-            .map_err(|_| Error::Transport("ledger-read"))?;
-        Ok(Some(bytes))
+        read::load(&self.final_path)
     }
 
     fn save(&self, bytes: &[u8]) -> Result<()> {

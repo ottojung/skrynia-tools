@@ -42,3 +42,8 @@ fn invalid_config_and_frame_fail_closed() {
     ));
     assert!(webpush_sender::sub::parse_frame(&[1, 0, 0, 0]).is_err());
 }
+
+#[test]
+fn runtime_config_lock_and_dir_are_safe() {
+    common::proc::hermetic();
+}

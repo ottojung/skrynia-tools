@@ -44,3 +44,13 @@ fn out_of_order_hint_survives_lower_seq_transient_failure() {
     assert_eq!(out.calls.borrow().len(), 5);
     assert_eq!(b.run_once().unwrap().skipped, 2);
 }
+
+#[test]
+fn runtime_two_process_child() {
+    common::proc::lock2::child();
+}
+
+#[test]
+fn runtime_two_process_lock() {
+    common::proc::lock2::two_process();
+}

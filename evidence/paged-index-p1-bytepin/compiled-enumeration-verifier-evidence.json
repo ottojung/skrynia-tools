@@ -1,0 +1,169 @@
+{
+  "artifact": "/workspace/z21R3VPW-paged-index-p1-20261125/tools/evidence/paged-index-p1-bytepin/skrynia_native_service.paged-index.c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a.wasm",
+  "p1_sha256": "c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a",
+  "pins": {
+    "kernel": {
+      "path": "/workspace/skrynia-exact-kit-73d8fa1/kernel-release",
+      "expected": "a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1",
+      "actual": "a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1"
+    },
+    "p0": {
+      "path": "/workspace/skrynia-exact-kit-73d8fa1/root.wasm",
+      "expected": "44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95",
+      "actual": "44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95"
+    },
+    "service": {
+      "path": "/workspace/z21R3VPW-paged-index-p1-20261125/tools/evidence/paged-index-p1-bytepin/skrynia_native_service.paged-index.c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a.wasm",
+      "expected": "c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a",
+      "actual": "c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a"
+    },
+    "echo": {
+      "path": "/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm",
+      "expected": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5",
+      "actual": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5"
+    },
+    "gateway": {
+      "path": "/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway",
+      "expected": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f",
+      "actual": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f"
+    }
+  },
+  "checks": [
+    {
+      "name": "pin kernel byte-verified",
+      "ok": true,
+      "detail": "a1dc4119d360"
+    },
+    {
+      "name": "pin p0 byte-verified",
+      "ok": true,
+      "detail": "44e845a4ca1b"
+    },
+    {
+      "name": "pin service byte-verified",
+      "ok": true,
+      "detail": "c46e92f274b9"
+    },
+    {
+      "name": "pin echo byte-verified",
+      "ok": true,
+      "detail": "dc28e490b107"
+    },
+    {
+      "name": "pin gateway byte-verified",
+      "ok": true,
+      "detail": "9fa4df141d5b"
+    },
+    {
+      "name": "REGISTER via real compiled stack",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "STAGE+SEAL 1000 distinct versions over real opcodes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "1001 expected ready hashes distinct",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "LIST_VERSIONS all pages status OK",
+      "ok": true,
+      "detail": "err=null"
+    },
+    {
+      "name": "1001 ready markers enumerated",
+      "ok": true,
+      "detail": "1001"
+    },
+    {
+      "name": "exactly 16 pages of limit 64",
+      "ok": true,
+      "detail": "64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,41"
+    },
+    {
+      "name": "strictly ascending raw-byte order (no reversal)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "exact set equality with STAGE hashes (no gap/duplicate)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "exclusive tail cursors equal previous page last key",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "terminal page after last key is empty, not an error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "malformed 31-byte cursor -> native err 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "malformed 33-byte cursor -> native err 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "overlimit page limit=65 -> native err 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "zero page limit -> native err 1",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "result_count": 19,
+  "pass_count": 19,
+  "fail_count": 0,
+  "page_sizes": [
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    64,
+    41
+  ],
+  "tail_cursors": [
+    null,
+    "116494edc1152b39dbbe84a3b240eb55b05153a5b9e84266741744b2e2775ba6",
+    "204b68cf5d0deb1403195d7b44901f4cf1359d1ca4611ab2ee0c359e5c02ae6c",
+    "30bca7a321ddfe509e9dad073290da13905ed65da1edecc22d88e4363315a506",
+    "4273a0babe233d0e06576e751583b64b1a7f8f6a2c79c3a0709f282b03eb340a",
+    "52b2dca57d3606e87414689ff11cc71ac66a624d79048d41116562638e11c827",
+    "62d3a24ef384b457bd8b83d8bf84659d4787e76b4222044525664f8313f0c918",
+    "720d3e55496245c12ddca3b7a909760b43189ce82c5d81094baed4a1dae39251",
+    "841cb643235a8e845e1459cd3b2e1aa1937ab8143ee676f972be4fbc6457b6d5",
+    "93f81d51783978fa50cbf5ece11f1908f99405fb6ab02ae501c92962f8a3676d",
+    "a427d05ea4f988cc7c2eaf4d6ad446cb0bfbbb40825015819a7bc77059c9186f",
+    "b341790008f8303a6c50857894d9d5c978e7097ead2a3c2d35fd697b6d88a9c2",
+    "c302457a6c9d87a4df8d7cabfb25604f26f07d8d4073f2ec7496a7f8badd7c13",
+    "d237853d8ec6c344fc8123a4211c4ca48950a22d02bd975d492cdf70b968be15",
+    "dfe6ce428f30d053c99d7c51ea09c7cb9f370cc744a85a1d547653992b97a6df",
+    "f2be6b6c6f07bd1aa412b223332e5600c2b0639f04c6d57be47968b52632055e"
+  ],
+  "all_hashes_sha256": "1bdce1d4d1c64a319aab47ff45327b385000c092aa77b9b5486fdd420e206c20",
+  "ALL_OK": true
+}

@@ -1,0 +1,15 @@
+{
+  "pins": {
+    "kernel": "a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1",
+    "p0": "44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95",
+    "service": "c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36",
+    "echo": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5",
+    "gateway": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f"
+  },
+  "maxProbe": 260,
+  "lastListOkAtReadyCount": 198,
+  "firstListFailureAtReadyCount": 199,
+  "failureNativeErr": 7,
+  "note": "pinned P1 c7239fc5 full-scan listing; exact 1000 enumeration not possible on shipped pin",
+  "evidence_note": "Unmodified shipped P1 c7239fc5 on the exact pinned compiled stack; lastListOk=198, firstFailure=199, nativeErr=7. Non-vacuity control for the paged-index rebuild."
+}

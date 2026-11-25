@@ -1,0 +1,515 @@
+{
+  "kind": "ordinary P1 1000-historical-version + restart durability acceptance (real compiled stack)",
+  "node": "v24.21.0",
+  "verified_at": "2026-11-25T01:51:09.403Z",
+  "git_head": null,
+  "p0_frame_pin": "8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217",
+  "expected_pins": {
+    "kernel": "a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1",
+    "p0": "44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95",
+    "service": "c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a",
+    "echo": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5",
+    "gateway": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f"
+  },
+  "env_paths": {
+    "kernel": "/workspace/skrynia-exact-kit-73d8fa1/kernel-release",
+    "p0": "/workspace/skrynia-exact-kit-73d8fa1/root.wasm",
+    "service": "/workspace/z21R3VPW-paged-index-p1-20261125/wasm-target/wasm32-unknown-unknown/release/skrynia_native_service.wasm",
+    "echo": "/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm",
+    "gateway": "/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway"
+  },
+  "token_policy": "random 32-byte bearer per run, 0600 temp file, never logged; no secret in EVIDENCE",
+  "skipped": [
+    "Chromium UI pagination (PAGE_LIMIT=64) - covered at shipped-adapter level here, not browser DOM",
+    "Cargo/Rust tests, any WASM/kernel/gateway build, main/prod/DNS/TLS/deploy"
+  ],
+  "pin_kernel": {
+    "path": "/workspace/skrynia-exact-kit-73d8fa1/kernel-release",
+    "sha256": "a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1"
+  },
+  "pin_p0": {
+    "path": "/workspace/skrynia-exact-kit-73d8fa1/root.wasm",
+    "sha256": "44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95"
+  },
+  "pin_service": {
+    "path": "/workspace/z21R3VPW-paged-index-p1-20261125/wasm-target/wasm32-unknown-unknown/release/skrynia_native_service.wasm",
+    "sha256": "c46e92f274b93cbbdc0a65bbd9a645a7ab24b21e3b450a340764d74ef5efa44a"
+  },
+  "pin_echo": {
+    "path": "/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm",
+    "sha256": "dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5"
+  },
+  "pin_gateway": {
+    "path": "/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway",
+    "sha256": "9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f"
+  },
+  "bulk": {
+    "versions": 1000,
+    "stage_ok": 1000,
+    "seal_ok": 1000,
+    "elapsed_ms": 149090
+  },
+  "listing": {
+    "scale": {
+      "ok": true,
+      "count": 1001,
+      "pages": 16,
+      "err": null
+    },
+    "bounded": {
+      "count": 61,
+      "pages": 1,
+      "sizes": [
+        61
+      ]
+    },
+    "platform_ceiling": "independent diagnostic: 198 ready markers OK, 199 FAIL (native err 7), for limit 1/16/256 alike"
+  },
+  "o1": {
+    "activate_1_ms": 10,
+    "activate_2_ms": 19,
+    "request_bytes": 76,
+    "active_record_bytes": 42,
+    "diff_1": {
+      "changed": [
+        "active/08eadad8e7f672fc81aa023e5b5fc6defa5e5395bc55d32a188c8da9cf4f1235.bin"
+      ],
+      "added": [],
+      "removed": []
+    },
+    "diff_2": {
+      "changed": [
+        "active/08eadad8e7f672fc81aa023e5b5fc6defa5e5395bc55d32a188c8da9cf4f1235.bin"
+      ],
+      "added": [],
+      "removed": []
+    },
+    "files_unchanged": 2149
+  },
+  "activation_revisions": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "private_state_before_restart": {
+    "file_count": 2151,
+    "active": {
+      "size": 42,
+      "sha256": "de72e34f77f91cc1744e1a34427a5077a2a657497cd37a8010a7588d805f27de"
+    },
+    "digest_of_all_paths_and_hashes": "dcfcef89529e4e0bf9ee2eb3b6808e967f87e00f189c5776ca963f7efc13a1e2"
+  },
+  "private_state_after_restart": {
+    "file_count": 2151,
+    "digest_of_all_paths_and_hashes": "dcfcef89529e4e0bf9ee2eb3b6808e967f87e00f189c5776ca963f7efc13a1e2"
+  },
+  "final": {
+    "scale_object": {
+      "revision": 6,
+      "active": "40f138c1e4512469baa09380f4ceb219f91baf16d25254271ada5586bacd0f6a"
+    },
+    "bounded_object": {
+      "revision": 3,
+      "active": "0fdfe7d35e4d1e235489c6180a25202acf40bf14d28849f7830dc3ab4f96f77c"
+    },
+    "activate_requests_seen_by_proxy": 2
+  },
+  "results": [
+    {
+      "name": "pin kernel sha256 a1dc4119d360 (exact kit byte)",
+      "ok": true,
+      "detail": "a1dc4119d360"
+    },
+    {
+      "name": "pin p0 sha256 44e845a4ca1b (exact kit byte)",
+      "ok": true,
+      "detail": "44e845a4ca1b"
+    },
+    {
+      "name": "pin service sha256 c46e92f274b9 (exact kit byte)",
+      "ok": true,
+      "detail": "c46e92f274b9"
+    },
+    {
+      "name": "pin echo sha256 dc28e490b107 (exact kit byte)",
+      "ok": true,
+      "detail": "dc28e490b107"
+    },
+    {
+      "name": "pin gateway sha256 9fa4df141d5b (exact kit byte)",
+      "ok": true,
+      "detail": "9fa4df141d5b"
+    },
+    {
+      "name": "P0 frame contract pin unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "release kernel booted with dumb P0 root + real P1",
+      "ok": true,
+      "detail": "127.0.0.1:46529"
+    },
+    {
+      "name": "trusted edge gateway booted with server-only token",
+      "ok": true,
+      "detail": "127.0.0.1:34481"
+    },
+    {
+      "name": "AUTH1 trusted operator installs object A (op 15)",
+      "ok": true,
+      "detail": "native status 0, body 32B"
+    },
+    {
+      "name": "AUTH2 public invoke/read ID resolves A rev1 (op 12)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "AUTH3 raw private admin cap is NOT the public read ID (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "AUTH4 public read ID cannot write: STAGE denied (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "AUTH5 wrong operator install cap denied (err 9)",
+      "ok": true,
+      "detail": "native status 1, err 9"
+    },
+    {
+      "name": "AUTH6 duplicate registration denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "AUTH7 foreign private cap has no authority over A (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "AUTH8 A unchanged after authority negatives",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "name": "BULK1 STAGE returned sha256(code) for 1000/1000 versions",
+      "ok": true,
+      "detail": "1000/1000 in 149090ms"
+    },
+    {
+      "name": "BULK2 SEAL succeeded for 1000/1000 versions",
+      "ok": true,
+      "detail": "1000/1000"
+    },
+    {
+      "name": "BULK3 active pointer untouched by 2000 staging/sealing ops",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "name": "SCALE-LIST all 1001 sealed ready versions listable (acceptance gate)",
+      "ok": true,
+      "detail": "1001 hashes in 16 pages"
+    },
+    {
+      "name": "CTRL1 register bounded control object B (op 15)",
+      "ok": true,
+      "detail": "native status 0, body 32B"
+    },
+    {
+      "name": "CTRL2 LIST_VERSIONS lists all 61 bounded ready versions below the ceiling",
+      "ok": true,
+      "detail": "61 hashes"
+    },
+    {
+      "name": "CTRL3 cursor pagination (limit=1 then after) covers the bounded history",
+      "ok": true,
+      "detail": "61 hashes"
+    },
+    {
+      "name": "CTRL4 limit=0 rejected (err 1)",
+      "ok": true,
+      "detail": "native status 1, err 1"
+    },
+    {
+      "name": "CTRL5 limit=65 rejected (err 1)",
+      "ok": true,
+      "detail": "native status 1, err 1"
+    },
+    {
+      "name": "ADAPTER-scale shipped adapter paginates 1001 ready versions (acceptance gate)",
+      "ok": true,
+      "detail": "1001"
+    },
+    {
+      "name": "ADAPTER-bounded shipped adapter paginates the bounded ready history",
+      "ok": true,
+      "detail": "61"
+    },
+    {
+      "name": "ADAPTER-bounded shipped adapter sees B sealed at rev1",
+      "ok": true,
+      "detail": "dc28e490b107 rev 1"
+    },
+    {
+      "name": "O1 snapshot has fixed 42B pointer + full 1001-version A ready history resident",
+      "ok": true,
+      "detail": "2150 files total (incl. bounded control object)"
+    },
+    {
+      "name": "O2 ACTIVATE wire request is fixed 76 bytes",
+      "ok": true,
+      "detail": "76B"
+    },
+    {
+      "name": "O3 activate earliest ready version rev1->2",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "O4 activation changed exactly one 42-byte active record",
+      "ok": true,
+      "detail": "{\"changed\":[\"active/08eadad8e7f672fc81aa023e5b5fc6defa5e5395bc55d32a188c8da9cf4f1235.bin\"],\"added\":[],\"removed\":[]}"
+    },
+    {
+      "name": "O5 all 1001 blobs and 1001 ready markers byte-identical after activation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "O6 ACTIVATE request unchanged (76B) for last version",
+      "ok": true,
+      "detail": "76B"
+    },
+    {
+      "name": "O7 activate latest ready version rev2->3 (O(1))",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "O8 second activation again touched only the fixed active record",
+      "ok": true,
+      "detail": "{\"changed\":[\"active/08eadad8e7f672fc81aa023e5b5fc6defa5e5395bc55d32a188c8da9cf4f1235.bin\"],\"added\":[],\"removed\":[]}"
+    },
+    {
+      "name": "CAS1 activate middle v500 rev3->4 (arbitrary earlier)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "CAS2 activate v0 rev4->5 (arbitrary later, A-B-A across history)",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "CAS3 GET_ACTIVE resolves exact committed v0 at rev5",
+      "ok": true,
+      "detail": "rev 5"
+    },
+    {
+      "name": "NEG1 stale revision 1 denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "NEG2 ABA replay of rev1 after 4 activations denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "NEG3 future revision denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "NEG4 random unsealed 32-byte target denied with correct revision (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "NEG5 stage extra code without sealing (blob exists, not ready)",
+      "ok": true,
+      "detail": "native status 0, body 32B"
+    },
+    {
+      "name": "NEG6 staged-but-unsealed activation denied even at correct revision (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "NEG7 forged admin capability cannot activate (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "NEG8 malformed 31-byte activation target denied (err 1)",
+      "ok": true,
+      "detail": "native status 1, err 1"
+    },
+    {
+      "name": "NEG9 zero revision denied (err 9)",
+      "ok": true,
+      "detail": "native status 1, err 9"
+    },
+    {
+      "name": "NEG10 seal with 31-byte admin cap denied (err 9)",
+      "ok": true,
+      "detail": "native status 1, err 9"
+    },
+    {
+      "name": "COR1 forged ready marker: SEAL denied (err 7)",
+      "ok": true,
+      "detail": "native status 1, err 7"
+    },
+    {
+      "name": "COR2 forged ready marker: ACTIVATE denied (err 7)",
+      "ok": true,
+      "detail": "native status 1, err 7"
+    },
+    {
+      "name": "COR3 marker restored byte-exact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "COR4 corrupt code blob: SEAL denied (err 7)",
+      "ok": true,
+      "detail": "native status 1, err 7"
+    },
+    {
+      "name": "COR5 blob restored byte-exact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P0F1 wrong version 0x00 denied fail-closed, no secret",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P0F2 single-bit wrong token denied fail-closed, no secret",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P0F3 zero token denied fail-closed, no secret",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P0F4 digest-as-token denied fail-closed, no secret",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "P0F5 truncated header (31B) denied fail-closed, no secret",
+      "ok": true,
+      "detail": "http 500"
+    },
+    {
+      "name": "GW1 wrong edge capability -> 401",
+      "ok": true,
+      "detail": "http 401"
+    },
+    {
+      "name": "GW2 missing edge capability -> 401",
+      "ok": true,
+      "detail": "http 401"
+    },
+    {
+      "name": "GW3 wrong origin -> 403",
+      "ok": true,
+      "detail": "http 403"
+    },
+    {
+      "name": "GW4 wrong host -> 403",
+      "ok": true,
+      "detail": "http 403"
+    },
+    {
+      "name": "NEG11 liveness: exact committed state intact after all denials",
+      "ok": true,
+      "detail": "rev 5"
+    },
+    {
+      "name": "RST1 killed release kernel + gateway",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "RST2 restarted on the same private-state dirs",
+      "ok": true,
+      "detail": "kernel 42011, gateway 39219"
+    },
+    {
+      "name": "RST3 private state byte-identical across kill/restart (2003 files)",
+      "ok": true,
+      "detail": "2151 files"
+    },
+    {
+      "name": "RST4 active pointer resolves to exact committed v0 rev5 after restart",
+      "ok": true,
+      "detail": "rev 5"
+    },
+    {
+      "name": "RST5 all 1001 ready versions survive restart and stay listable (acceptance gate)",
+      "ok": true,
+      "detail": "1001"
+    },
+    {
+      "name": "RST6 uncommitted staged-but-unsealed code still not activatable (err 8)",
+      "ok": true,
+      "detail": "native status 1, err 8"
+    },
+    {
+      "name": "RST7 stale CAS after restart denied (err 10)",
+      "ok": true,
+      "detail": "native status 1, err 10"
+    },
+    {
+      "name": "RST8 post-restart activation continues with next revision rev5->6",
+      "ok": true,
+      "detail": "native status 0, body 42B"
+    },
+    {
+      "name": "ACK0 bounded control object survived restart at rev1",
+      "ok": true,
+      "detail": "rev 1"
+    },
+    {
+      "name": "ACK1 shipped adapter reports uncertain on lost reply (no blind replay)",
+      "ok": true,
+      "detail": "uncertain"
+    },
+    {
+      "name": "ACK2 drop-after-commit really committed rev1->2 on the compiled P1",
+      "ok": true,
+      "detail": "rev 2"
+    },
+    {
+      "name": "ACK3 exactly one CAS spent (proxy saw 1 ACTIVATE, no replay)",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "ACK4 explicit state refresh reconciles to exact rev2",
+      "ok": true,
+      "detail": "rev 2"
+    },
+    {
+      "name": "ACK5 post-restart CAS continues rev2->3 via shipped adapter",
+      "ok": true,
+      "detail": "{\"app\":\"b087ba28c0b379cbc6a7da6ddd2041c775726d472ef034482b93d3babfaac1d1\",\"active\":\"0fdfe7d35e4d1e235489c6180a25202acf40bf14d28849f7830dc3ab4f96f77c\",\"pointerVersion\":3}"
+    }
+  ],
+  "result_count": 78,
+  "pass_count": 78,
+  "fail_count": 0,
+  "ALL_OK": true
+}

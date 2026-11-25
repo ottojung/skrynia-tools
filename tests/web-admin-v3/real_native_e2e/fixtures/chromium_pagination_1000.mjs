@@ -6,17 +6,18 @@
 // /_skrynia/ path is reverse-proxied to the trusted edge gateway, and the UI
 // drives the real pinned kernel + dumb P0 + ordinary paged-index P1 service.
 //
-// Prebuilt exact-kit artifacts only (no Cargo/WASM build). The P1 pin is the
-// prebuilt charging paged-index artifact built from PR107 source at ac974317;
-// the final CI-built PR107 P1 pin remains an operator release decision.
-// Override any pin via SKRYNIA_* env (see run.mjs) for another exact stack.
+// Prebuilt compiled artifacts only (no Cargo/WASM build). No host-specific
+// paths or digests are baked in: exactly five artifact path+SHA-256 env pairs
+// must be supplied (or a verified local manifest via SKRYNIA_E2E_MANIFEST),
+// together with runner provenance. CI reuses the compiled-stack artifact
+// downloaded by the same workflow; local runs supply the pairs explicitly.
 
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -33,22 +34,57 @@ const PAGE_LIMIT = 64;
 const VERSION_COUNT = 1000;
 const sha = b => createHash('sha256').update(Buffer.from(b)).digest();
 
-// Exact prebuilt stack used by charging's 1000-version acceptance (78/78),
-// verified again by hash below. No rebuild.
-const EXACT = {
-  kernel: ['/workspace/skrynia-exact-kit-73d8fa1/kernel-release',
-    'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1'],
-  p0: ['/workspace/skrynia-exact-kit-73d8fa1/root.wasm',
-    '44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95'],
-  service: ['/workspace/skrynia-poor-listfix-vJ21XVcGxwFqHAxP2YbdX1-20261124/'
-    + 'target-wasm/wasm32-unknown-unknown/release/skrynia_native_service.wasm',
-  'b0e94de5bd2c43256b4dd28fad3829e1f991b86128fc53f33b0ff064e1970a6b'],
-  echo: ['/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm',
-    'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5'],
-  gateway: ['/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/'
-    + 'skrynia-v3-trusted-edge-gateway',
-  '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f'],
+// The five artifacts are always externally supplied; this proof never selects
+// a host-specific binary. run.mjs's PINS read the same env pairs at import.
+const PIN_ENV = {
+  kernel: ['SKRYNIA_KERNEL_BIN', 'SKRYNIA_KERNEL_SHA256'],
+  p0: ['SKRYNIA_P0_WASM', 'SKRYNIA_P0_SHA256'],
+  service: ['SKRYNIA_P1_WASM', 'SKRYNIA_P1_SHA256'],
+  echo: ['SKRYNIA_ECHO_GUEST', 'SKRYNIA_ECHO_SHA256'],
+  gateway: ['SKRYNIA_EDGE_GATEWAY_BIN', 'SKRYNIA_EDGE_GATEWAY_SHA256'],
 };
+const SHA256 = /^[0-9a-f]{64}$/;
+
+function runnerProvenance() {
+  const p = {
+    host: hostname(),
+    os: process.env.RUNNER_OS || process.platform,
+    arch: process.arch,
+    runId: process.env.GITHUB_RUN_ID || null,
+    repository: process.env.GITHUB_REPOSITORY || null,
+    gitHead: process.env.GITHUB_SHA || process.env.SKRYNIA_GIT_HEAD || null,
+    runProvenance: process.env.SKRYNIA_RUN_PROVENANCE || null,
+  };
+  if (!p.runId && !p.runProvenance) {
+    throw Error('runner provenance required: set SKRYNIA_RUN_PROVENANCE for local runs');
+  }
+  return p;
+}
+
+async function resolvePins() {
+  const manifest = process.env.SKRYNIA_E2E_MANIFEST;
+  if (manifest) {
+    const doc = JSON.parse(await readFile(manifest, 'utf8'));
+    for (const [name, [pathEnv, shaEnv]] of Object.entries(PIN_ENV)) {
+      const entry = doc[name];
+      if (!entry || typeof entry.path !== 'string' ||
+          !SHA256.test(String(entry.sha256 || '').toLowerCase())) {
+        throw Error('verified manifest missing valid ' + name + ' path+sha256');
+      }
+      process.env[pathEnv] = entry.path;
+      process.env[shaEnv] = String(entry.sha256).toLowerCase();
+    }
+    return {source: 'verified-manifest', manifest};
+  }
+  const missing = Object.entries(PIN_ENV)
+    .filter(([, [pathEnv, shaEnv]]) =>
+      !process.env[pathEnv] || !SHA256.test(String(process.env[shaEnv] || '').toLowerCase()))
+    .map(([name]) => name);
+  if (missing.length) {
+    throw Error('explicit artifact path+sha256 env pairs required; missing/invalid: ' + missing.join(', '));
+  }
+  return {source: 'explicit-env-pairs', manifest: null};
+}
 
 const results = [];
 function rec(name, ok, detail = '') {
@@ -73,12 +109,16 @@ function parseListingFrame(buf) {
 }
 
 async function main() {
-  for (const [name, [path, sha256]] of Object.entries(EXACT)) {
+  const pinSource = await resolvePins();
+  const provenance = runnerProvenance();
+  for (const [name, [pathEnv, shaEnv]] of Object.entries(PIN_ENV)) {
+    const path = process.env[pathEnv];
+    const sha256 = String(process.env[shaEnv]).toLowerCase();
     PINS[name].path = path;
     PINS[name].sha256 = sha256;
-    const present = (await exists(path)) && (await hashFile(path)) === sha256;
-    rec(`pin ${name} sha256 ${sha256.slice(0, 12)}`, present, path);
-    assert.equal(await hashFile(path), sha256, `pinned ${name} sha256 mismatch`);
+    const got = (await exists(path)) ? await hashFile(path) : 'MISSING';
+    rec(`pin ${name} sha256 ${sha256.slice(0, 12)}`, got === sha256, path);
+    assert.equal(got, sha256, `pinned ${name} sha256 mismatch`);
   }
 
   const tmp = await mkdtemp(join(tmpdir(), 'webadmin-v3-chromium-1000-'));
@@ -260,7 +300,9 @@ async function main() {
     const evidence = {
       kind: 'web-admin-v3 real Chromium 1000-ready-version pagination proof',
       verified_at: new Date().toISOString(),
-      host: 'marceline-dev',
+      host: provenance.host,
+      provenance,
+      pin_source: pinSource,
       chromium: CHROME,
       page_limit: PAGE_LIMIT,
       version_count: VERSION_COUNT,

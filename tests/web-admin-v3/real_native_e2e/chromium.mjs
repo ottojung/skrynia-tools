@@ -17,7 +17,7 @@ import { createServer } from 'node:net';
 import http from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import { join, resolve, dirname, extname } from 'node:path';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -370,7 +370,7 @@ async function main() {
     const evidence = {
       kind: 'web-admin-v3 real Chromium UI-to-native E2E',
       verified_at: new Date().toISOString(),
-      host: 'marceline-dev',
+      host: hostname(),
       chromium: CHROME,
       p0_frame_pin: P0_FRAME_PIN,
       pins: Object.fromEntries(Object.entries(PINS).map(([k, v]) => [k, {path: v.path, sha256: v.sha256}])),

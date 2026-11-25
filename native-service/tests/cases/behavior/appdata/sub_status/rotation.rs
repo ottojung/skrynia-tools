@@ -1,6 +1,6 @@
 //! Grant rotation and A-B-A generation mismatch.
 use super::support::setup;
-use skrynia_native_service::wire::{Request, STATUS_ERR};
+use skrynia_native_service::wire::STATUS_ERR;
 
 #[test]
 fn op27_rotation_and_aba_generation_mismatch() {

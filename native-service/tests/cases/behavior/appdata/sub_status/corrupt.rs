@@ -1,6 +1,6 @@
 //! Revoked grant and corrupt subscription record fail closed.
 use super::support::setup;
-use skrynia_native_service::wire::{Request, STATUS_ERR};
+use skrynia_native_service::wire::STATUS_ERR;
 
 #[test]
 fn op27_revoked_grant_and_corrupt_record_fail_closed() {

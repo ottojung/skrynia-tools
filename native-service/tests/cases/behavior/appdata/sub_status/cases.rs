@@ -1,6 +1,6 @@
 //! Exact authority, generation, corruption and absence negatives for OP27.
 use super::support::setup;
-use skrynia_native_service::wire::{Request, STATUS_ERR, STATUS_OK};
+use skrynia_native_service::wire::{STATUS_ERR, STATUS_OK};
 
 #[test]
 fn op27_negatives_fail_closed_without_mutation() {

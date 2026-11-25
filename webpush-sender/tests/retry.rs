@@ -46,6 +46,11 @@ fn out_of_order_hint_survives_lower_seq_transient_failure() {
 }
 
 #[test]
-fn runtime_config_errors_are_redacted() {
-    common::claims::config_err_redacted();
+fn runtime_two_process_child() {
+    common::proc::lock2::child();
+}
+
+#[test]
+fn runtime_two_process_lock() {
+    common::proc::lock2::two_process();
 }

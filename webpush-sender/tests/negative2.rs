@@ -45,7 +45,5 @@ fn invalid_config_and_frame_fail_closed() {
 
 #[test]
 fn runtime_config_lock_and_dir_are_safe() {
-    common::runtime_cfg::loads_and_rejects_bad_mode();
-    common::runtime_cfg::lock_single_writer();
-    common::runtime_cfg::ledger_dir_rejects_group_other();
+    common::proc::hermetic();
 }

@@ -7,7 +7,7 @@ pub mod fakes;
 mod fixtures;
 mod ledger_cases;
 pub mod ledger_hard;
-pub mod runtime_cfg;
+pub mod proc;
 mod ssrf_cases;
 #[cfg(feature = "test-transport")]
 pub mod tls;

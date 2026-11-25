@@ -41,6 +41,11 @@ jobs:
           set -eu
           for f in tests/web-admin-v3/*.mjs; do
             node --check "$f"
+            # The 1000-version scale harness needs the exact compiled stack and
+            # is executed by the compiled-stack job with runner-built artifacts.
+            case "$f" in
+              *p1_admin_scale_1000.mjs) continue ;;
+            esac
             node "$f"
           done
 

@@ -17,3 +17,4 @@ pub use mlock::{MutLock, NoLock};
 pub use protocol::{handle, wdec, wenc, wire};
 pub use registry::appdata::{AppErr, PushErr, WriteAuth};
 pub use registry::{id, rcache, reg, reg_ops, store, store_io, store_ls};
+pub use store_io::index;

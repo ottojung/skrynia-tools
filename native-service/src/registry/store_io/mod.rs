@@ -1,7 +1,8 @@
 mod active;
 mod blob;
+pub mod index;
 mod ready;
-use super::cap::Disk;
+pub(crate) use super::cap::Disk;
 use crate::id;
 
 pub use active::{read_active, read_record, remove_active, write_active, write_record};

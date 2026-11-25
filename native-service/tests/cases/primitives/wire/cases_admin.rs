@@ -20,7 +20,7 @@ pub fn req_cases() -> Vec<Request> {
         Request::Admin(AdminRequest::ListVersions {
             invoke_id: vec![7; 32],
             after: None,
-            limit: 256,
+            limit: 64,
         }),
         Request::Admin(AdminRequest::ListVersions {
             invoke_id: vec![7; 32],

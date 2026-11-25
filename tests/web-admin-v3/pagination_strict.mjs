@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {createNativeCapabilities} from '../../web-admin-v3/native_capabilities.js';
 
 const sha = b => createHash('sha256').update(Buffer.from(b)).digest();
-const PAGE_LIMIT = 256;
+const PAGE_LIMIT = 64;
 
 const envelope = (status, body = Buffer.alloc(0)) => {
   const h = Buffer.alloc(6);

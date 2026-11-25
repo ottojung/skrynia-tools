@@ -37,7 +37,7 @@ fn version_list_pages_without_admin_secret() {
         Request::Admin(AdminRequest::ListVersions {
             invoke_id: id,
             after: None,
-            limit: 256,
+            limit: 64,
         }),
     );
     assert_eq!(later.status, STATUS_OK);

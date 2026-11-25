@@ -1532,6 +1532,7 @@ dependencies = [
  "aes-gcm",
  "base64ct",
  "hkdf",
+ "libc",
  "p256",
  "reqwest",
  "serde_json",

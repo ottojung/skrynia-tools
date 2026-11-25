@@ -363,6 +363,23 @@ jobs:
           SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
           E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-chromium-admin-ui.json
         run: node tests/web-admin-v3/real_native_e2e/chromium.mjs
+      - name: Chromium 1000-version pagination proof (real stack)
+        env:
+          TMPDIR: ${{ runner.temp }}
+          SKRYNIA_KERNEL_BIN: ${{ steps.shas.outputs.kernel }}
+          SKRYNIA_KERNEL_SHA256: ${{ steps.shas.outputs.kernel_sha }}
+          SKRYNIA_P0_WASM: ${{ steps.shas.outputs.p0 }}
+          SKRYNIA_P0_SHA256: ${{ steps.shas.outputs.p0_sha }}
+          SKRYNIA_P1_WASM: ${{ steps.shas.outputs.p1 }}
+          SKRYNIA_P1_SHA256: ${{ steps.shas.outputs.p1_sha }}
+          SKRYNIA_ECHO_GUEST: ${{ steps.shas.outputs.echo }}
+          SKRYNIA_ECHO_SHA256: ${{ steps.shas.outputs.echo_sha }}
+          SKRYNIA_EDGE_GATEWAY_BIN: ${{ steps.shas.outputs.gw }}
+          SKRYNIA_EDGE_GATEWAY_SHA256: ${{ steps.shas.outputs.gw_sha }}
+          SKRYNIA_GIT_HEAD: ${{ github.sha }}
+          SKRYNIA_RUN_PROVENANCE: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          E2E_EVIDENCE_OUT: ${{ runner.temp }}/evidence-chromium-1000.json
+        run: node tests/web-admin-v3/real_native_e2e/fixtures/chromium_pagination_1000.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -373,3 +390,4 @@ jobs:
             ${{ runner.temp }}/evidence-adapter.json
             ${{ runner.temp }}/evidence-restart-reconcile.json
             ${{ runner.temp }}/evidence-chromium-admin-ui.json
+            ${{ runner.temp }}/evidence-chromium-1000.json

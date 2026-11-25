@@ -11,26 +11,21 @@ gateway holds the server-only Program 0 token, which never enters public JS,
 URLs or logs. Release identity, history and activation are enforced by the
 ordinary nonzero WASM service behind that gateway, not by a bootstrap step.
 
-Current intent (direct user messages 2026-11-17 19:53:50 and 20:38:44 UTC): a
-ONE-TIME trusted-host bootstrap receives the operator URL and scoped native
-deployment authority from environment variables or interactive /dev/tty
-prompts, publishes this web interface as immutable static assets, and prints a
-stable link plus a freshly generated random access password. The bootstrap is
-not an administrative CLI and does not grant general deployment commands.
+Scope clarification (provenance reconciled 2026/11/25 on the hall board,
+[bootstrap-intent-design]): owner messages 2026-11-17 19:53:50 and
+2026-11-17 20:38:44 retain a one-time, trusted-host Bash bootstrap that reads
+its configuration from the environment or `/dev/tty`, publishes the web admin
+assets through the operator's native publication helper and prints a stable
+link plus a strong random access password. It is not a user-facing CLI and
+grants no browser capability before a successful unlock; it never carries a
+root, Program 0, operator or sender token into public assets, URLs or logs.
 
-In native v3 the one-time bootstrap must publish through the already
-provisioned publication root/provider and private artifact root (reusing the
-native publication helper semantics, never writing nginx config or the
-servable tree directly), and the printed password must actually protect the
-browser's scoped native admin/read session: an encrypted bootstrap vault may
-contain only that scoped session material, never Program 0/root, operator,
-sender or other server-only tokens, and no plaintext secret may enter public
-assets, URLs or logs. The same-origin trusted gateway is an existing
-operator prerequisite.
-
-Commit f92fbea5 removed the obsolete LEGACY v2 deploy routes and v2 grant
-form; it did not withdraw this one-time bootstrap. The 2026/11/24 record
-calling the whole bootstrap withdrawn was incorrect; Git carries its history.
+Withdrawn 2026/11/24 in f92fbea5: the previous `deploy.sh` / `bootstrap/*`
+transport that carried the then-v2 grant, and the HTTP-based `action/deploy/*`,
+`action/publish-stable/*` and `.github/workflows/web-admin.yml` surfaces.
+Those legacy HTTP/v2-grant surfaces are forbidden by AGENTS.md and stay
+withdrawn; the one-time bootstrap concept above is not. Git carries the
+withdrawn record.
 
 The web interface must display every retained version of every app and
 support atomically changing any application's active code release to

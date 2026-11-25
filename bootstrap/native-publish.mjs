@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Narrow native publication helper for the one-time admin bootstrap.
-// It NEVER writes nginx files. `publish` invokes the operator's compiled
-// publication root WASM (kernel POST) which calls the reference provider;
-// `verify` independently GETs each served file and hashes its bytes.
+// It NEVER writes nginx files. `publish` and `unpublish` invoke the operator's
+// compiled publication root WASM (kernel POST, op 1 / op 2) which calls the
+// reference provider; `verify` independently GETs each served file and hashes
+// its bytes. Side effects stay at this boundary (injected operator helper);
+// no capability material is ever echoed on stdout or stderr.
 import {createHash} from 'node:crypto';
 import {constants} from 'node:fs';
 import {lstat, open, readFile} from 'node:fs/promises';
@@ -12,6 +14,7 @@ import {join, resolve, sep} from 'node:path';
 
 const HEX64 = /^[0-9a-f]{64}$/;
 const OP_PUBLISH = 1;
+const OP_UNPUBLISH = 2;
 const TIMEOUT = 10000;
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -26,7 +29,7 @@ function publicPath(rel, app) {
   if (rel.includes('\\') || rel.includes('\0') || rel.includes('\n') || rel.includes('\r')
       || rel.endsWith('/') || rel.split('/').some(p => !p || p.startsWith('.'))
       || Buffer.byteLength(rel, 'utf8') > 4096) throw Error('unsafe publication path');
-  const nginxRoot = process.env.SKRYNIA_NGINX_ROOT;
+  const nginxRoot = process.env.SKYRNIA_NGINX_ROOT;
   if (nginxRoot) {
     const root = resolve(nginxRoot), out = resolve(join(root, rel));
     if (out !== root && !out.startsWith(root + sep)) throw Error('path escapes nginx root');
@@ -47,14 +50,14 @@ function publicationUrl() {
   const u = urlFromEnv('SKRYNIA_PUBLICATION_URL');
   const loopback = ['127.0.0.1', '::1', '[::1]'].includes(u.hostname);
   if (u.protocol === 'http:' && !loopback) throw Error('plain HTTP publication only on literal loopback');
-  if (u.protocol === 'https:' && process.env.SKRYNIA_PUBLICATION_ALLOW_TLS !== '1') {
+  if (u.protocol === 'https:' && process.env.SKYRNIA_PUBLICATION_ALLOW_TLS !== '1') {
     throw Error('https publication endpoint requires explicit review flag');
   }
   return u;
 }
 
 async function token() {
-  const file = process.env.SKRYNIA_PUBLICATION_TOKEN_FILE;
+  const file = process.env.SKYRNIA_PUBLICATION_TOKEN_FILE;
   if (!file) throw Error('SKRYNIA_PUBLICATION_TOKEN_FILE is required');
   const st = await lstat(file);
   if (st.isSymbolicLink() || !st.isFile() || st.nlink !== 1) throw Error('invalid token file');
@@ -71,13 +74,13 @@ async function token() {
   } finally { await fd.close(); }
 }
 
-function callRoot(base, tok, rel) {
+function callRoot(base, tok, op, rel) {
   const raw = Buffer.from(rel, 'utf8');
   const frame = Buffer.allocUnsafe(1 + tok.length + 1 + 4 + raw.length);
   let at = 0;
   frame.writeUInt8(1, at); at += 1;
   tok.copy(frame, at); at += tok.length;
-  frame.writeUInt8(OP_PUBLISH, at); at += 1;
+  frame.writeUInt8(op, at); at += 1;
   frame.writeUInt32LE(raw.length, at); at += 4;
   raw.copy(frame, at);
   const mod = base.protocol === 'https:' ? https : http;
@@ -127,7 +130,7 @@ function getServed(base, rel, app) {
 
 async function main() {
   const input = JSON.parse(await readStdin());
-  if (!input || !['publish', 'verify'].includes(input.action)) throw Error('invalid action');
+  if (!input || !['publish', 'unpublish', 'verify'].includes(input.action)) throw Error('invalid action');
   if (!HEX64.test(input.release || '')) throw Error('invalid release');
   const app = input.app;
   if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(app)) throw Error('invalid app');
@@ -148,23 +151,27 @@ async function main() {
 
   const base = publicationUrl();
   const tok = await token();
+  const op = input.action === 'unpublish' ? OP_UNPUBLISH : OP_PUBLISH;
   for (const f of [...input.files, ...(input.stable || [])]) {
     const rel = publicPath(f.rel, app);
-    const expected = f.sha256;
-    if (!HEX64.test(expected || '')) throw Error('invalid expected hash');
-    const abs = resolve(f.abs);
-    const artifactRoot = process.env.SKRYNIA_ARTIFACT_ROOT || '';
-    if (artifactRoot && !(abs === resolve(artifactRoot) || abs.startsWith(resolve(artifactRoot) + sep))) {
-      throw Error('source file outside private artifact root');
+    if (op === OP_PUBLISH) {
+      const expected = f.sha256;
+      if (!HEX64.test(expected || '')) throw Error('invalid expected hash');
+      const abs = resolve(f.abs);
+      const artifactRoot = process.env.SKRYNIA_ARTIFACT_ROOT || '';
+      if (artifactRoot && !(abs === resolve(artifactRoot) || abs.startsWith(resolve(artifactRoot) + sep))) {
+        throw Error('source file outside private artifact root');
+      }
+      const st = await lstat(abs);
+      if (!st.isFile() || st.isSymbolicLink()) throw Error('source must be a regular file');
+      const bytes = await readFile(abs);
+      if (sha256(bytes) !== expected) throw Error('source bytes changed before publication');
     }
-    const st = await lstat(abs);
-    if (!st.isFile() || st.isSymbolicLink()) throw Error('source must be a regular file');
-    const bytes = await readFile(abs);
-    if (sha256(bytes) !== expected) throw Error('source bytes changed before publication');
-    const result = await callRoot(base, tok, rel);
-    if (!result.ok) throw Error('publication root rejected ' + rel);
+    // Both ops require a complete zero-code reply; unknown/malformed replies fail closed.
+    const result = await callRoot(base, tok, op, rel);
+    if (!result.ok) throw Error((op === OP_PUBLISH ? 'publish' : 'unpublish') + ' rejected ' + rel);
   }
-  process.stdout.write(JSON.stringify({ok: true, release: input.release}) + '\n');
+  process.stdout.write(JSON.stringify({ok: true, release: input.release, action: input.action}) + '\n');
 }
 
 main().catch(() => {

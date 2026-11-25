@@ -19,6 +19,32 @@ const b64url = bytes => bytes.toString('base64').replaceAll('+', '-').replaceAll
 
 const env = name => process.env[name] || '';
 
+async function rejectSymlinkParents(p) {
+  let cur = resolve(p);
+  const root = resolve('/');
+  while (true) {
+    try {
+      const st = await lstat(cur);
+      if (st.isSymbolicLink()) throw Error('symlink in path rejected: ' + cur);
+    } catch (e) {
+      if (e && e.code !== 'ENOENT') throw e;
+      // Missing tail is allowed; check existing parents.
+    }
+    if (cur === root) break;
+    const parent = resolve(cur, '..');
+    if (parent === cur) break;
+    cur = parent;
+  }
+}
+
+async function assertFdStat(fd, st, label) {
+  const fst = await fd.stat();
+  if (!fst.isFile() || fst.isSymbolicLink()) throw Error(label + ' fd is not a regular file');
+  if (fst.nlink !== st.nlink || fst.uid !== st.uid || fst.size !== st.size || (fst.mode & 0o777) !== (st.mode & 0o777)) {
+    throw Error(label + ' changed between lstat and fstat');
+  }
+}
+
 function validateOrigin(raw) {
   let url;
   try { url = new URL(raw); } catch { throw Error('invalid origin URL'); }
@@ -48,6 +74,7 @@ function validateEndpoint(raw, origin) {
 }
 
 async function readScopedCap(path, label) {
+  await rejectSymlinkParents(path);
   const st = await lstat(path);
   if (st.isSymbolicLink()) throw Error(label + ' must not be a symlink');
   if (!st.isFile() || st.nlink !== 1) throw Error(label + ' must be a regular single-link file');
@@ -56,6 +83,7 @@ async function readScopedCap(path, label) {
   if (st.size < 64 || st.size > 128) throw Error(label + ' size out of bounds');
   const fd = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
+    await assertFdStat(fd, st, label);
     const buf = Buffer.alloc(128);
     const {bytesRead} = await fd.read(buf, 0, 128, 0);
     const value = buf.subarray(0, bytesRead).toString('utf8').trim();
@@ -114,11 +142,20 @@ async function scopedSession(cfg) {
   const adminCap = await readScopedCap(cfg.adminCapFile, 'native admin capability');
   let adminCaps = {};
   if (cfg.adminCapsFile) {
+    await rejectSymlinkParents(cfg.adminCapsFile);
     const st = await lstat(cfg.adminCapsFile);
     if (!st.isFile() || st.nlink !== 1 || st.isSymbolicLink() || (st.mode & 0o077) !== 0) {
       throw Error('invalid admin capability map file');
     }
-    adminCaps = JSON.parse(await readFile(cfg.adminCapsFile, 'utf8'));
+    if (typeof process.getuid === 'function' && st.uid !== process.getuid()) throw Error('admin capability map must be owned by current uid');
+    if (st.size < 2 || st.size > 65536) throw Error('admin capability map size out of bounds');
+    const fd = await open(cfg.adminCapsFile, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    let raw;
+    try {
+      await assertFdStat(fd, st, 'admin capability map');
+      raw = (await fd.readFile({encoding: 'utf8'}));
+    } finally { await fd.close(); }
+    adminCaps = JSON.parse(raw);
     if (!adminCaps || typeof adminCaps !== 'object' || Array.isArray(adminCaps)) throw Error('adminCaps must be an object');
     for (const [app, cap] of Object.entries(adminCaps)) {
       if (!APP_RE.test(app) || !HEX64.test(cap)) throw Error('invalid scoped admin capability');
@@ -149,9 +186,11 @@ export async function install(cfg = requireInput()) {
   const endpoint = cfg.endpointUrl || validateEndpoint(cfg.endpoint || '/_skrynia/', new URL(origin));
   const session = await scopedSession({...cfg, originUrl: new URL(origin), endpointUrl: endpoint});
   const root = resolve(cfg.artifactRoot);
+  await rejectSymlinkParents(root);
   assertDisjoint(root, new URL(origin));
   const appRoot = join(root, 'apps', cfg.app);
   await mkdir(appRoot, {recursive: true});
+  await rejectSymlinkParents(appRoot);
   await writeFile(join(appRoot, '.installed'),
     JSON.stringify({kitPin: cfg.kitPin, created: new Date().toISOString()}) + '\n',
     {flag: 'wx', mode: 0o600});
@@ -198,27 +237,65 @@ export async function install(cfg = requireInput()) {
     files: releaseFiles,
     stable: stableFiles,
   };
-  const published = await runHelper(cfg.publishHelper, {...payload, action: 'publish'});
-  if (published.release !== release) throw Error('publish helper release mismatch');
-  const verified = await runHelper(cfg.verifyHelper, {...payload, action: 'verify'});
-  if (verified.release !== release || !Array.isArray(verified.files)) throw Error('verify helper result malformed');
   const expected = new Map([...payload.files, ...payload.stable].map(f => [f.rel, f.sha256]));
-  if (verified.files.length !== expected.size) throw Error('served-file roster mismatch');
-  for (const entry of verified.files) {
-    if (expected.get(entry.rel) !== entry.sha256 || entry.status !== 200) {
-      throw Error('served bytes mismatch for ' + entry.rel);
+  let publishedOk = false;
+  try {
+    const published = await runHelper(cfg.publishHelper, {...payload, action: 'publish'});
+    if (published.release !== release || published.action !== 'publish') throw Error('publish helper release mismatch');
+    // A publish helper can report ok only after every requested op 1 returned
+    // the definitive all-or-nothing zero code. Unknown outcomes must be thrown
+    // by the helper and are never treated as published.
+    publishedOk = true;
+    const verified = await runHelper(cfg.verifyHelper, {...payload, action: 'verify'});
+    if (verified.release !== release || !Array.isArray(verified.files)) throw Error('verify helper result malformed');
+    const seen = new Set();
+    for (const entry of verified.files) {
+      if (!entry || typeof entry.rel !== 'string') throw Error('verify helper result malformed');
+      if (seen.has(entry.rel)) throw Error('duplicate served-file verification result for ' + entry.rel);
+      seen.add(entry.rel);
     }
+    if (seen.size !== expected.size) throw Error('served-file roster mismatch');
+    for (const rel of expected.keys()) {
+      if (!seen.has(rel)) throw Error('served-file roster missing ' + rel);
+    }
+    for (const entry of verified.files) {
+      if (expected.get(entry.rel) !== entry.sha256 || entry.status !== 200) {
+        throw Error('served bytes mismatch for ' + entry.rel);
+      }
+    }
+  } catch (error) {
+    // Never blindly unpublish after an unknown publish outcome or ambiguous
+    // verification: revoking a path not proven owned/created by this run is
+    // unsafe. Only when every publish op returned definitive success do we
+    // undo through the SAME native publish root (op 2). Otherwise stop and
+    // require operator reconciliation; no password is printed.
+    if (!publishedOk) {
+      throw Error(`${error.message || String(error)} (publish outcome unknown or failed before definitive success; no unpublish attempted; operator reconciliation required)`);
+    }
+    let rollback = 'unpublish completed';
+    try {
+      const undone = await runHelper(cfg.publishHelper, {...payload, action: 'unpublish'});
+      if (undone.action !== 'unpublish') throw Error('unpublish helper result malformed');
+    } catch {
+      rollback = 'UNPUBLISH FAILED: public state uncertain; operator must reconcile';
+    }
+    throw Error(`${error.message || String(error)} (${rollback})`);
   }
   // Stable entry, not a version-specific URL only.
-  return {link: `${origin}/apps/${cfg.app}/unlock.html`, password, release};
+  const link = `${origin}/apps/${cfg.app}/unlock.html`;
+  const pwFile = join(appRoot, `password.${release}.txt`);
+  // Private recovery record: only after successful publication+verification.
+  await writeFile(pwFile, password + '\n', {flag: 'wx', mode: 0o600});
+  return {link, password, release, passwordFile: pwFile};
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  install().then(({link, password, release}) => {
+  install().then(({link, password, release, passwordFile}) => {
     process.stdout.write('ADMIN_LINK=' + link + '\n');
     process.stdout.write('ADMIN_RELEASE=' + release + '\n');
     process.stdout.write('ADMIN_ACCESS_PASSWORD=' + password + '\n');
-    process.stdout.write('Store the password now; it is not written to disk in plaintext.\n');
+    process.stdout.write('ADMIN_PASSWORD_FILE=' + passwordFile + '\n');
+    process.stdout.write('Password written to private 0600 file after verified publication; keep it private.\n');
   }).catch(e => {
     process.stderr.write('installer failed closed: ' + (e.message || String(e)) + '\n');
     process.exitCode = 1;

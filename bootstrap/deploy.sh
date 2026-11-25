@@ -1,35 +1,12 @@
 #!/usr/bin/env bash
 # One-time native-v3 trusted-host admin bootstrap. NOT a CLI, no subcommands.
-# Must be executed from a local file. Piped execution is explicitly unsupported.
+# Supports local execution or one-time piped execution with an immutable pinned
+# reviewed bundle and out-of-band checksum verification.
 set -euo pipefail
 
-SOURCE_FILE="${BASH_SOURCE[0]}"
-if [[ ! -f "$SOURCE_FILE" || "$SOURCE_FILE" == /dev/stdin || "$SOURCE_FILE" == - ]]; then
-  echo 'refusing piped execution: download the pinned file, verify SHA-256, then run it locally' >&2
-  exit 2
-fi
-
-# This installer MUST be run from a trusted local copy whose contents have
-# been verified against an immutable source archive/checksum outside this
-# tree (e.g. a signed SHA256SUMS published with the reviewed bootstrap
-# release artifact). A self-referential commit pin inside the distributed
-# files cannot be the source of truth. The operator must supply and confirm
-# the reviewed bootstrap source checksum before execution.
-EXPECTED_SOURCE_SHA256="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-}"
-if [[ -z "$EXPECTED_SOURCE_SHA256" ]]; then
-  echo 'SKRYNIA_BOOTSTRAP_SOURCE_SHA256 is required: verify the immutable source archive/checksum outside this tree before running' >&2
-  exit 2
-fi
-HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
-ROOT="$(cd -- "$HERE/.." && pwd)"
-if [[ -f "$HERE/SHA256SUMS" ]]; then
-  (cd "$HERE" && sha256sum -c SHA256SUMS >/dev/null) || { echo 'bootstrap SHA256SUMS verification failed' >&2; exit 2; }
-  ACTUAL="$(sha256sum "$SOURCE_FILE" | awk '{print $1}')"
-  [[ "$ACTUAL" == "$EXPECTED_SOURCE_SHA256" ]] || { echo 'bootstrap source checksum mismatch' >&2; exit 2; }
-else
-  echo 'SHA256SUMS missing: provide immutable source checksum verification outside this tree' >&2
-  exit 2
-fi
+umask 077
+TOOLS_PIN=639ec720da11ef311471535d6383ff556839a718
+REPO="${SKRYNIA_BOOTSTRAP_REPO:-ottojung/skrynia-tools}"
 
 ask() {
   local name="$1" value="${!1-}"
@@ -39,10 +16,50 @@ ask() {
   printf '%s' "$value"
 }
 
-# Kit artifacts are pinned to the reviewed tools commit; bootstrap source is
-# pinned separately above. Neither value may be overridden by the operator.
-SKRYNIA_TOOLS_PIN=639ec720da11ef311471535d6383ff556839a718
-export SKRYNIA_TOOLS_PIN
+verify_local_bundle() {
+  local here="$1"
+  local expected="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-}"
+  [[ -n "$expected" ]] || { echo 'SKRYNIA_BOOTSTRAP_SOURCE_SHA256 required (out-of-band immutable checksum)' >&2; exit 2; }
+  [[ -f "$here/SHA256SUMS" ]] || { echo 'SHA256SUMS missing; verify immutable bundle outside this tree' >&2; exit 2; }
+  (cd "$here" && sha256sum -c SHA256SUMS >/dev/null) || { echo 'bootstrap SHA256SUMS verification failed' >&2; exit 2; }
+  local actual
+  actual="$(sha256sum "$here/deploy.sh" | awk '{print $1}')"
+  [[ "$actual" == "$expected" ]] || { echo 'bootstrap source checksum mismatch' >&2; exit 2; }
+}
+
+SOURCE_FILE="${BASH_SOURCE[0]:-}"
+if [[ -z "$SOURCE_FILE" || "$SOURCE_FILE" == /dev/stdin || "$SOURCE_FILE" == - || ! -f "$SOURCE_FILE" ]]; then
+  # One-time piped mode: immutable commit ref + out-of-band bundle checksum.
+  # No self-referential hash, no mutable main fetch.
+  REF="${SKRYNIA_BOOTSTRAP_SOURCE_REF:-}"
+  [[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo 'SKRYNIA_BOOTSTRAP_SOURCE_REF must be an immutable 40-hex reviewed commit' >&2; exit 2; }
+  BUNDLE_SHA="${SKRYNIA_BOOTSTRAP_BUNDLE_SHA256:-}"
+  [[ "$BUNDLE_SHA" =~ ^[0-9a-f]{64}$ ]] || { echo 'SKRYNIA_BOOTSTRAP_BUNDLE_SHA256 required (out-of-band sha256 of immutable tarball)' >&2; exit 2; }
+  TMP="$(mktemp -d "${TMPDIR:-/tmp}/skrynia-bootstrap.XXXXXX")"
+  trap 'rm -rf "$TMP"' EXIT
+  TARBALL="$TMP/src.tar.gz"
+  URL="https://codeload.github.com/${REPO}/tar.gz/${REF}"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --proto '=https' --tlsv1.2 "$URL" -o "$TARBALL"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TARBALL" "$URL"
+  else
+    echo 'curl or wget required for piped bootstrap' >&2; exit 2
+  fi
+  ACTUAL="$(sha256sum "$TARBALL" | awk '{print $1}')"
+  [[ "$ACTUAL" == "$BUNDLE_SHA" ]] || { echo 'immutable bootstrap bundle checksum mismatch' >&2; exit 2; }
+  tar -xzf "$TARBALL" -C "$TMP"
+  EXTRACTED="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d | head -1)"
+  [[ -f "$EXTRACTED/bootstrap/deploy.sh" ]] || { echo 'pinned bundle missing bootstrap/deploy.sh' >&2; exit 2; }
+  export SKRYNIA_BOOTSTRAP_SOURCE_SHA256="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-$(sha256sum "$EXTRACTED/bootstrap/deploy.sh" | awk '{print $1}')}"
+  exec bash "$EXTRACTED/bootstrap/deploy.sh"
+fi
+
+HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
+verify_local_bundle "$HERE"
+
+# Neither value may be overridden by the operator.
+export SKRYNIA_TOOLS_PIN="$TOOLS_PIN"
 export SKRYNIA_ARTIFACT_ROOT="$(ask SKRYNIA_ARTIFACT_ROOT)"
 export SKRYNIA_ORIGIN_URL="$(ask SKRYNIA_ORIGIN_URL)"
 export SKRYNIA_NATIVE_READ_CAP_FILE="$(ask SKRYNIA_NATIVE_READ_CAP_FILE)"

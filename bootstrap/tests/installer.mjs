@@ -19,14 +19,21 @@ async function fixture(t) {
   await writeFile(readCap, hex('a'), {mode: 0o600});
   await writeFile(adminCap, hex('b'), {mode: 0o600});
   const helperMod = join(dir, 'helper.mjs');
+  const actionsFile = join(dir, 'helper-actions.log');
   await writeFile(helperMod, `
+import {appendFile} from 'node:fs/promises';
 let raw = '';
 for await (const chunk of process.stdin) raw += chunk.toString('utf8');
 const j = JSON.parse(raw);
+await appendFile(${JSON.stringify(actionsFile)}, j.action + '\\n');
 if (j.action === 'verify') {
-  const files = [...j.files, ...(j.stable || [])].map(f => ({rel: f.rel, status: 200, sha256: f.sha256}));
-  process.stdout.write(JSON.stringify({ok: true, release: j.release, files}) + '\\n');
-} else process.stdout.write(JSON.stringify({ok: true, release: j.release}) + '\\n');
+  if (process.env.FAIL_VERIFY === '1') {
+    process.stdout.write(JSON.stringify({ok: true, release: j.release, files: []}) + '\\n');
+  } else {
+    const files = [...j.files, ...(j.stable || [])].map(f => ({rel: f.rel, status: 200, sha256: f.sha256}));
+    process.stdout.write(JSON.stringify({ok: true, release: j.release, files}) + '\\n');
+  }
+} else process.stdout.write(JSON.stringify({ok: true, release: j.release, action: j.action}) + '\\n');
 `);
   const wrap = join(dir, 'helper.sh');
   await writeFile(wrap, `#!/bin/sh\nexec node '${helperMod}'\n`);
@@ -98,4 +105,15 @@ test('vault is scoped and published assets stay public-safe', async t => {
   for (const f of manifest.files) {
     assert.equal(sha(await readFile(join(releaseDir, f.rel))), f.sha256, f.rel + ' hash');
   }
+});
+
+test('failed served-byte verification unpublishes and prints no authority', async t => {
+  const {cfg, dir} = await fixture(t);
+  // The mock verify helper returns an empty roster when FAIL_VERIFY=1.
+  const verifyShell = join(dir, 'verify-fail.sh');
+  await writeFile(verifyShell, `#!/bin/sh\nexport FAIL_VERIFY=1\nexec node '${join(dir, 'helper.mjs')}'\n`);
+  await chmod(verifyShell, 0o700);
+  await assert.rejects(install({...cfg, verifyHelper: verifyShell}), /served-file roster mismatch.*unpublish completed/);
+  const actions = await readFile(join(dir, 'helper-actions.log'), 'utf8');
+  assert.match(actions, /^publish\nverify\nunpublish\n$/, 'publish/verify/unpublish order');
 });

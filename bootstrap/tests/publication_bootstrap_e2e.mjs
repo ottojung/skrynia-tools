@@ -3,9 +3,9 @@
 // No rebuild, no production config/TLS/DNS/credentials, no real secrets.
 import assert from 'node:assert/strict';
 import {createHash, randomBytes} from 'node:crypto';
-import {spawn} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import http from 'node:http';
-import {mkdir, mkdtemp, readFile, rm, writeFile, chmod} from 'node:fs/promises';
+import {mkdir, mkdtemp, readFile, readdir, rm, writeFile, chmod} from 'node:fs/promises';
 import {join, resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
@@ -51,6 +51,23 @@ async function waitHttp(url, tries = 240) {
 async function getBytes(url) {
   const res = await fetch(url, {signal: AbortSignal.timeout(5000)});
   return {status: res.status, bytes: Buffer.from(await res.arrayBuffer())};
+}
+async function waitPost(url, tries = 240) {
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url, {method: 'POST', signal: AbortSignal.timeout(1000)});
+      if (res.status > 0) { await res.arrayBuffer().catch(() => {}); return true; }
+    } catch {}
+    await delay(50);
+  }
+  return false;
+}
+function callHelper(wrapper, payload) {
+  const cp = spawnSync(wrapper, [], {input: JSON.stringify(payload), encoding: 'utf8', timeout: 30000});
+  if (cp.error || cp.status !== 0) throw Error('helper failed: ' + (cp.error?.message || cp.status));
+  const out = JSON.parse(cp.stdout);
+  if (out.ok !== true) throw Error('helper reported failure');
+  return out;
 }
 
 async function main() {
@@ -109,7 +126,9 @@ async function main() {
       headers: {'Content-Type': 'application/octet-stream'},
       body: registerOp(opCap, adminCap, echo),
     });
-    const registered = decodeResponse(Buffer.from(await regResp.arrayBuffer()));
+    const regBuf = Buffer.from(await regResp.arrayBuffer());
+    console.log('DEBUG reg status', regResp.status, 'len', regBuf.length, 'hex', regBuf.subarray(0,16).toString('hex'));
+    const registered = decodeResponse(regBuf);
     rec('admin-app-registered', registered.status === 0, `status ${registered.status}`);
 
     // --- Compiled publication root/provider + nginx ---
@@ -188,6 +207,32 @@ async function main() {
       if (got.status !== 200 || sha(got.bytes) !== f.sha256) allHashes = false;
     }
     rec('independently-verified-served-bytes', allHashes);
+
+    // --- Actual native publish/unpublish through the compiled root/provider ---
+    // Rebuild the exact publication roster from the private artifact bytes.
+    const names = (await readdir(releaseDir)).filter(n => /\.(js|html|css|json)$/.test(n));
+    const entries = await Promise.all(names.map(async n => ({
+      n, h: sha(await readFile(join(releaseDir, n))),
+    })));
+    const pubPayload = {
+      app: 'admin-v3', release,
+      files: entries.map(({n, h}) => ({rel: `apps/admin-v3/${release}/${n}`, abs: join(releaseDir, n), sha256: h})),
+      stable: entries.map(({n, h}) => ({rel: `apps/admin-v3/${n}`, abs: join(releaseDir, n), sha256: h})),
+    };
+    const undone = callHelper(wrapper, {...pubPayload, action: 'unpublish'});
+    rec('native-unpublish-op-ok', undone.action === 'unpublish');
+    let absent = true;
+    for (const f of [...pubPayload.files, ...pubPayload.stable]) {
+      const got = await getBytes(`${origin}/${f.rel}`);
+      if (got.status !== 404) absent = false;
+    }
+    rec('native-unpublish-removed-served-files', absent);
+    const repub = callHelper(wrapper, {...pubPayload, action: 'publish'});
+    rec('native-republish-op-ok', repub.action === 'publish');
+    const reproof = callHelper(wrapper, {...pubPayload, action: 'verify'});
+    const wanted = new Map([...pubPayload.files, ...pubPayload.stable].map(f => [f.rel, f.sha256]));
+    rec('native-republish-served-bytes', reproof.files.length === wanted.size
+      && reproof.files.every(f => f.status === 200 && wanted.get(f.rel) === f.sha256));
 
     // --- Real Chromium: no authority before/wrong password, real admin after unlock ---
     const {chromium} = await import(pathToFileURL(PW).href);

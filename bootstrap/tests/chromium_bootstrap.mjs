@@ -28,7 +28,7 @@ const j = JSON.parse(raw);
 if (j.action === 'verify') {
   const files = [...j.files, ...(j.stable || [])].map(f => ({rel: f.rel, status: 200, sha256: f.sha256}));
   process.stdout.write(JSON.stringify({ok: true, release: j.release, files}) + '\\n');
-} else process.stdout.write(JSON.stringify({ok: true, release: j.release}) + '\\n');
+} else process.stdout.write(JSON.stringify({ok: true, release: j.release, action: j.action}) + '\\n');
 `);
   const helper = join(dir, 'helper.sh');
   await writeFile(helper, `#!/bin/sh\nexec node '${helperMod}'\n`);

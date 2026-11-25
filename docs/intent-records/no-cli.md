@@ -4,22 +4,24 @@ date: 2026/11/17
 source: @ottojung
 kind: requirement
 
-Skrynia Tools must not expose any CLI functionality. Administration takes
-place through the web interface, which sends opaque binary POST through an
-operator gateway. There is no user-facing command-line admin interface.
+Skrynia Tools must not expose any CLI functionality. Remove its
+CLI executable, command parser, installation package, tests and
+documentation. Administration must take place through the web interface,
+which sends opaque binary POST through an operator gateway.
 
-A ONE-TIME trusted-host Bash installation bootstrap remains current intent
-(direct user message 2026-11-17 19:53:50 UTC; confirmed again 2026-11-17
-20:38:44 UTC: no administrative CLI, but the one-time bootstrap is retained).
-It is not a CLI and not a general deployment service: it is run once by the
-operator, takes only env values or /dev/tty prompts, and publishes the web
-admin assets. In native v3 it must use the operator-supplied publication
-root/provider and private artifact root, never a v2 grant, `/store`, an
-HTTP deployment facade or direct nginx writes. The kernel's separate
-no-bootstrap position concerns the kernel, not this tools-side bootstrap.
+Scope clarification (provenance reconciled 2026/11/25 on the hall board,
+[bootstrap-intent-design]): owner messages 2026-11-17 19:53:50 and
+2026-11-17 20:38:44 retain a single one-time, trusted-host Bash installation
+bootstrap for Skrynia Tools. It is a one-shot installer with no subcommands:
+not a user-facing CLI and not an HTTP-based deployment action. It uses pinned
+reviewed Tools source and scoped native admin/read authority, and must never
+reintroduce a v2 `/store` grant, a legacy HTTP deployment facade, or a kernel
+bootstrap.
 
-Commit f92fbea5 deleted only the obsolete LEGACY v2 HTTP surfaces
-(`bootstrap/*` v2 scripts, `deploy.sh` v2 form, `action/deploy/*`,
-`action/publish-stable/*`, `.github/workflows/web-admin.yml`). It did not
-withdraw the one-time bootstrap itself. The 2026/11/24 record calling the
-whole bootstrap withdrawn was incorrect; Git carries its history.
+Withdrawn 2026/11/24 in f92fbea5: only the obsolete LEGACY v2 HTTP deploy
+routes/actions (`action/deploy/*`, `action/publish-stable/*`,
+`.github/workflows/web-admin.yml`) and the v2-grant-bearing `bootstrap/*`
+transport. Those legacy HTTP surfaces are forbidden by AGENTS.md and stay
+withdrawn; their removal did not withdraw the one-time bootstrap concept
+above. The 2026/11/24 record that labelled the whole bootstrap withdrawn was
+over-broad; Git carries its history.

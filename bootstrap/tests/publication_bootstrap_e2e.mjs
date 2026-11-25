@@ -109,14 +109,14 @@ async function main() {
     const kernel = await startKernel({base: join(tmp, 'admin-kernel'), port: kernelPort,
       token: p1Token, opCap, logs: 'kernel.log'});
     procs.push(kernel.proc);
-    rec('admin-kernel-booted', kernel.proc.exitCode === null, `127.0.0.1:${kernelPort}`);
+    rec('admin-kernel-ready', await waitPost(`http://127.0.0.1:${kernelPort}/version`), `127.0.0.1:${kernelPort}`);
 
     const edgePort = await freePort();
     const edgeCap = 'bootstrap-e2e-' + randomBytes(16).toString('hex');
     const gw = await startGateway({dir: join(tmp, 'edge'), port: edgePort,
       kernelPort, token: p1Token, edgeCap, logs: 'gateway.log', appHost, appOrigin: origin});
     procs.push(gw.proc);
-    rec('admin-gateway-booted', gw.proc.exitCode === null, gw.host);
+    rec('admin-gateway-ready', await waitHttp(`http://${gw.host}/version`), gw.host);
 
     // Register an app out of band so real admin authority has something to list.
     const transportEndpoint = `http://${gw.host}/_skrynia/`;
@@ -126,9 +126,7 @@ async function main() {
       headers: {'Content-Type': 'application/octet-stream'},
       body: registerOp(opCap, adminCap, echo),
     });
-    const regBuf = Buffer.from(await regResp.arrayBuffer());
-    console.log('DEBUG reg status', regResp.status, 'len', regBuf.length, 'hex', regBuf.subarray(0,16).toString('hex'));
-    const registered = decodeResponse(regBuf);
+    const registered = decodeResponse(Buffer.from(await regResp.arrayBuffer()));
     rec('admin-app-registered', registered.status === 0, `status ${registered.status}`);
 
     // --- Compiled publication root/provider + nginx ---

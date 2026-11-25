@@ -23,10 +23,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {
   PINS, P0_FRAME_PIN, sha256buf, hashFile, exists, freePort, stopProc,
   startKernel, startGateway, decodeResponse, putId, putBlob,
-} from './run.mjs';
+} from '../run.mjs';
 import {
   startStaticHost, cdpTarget, cdp, until, postNative, stageOp, sealOp, getActiveOp,
-} from './chromium.mjs';
+} from '../chromium.mjs';
 
 const CHROME = process.env.CHROME_BIN || 'chromium';
 const PAGE_LIMIT = 64;

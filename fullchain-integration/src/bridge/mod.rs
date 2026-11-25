@@ -2,6 +2,7 @@
 //! No kernel/edge is spawned here; the caller owns the single shared P1 stack.
 mod config;
 mod edge;
+mod private_output;
 mod pump;
 
 pub fn execute() {
@@ -15,17 +16,24 @@ pub fn execute() {
     let (_, keys) = crate::fixture();
     let v = crate::check(&seen[0], &keys, "https://push.example.test").expect("vapid+decrypt");
     assert_eq!(v.plaintext.len(), 32, "opaque hint must be 32 bytes");
-    let hex = v.plaintext.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let hex = v
+        .plaintext
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
     let body = format!(
         "plaintext_hex={hex}\nvapid_sub={}\nreport={}/{}/{}/{}\n",
         v.vapid_sub, rep.hints, rep.delivered, rep.acked, rep.skipped
     );
-    std::fs::write(&cfg.out, body).expect("write decrypted hint out");
-    // The plaintext is written only to the caller's private 0600 temp output.
+    private_output::write(&cfg.out, body.as_bytes()).expect("write private decrypted hint");
+    // The plaintext is written only to the new private 0600 temp output.
     // Never echo the raw hint to stdout or CI logs; digests/verdicts only.
     println!("bridge_vapid_sub={}", v.vapid_sub);
     println!("bridge_vapid_es256_verify=ok");
     println!("bridge_aes128gcm_decrypt=ok");
-    println!("bridge_report={}/{}/{}/{}", rep.hints, rep.delivered, rep.acked, rep.skipped);
+    println!(
+        "bridge_report={}/{}/{}/{}",
+        rep.hints, rep.delivered, rep.acked, rep.skipped
+    );
     println!("BRIDGE_OK");
 }

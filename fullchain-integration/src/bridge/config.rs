@@ -27,13 +27,15 @@ pub fn load() -> Config {
     let path = std::env::var("FC_SENDER_BRIDGE").expect("FC_SENDER_BRIDGE config path required");
     let raw = std::fs::read_to_string(&path).expect("bridge config readable");
     let v: serde_json::Value = serde_json::from_str(&raw).expect("bridge config JSON");
-    let str_field = |name: &str| -> String {
-        v.get(name).and_then(|x| x.as_str()).expect(name).to_owned()
-    };
+    let str_field =
+        |name: &str| -> String { v.get(name).and_then(|x| x.as_str()).expect(name).to_owned() };
     let key = str_field("key").into_bytes();
     assert!(!key.is_empty() && key.len() <= 255, "key length");
     Config {
-        edge_port: v.get("edge_port").and_then(|x| x.as_u64()).expect("edge_port") as u16,
+        edge_port: v
+            .get("edge_port")
+            .and_then(|x| x.as_u64())
+            .expect("edge_port") as u16,
         edge_host: str_field("edge_host"),
         edge_origin: str_field("edge_origin"),
         edge_cap: str_field("edge_cap"),

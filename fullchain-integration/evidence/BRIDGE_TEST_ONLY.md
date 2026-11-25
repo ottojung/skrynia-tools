@@ -9,7 +9,7 @@ The bridge constructs the real `webpush-sender` `HttpP1` against a loopback,
 app-scoped edge capability, runs one durable-ledger pump cycle, delivers to a
 controlled local HTTPS endpoint, verifies VAPID ES256 + RFC8291 AES-128-GCM,
 and writes `plaintext_hex` (the exact decrypted 32-byte hint) to the configured
-output path. No operator/P0 token, no production endpoint, no DNS or real
+output path (must not exist; created exclusively with mode 0600). No operator/P0 token, no production endpoint, no DNS or real
 credentials are involved. The normal `FC_ARTIFACTS` harness path is unchanged
 when `FC_SENDER_BRIDGE` is absent.
 

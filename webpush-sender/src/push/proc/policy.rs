@@ -20,6 +20,19 @@ pub fn fatal(e: &Error) -> bool {
     }
 }
 
+/// Record `e` over an earlier failure only when it is more severe: fatal
+/// classes outrank transient ones. A permanent 401/403 must never be hidden
+/// by a later retryable Busy/Exhausted/I/O failure.
+pub fn keep_worse(failure: &mut Option<Error>, e: Error) {
+    let replace = match failure.as_ref() {
+        None => true,
+        Some(old) => !fatal(old) && fatal(&e),
+    };
+    if replace {
+        *failure = Some(e);
+    }
+}
+
 /// Saturating backoff: never longer than the configured cap, at least poll_ms.
 pub(super) fn backoff_ms(poll_ms: u64, cap_ms: u64, streak: u32) -> u64 {
     let cap = cap_ms.max(poll_ms);

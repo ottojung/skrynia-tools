@@ -18,6 +18,8 @@ pub use hints::{enqueue_hints, mark_wake_dirty};
 pub use lock::with_lock;
 pub use paths::*;
 pub use sender::{hint_ack, hint_list, hint_read, sub_fetch};
+pub use stored::Status;
+pub use stored::status as sub_status;
 pub use subscribe::subscribe;
 pub use unsubscribe::unsubscribe;
 

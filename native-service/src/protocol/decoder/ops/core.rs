@@ -17,10 +17,7 @@ pub fn parse(op: u8, src: &mut &[u8]) -> Result<Request, DecodeErr> {
             input: blob(src)?,
         }),
         OP_LOOKUP => Ok(Request::Lookup(id(src)?)),
-        OP_REVOKE => Ok(Request::Revoke {
-            admin_cap: id(src)?,
-            expect: parse_precond(src)?,
-        }),
+        OP_REVOKE => Ok(Request::Revoke(id(src)?, parse_precond(src)?)),
         _ => Err(DecodeErr::Op),
     }
 }

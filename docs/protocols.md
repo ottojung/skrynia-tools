@@ -11,6 +11,7 @@ for deploying an application.
 | AppendLog | Contiguous slots, idempotent cooperating writers |
 | SnapshotStore | Immutable manifests/blobs, one CAS head |
 | EventSet | Generic unordered contributions over an injected enumerating store |
+| Subscription status | Read-only operation 27, exact subscriber-scoped status |
 
 The native client does not implement object enumeration or create-only
 namespace credentials. EventSet therefore requires a caller-provided
@@ -30,6 +31,46 @@ error 10 is a structured conflict. Successful put returns the content digest.
 Read returns the value; successful delete returns an empty body. The SDK
 checks the complete frame and applies a 16 MiB frame bound. Other errors or
 uncertain transport outcomes are surfaced to the caller.
+
+## Subscription status (ordinary P1, OP27)
+
+OP27 is a narrow, read-only status check in the ordinary nonzero service. It
+never exposes endpoint, p256dh or auth material to the caller and grants no
+sender or provider authority. A caller supplies the existing narrow
+`Kind::Subscribe` grant capability, the exact object key, the exact subscriber
+bytes, and the 32-byte SHA-256 of the opaque subscription bytes it submitted
+to OP16. The service hashes the stored subscription with the same canonical
+bytes, verifies the durable grant subject and generation, and compares digests
+in constant time. No durable state is written; the mutation lock is taken for
+a consistent snapshot and lock contention is reported explicitly.
+
+Request bytes after version 1 and opcode 27:
+
+| Field | Encoding |
+| --- | --- |
+| grant capability | u16 LE length 32, then 32 raw capability bytes |
+| exact key | u32 LE length, then key bytes |
+| subscriber | u32 LE length, then 1..256 raw subscriber bytes |
+| expected subscription hash | u16 LE length 32, then 32 raw SHA-256 bytes |
+
+No trailing bytes are accepted; truncated frames are rejected.
+
+Response (version 1, status byte, u32 LE body length):
+
+| Status | Body | Meaning |
+| --- | --- | --- |
+| 0 | `[0x01]` + 32-byte stored subscription hash | Active: grant, subject, generation and exact hash all match |
+| 0 | `[0x00]` | Absent: no stored subscription for this exact subscriber |
+| 1 | `[0x08]` | Mismatch: authorized record exists but hash differs |
+| 1 | `[0x09]` | Revoked or invalid grant: missing grant, wrong key/subject, rotated or mismatched generation, or corrupt record |
+| 1 | `[0x0B]` | Busy: mutation lock unavailable, no state change |
+| 1 | `[0x07]` | IO error, including lock release failure |
+| 1 | `[0x01]` | Malformed request |
+
+This operation reports stored subscription state only. It does not send
+notifications, contact a push provider, verify delivery, or expose any
+provider credential. Provider delivery remains a separate isolated sender
+concern and is not implied by an Active response.
 
 ## CAS cell
 

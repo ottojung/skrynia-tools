@@ -37,7 +37,7 @@ pub fn dispatch<D: Disk, L: MutLock, R: Random, E: Eval>(
             reg.set(disk, lock, &admin_cap, &expect, code).map(resp_ok),
             3,
         ),
-        Request::Revoke { admin_cap, expect } => map_res(
+        Request::Revoke(admin_cap, expect) => map_res(
             reg.revoke(disk, lock, &admin_cap, &expect)
                 .map(|_| resp_ok(Vec::new())),
             6,

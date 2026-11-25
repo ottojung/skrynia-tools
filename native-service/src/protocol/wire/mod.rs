@@ -33,6 +33,7 @@ pub const OP_PUSH_SUB_FETCH: u8 = 23;
 pub const OP_PUSH_WAKE_GRANT: u8 = 24;
 pub const OP_APP_PUT_WAKE: u8 = 25;
 pub const OP_APP_DELETE_WAKE: u8 = 26;
+pub const OP_SUB_STATUS: u8 = 27;
 pub const STATUS_OK: u8 = 0;
 pub const STATUS_ERR: u8 = 1;
 

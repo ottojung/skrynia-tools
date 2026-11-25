@@ -28,10 +28,10 @@ const j = JSON.parse(raw);
 await appendFile(${JSON.stringify(actionsFile)}, j.action + '\\n');
 if (j.action === 'verify') {
   if (process.env.FAIL_VERIFY === '1') {
-    process.stdout.write(JSON.stringify({ok: true, release: j.release, files: []}) + '\\n');
+    process.stdout.write(JSON.stringify({ok: true, release: j.release, origin: j.origin, files: []}) + '\\n');
   } else {
     const files = [...j.files, ...(j.stable || [])].map(f => ({rel: f.rel, status: 200, sha256: f.sha256}));
-    process.stdout.write(JSON.stringify({ok: true, release: j.release, files}) + '\\n');
+    process.stdout.write(JSON.stringify({ok: true, release: j.release, origin: j.origin, files}) + '\\n');
   }
 } else process.stdout.write(JSON.stringify({ok: true, release: j.release, action: j.action}) + '\\n');
 `);
@@ -116,4 +116,33 @@ test('failed served-byte verification unpublishes and prints no authority', asyn
   await assert.rejects(install({...cfg, verifyHelper: verifyShell}), /served-file roster mismatch.*unpublish completed/);
   const actions = await readFile(join(dir, 'helper-actions.log'), 'utf8');
   assert.match(actions, /^publish\nverify\nunpublish\n$/, 'publish/verify/unpublish order');
+});
+
+test('verify rejects public-base origin mismatch', async t => {
+  const {cfg, dir} = await fixture(t);
+  const bad = join(dir, 'verify-bad-origin.mjs');
+  await writeFile(bad, `
+let raw=''; for await (const c of process.stdin) raw+=c;
+const j=JSON.parse(raw);
+if (j.action==='verify') {
+  const files=[...j.files,...(j.stable||[])].map(f=>({rel:f.rel,status:200,sha256:f.sha256}));
+  process.stdout.write(JSON.stringify({ok:true,release:j.release,origin:'https://evil.test',files})+'\\n');
+} else process.stdout.write(JSON.stringify({ok:true,release:j.release,action:j.action})+'\\n');
+`);
+  const wrap = join(dir, 'verify-bad-origin.sh');
+  await writeFile(wrap, `#!/bin/sh\nexec node '${bad}'\n`);
+  await chmod(wrap, 0o700);
+  await assert.rejects(install({...cfg, verifyHelper: wrap}), /origin mismatch.*unpublish completed/);
+});
+
+test('SHA256SUMS covers all published web-admin-v3 assets', async () => {
+  const {readdir, readFile} = await import('node:fs/promises');
+  const sums = await readFile(new URL('../SHA256SUMS', import.meta.url), 'utf8');
+  const assets = (await readdir(new URL('../../web-admin-v3/', import.meta.url)))
+    .filter(n => /\.(js|html|css)$/.test(n)).sort();
+  for (const name of assets) {
+    assert.match(sums, new RegExp(`\\.\\./web-admin-v3/${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`, 'm'),
+      'SHA256SUMS missing ' + name);
+  }
+  assert.match(sums, /\.\.\/web-admin-v3\/crypto\.js$/m, 'crypto.js must be covered');
 });

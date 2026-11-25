@@ -250,6 +250,7 @@ export async function install(cfg = requireInput()) {
     publishedOk = true;
     const verified = await runHelper(cfg.verifyHelper, {...payload, action: 'verify'});
     if (verified.release !== release || !Array.isArray(verified.files)) throw Error('verify helper result malformed');
+    if (verified.origin !== origin) throw Error('verify helper origin mismatch');
     const seen = new Set();
     for (const entry of verified.files) {
       if (!entry || typeof entry.rel !== 'string') throw Error('verify helper result malformed');

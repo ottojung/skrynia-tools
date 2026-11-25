@@ -139,13 +139,14 @@ async function main() {
   if (input.action === 'verify') {
     const base = urlFromEnv('SKRYNIA_PUBLIC_BASE_URL');
     if (base.pathname !== '/') throw Error('public base must be an origin');
+    if (input.origin && base.origin !== input.origin) throw Error('public base origin mismatch');
     const out = [];
     for (const f of [...input.files, ...(input.stable || [])]) {
       const rel = publicPath(f.rel, app);
       const got = await getServed(base, rel, app);
       out.push({rel, status: got.status, sha256: got.sha256, bytes: got.bytes});
     }
-    process.stdout.write(JSON.stringify({ok: true, release: input.release, files: out}) + '\n');
+    process.stdout.write(JSON.stringify({ok: true, release: input.release, origin: base.origin, files: out}) + '\n');
     return;
   }
 

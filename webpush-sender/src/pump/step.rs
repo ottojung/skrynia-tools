@@ -20,6 +20,8 @@ where
     for sub in &subs {
         match deliver_one(pump, seq, &hint, sub) {
             Ok(()) => sent += 1,
+            // 404/410: endpoint gone; terminal per item, no prune, do not block ACK.
+            Err(Error::Transport("gone")) => {}
             // Genuine delivery failure: never ACK this hint, but keep trying
             // the remaining subscriptions and the remaining queue entries.
             Err(e @ (Error::Exhausted | Error::Transport(_))) => failure = Some(e),

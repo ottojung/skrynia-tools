@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unlock native v3 administration</title>
+<link rel="stylesheet" href="./styles.css">
+<style>.unlock-panel{max-width:34rem;margin:3rem auto;padding:0 1rem}label{display:block;margin:1rem 0}input{width:100%;padding:.5rem}button{padding:.5rem 1rem}.err{color:#b00}</style>
+</head>
+<body>
+<div id="unlock-panel" class="unlock-panel">
+  <h1>Unlock native v3 administration</h1>
+  <p>The browser receives no native admin or read authority until this encrypted
+  vault is unlocked with the one-time access password.</p>
+  <form id="unlock">
+    <label>Access password <input id="secret" type="password" autocomplete="off" spellcheck="false" required></label>
+    <button type="submit">Unlock</button>
+  </form>
+  <p id="status" class="err" role="status"></p>
+</div>
+<div id="admin-root" hidden></div>
+<script type="module">
+import {decryptVault} from './crypto.js';
+const status = document.getElementById('status');
+document.getElementById('unlock').addEventListener('submit', async event => {
+  event.preventDefault();
+  const field = document.getElementById('secret');
+  const secret = field.value;
+  status.textContent = 'Unlocking…';
+  try {
+    const response = await fetch('./bootstrap.vault.json', {cache: 'no-store'});
+    if (!response.ok) throw Error('Encrypted bootstrap vault unavailable');
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > 1024 * 1024) throw Error('Vault too large');
+    const vault = await decryptVault(bytes, secret, 'browser-admin-authority');
+    const n = vault.native;
+    if (!n || typeof n.endpoint !== 'string' || typeof n.readCap !== 'string'
+        || typeof n.adminCap !== 'string' || !n.adminCaps || typeof n.adminCaps !== 'object') {
+      throw Error('Vault contains no scoped native session');
+    }
+    // Install authority ONLY after authenticated decryption. No navigation:
+    // a reload returns to this locked page and discards the in-memory session.
+    globalThis.__skryniaNativeSession = Object.freeze({...n});
+    field.value = '';
+
+    const html = await (await fetch('./index.html', {cache: 'no-store'})).text();
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    parsed.querySelectorAll('script').forEach(node => node.remove());
+    const host = document.getElementById('admin-root');
+    host.innerHTML = parsed.body.innerHTML;
+    document.getElementById('unlock-panel').remove();
+    host.hidden = false;
+    // native_bootstrap.js installs the adapter from the in-memory session;
+    // main.js then reads it in THIS document (no navigation, no persistence).
+    await import('./native_bootstrap.js');
+    await import('./main.js');
+  } catch (error) {
+    field.value = '';
+    status.textContent = 'Unlock failed: ' + (error.message || 'unknown error');
+  }
+});
+</script>
+</body>
+</html>

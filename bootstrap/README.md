@@ -39,23 +39,26 @@ optional `SKRYNIA_NATIVE_ADMIN_CAPS_FILE`, `SKRYNIA_PUBLISH_HELPER`,
 `SKRYNIA_TOOLS_PIN` is fixed to the reviewed source pin
 `639ec720da11ef311471535d6383ff556839a718` and is rejected if changed.
 
-## Pinned distribution (curl-pipe is NOT supported)
+## Pinned distribution
 
-`deploy.sh` resolves its sibling modules via `$BASH_SOURCE`, so piping it into
-a shell cannot work. Execution is refused unless it is a local file. The
-bootstrap source pin predates the kit pin `639ec720...`; there is no valid
-curl-pipe command for this script. Two supported distributions:
+Two supported one-time entry modes, both requiring immutable reviewed source
+and out-of-band checksum verification (no self-referential hash, no mutable
+`main` fetch):
 
-1. Trusted local checkout: use `git checkout` of the exact bootstrap source pin
-   recorded in `deploy.sh`, confirm `git rev-parse HEAD`, then run
-   `SKRYNIA_BOOTSTRAP_SOURCE_PIN=<pin> bash bootstrap/deploy.sh`.
-2. Exact download: fetch `bootstrap/deploy.sh`, `install.mjs`, `crypto.js`,
-   `unlock.html`, `native-publish.mjs` and `SHA256SUMS` from that same pinned
-   commit into one directory layout, verify every file with `sha256sum -c
-   SHA256SUMS`, confirm the pin, then run the local file. Never pipe a URL into
-   a shell and never execute an unverified or moving-branch download.
+1. **Piped, one-time** (owner-requested form): pipe an immutable reviewed
+   `deploy.sh` to bash **only** with out-of-band checksums. `deploy.sh` detects
+   pipe mode, requires `SKRYNIA_BOOTSTRAP_SOURCE_REF` (immutable 40-hex
+   reviewed commit) and `SKRYNIA_BOOTSTRAP_BUNDLE_SHA256` (out-of-band SHA-256
+   of that commit tarball), downloads the immutable tarball, verifies checksum,
+   extracts, and executes the local reviewed installer. No mutable branch is
+   fetched. Example shape:
+   `SKRYNIA_BOOTSTRAP_SOURCE_REF=<40hex> SKRYNIA_BOOTSTRAP_BUNDLE_SHA256=<sha256> curl -fsSL https://raw.githubusercontent.com/ottojung/skrynia-tools/<40hex>/bootstrap/deploy.sh | bash`
+   (The operator must independently obtain both hashes from reviewed evidence.)
+2. **Trusted local checkout/download:** verify `SHA256SUMS`/source checksum
+   from immutable reviewed evidence outside the tree, then run the local file.
 
-The installer itself performs no network fetch.
+The installer itself performs no network fetch except the explicit piped-mode
+immutable-bundle bootstrap described above.
 
 ## Helper protocol
 
@@ -63,7 +66,7 @@ The installer itself performs no network fetch.
 `SKRYNIA_VERIFY_HELPER`, each with a single JSON object on stdin:
 
 ```json
-{"action":"publish|verify","app":"admin-v3","release":"<sha256>",
+{"action":"publish|verify|unpublish","app":"admin-v3","release":"<sha256>",
  "kitPin":"<pin>","origin":"https://...","endpoint":"https://.../_skrynia/",
  "files":[{"rel":"apps/admin-v3/<release>/unlock.html","abs":"/private/...","sha256":"<hex>"}],
  "stable":[{"rel":"apps/admin-v3/unlock.html","abs":"/private/...","sha256":"<hex>"}]}
@@ -78,13 +81,19 @@ never writes nginx files. For `verify` it independently GETs every served
 file via `SKRYNIA_PUBLIC_BASE_URL`, hashes the bytes, and returns structured
 JSON `{"ok":true,"release":"...","files":[{"rel":"...","status":200,"sha256":"..."}]}`.
 The installer compares that roster field-by-field against its own expected
-hashes; an arbitrary stdout substring is never treated as success. Helper
-stderr is withheld from installer errors because an operator token must never
-reach logs. Published files are mode 0644 so an nginx under a different UID
-can read them; private capability files remain 0600 and are never published.
+hashes (exact distinct roster, rejects duplicates/missing, binds to configured
+origin/base); an arbitrary stdout substring is never treated as success.
+On definitive publish+verify failure, it unpublishes through the same native op
+2 before reporting failure. On unknown publish outcome or ambiguous verify, it
+**does not** blindly unpublish; it fails closed and requires operator
+reconciliation. Helper stderr is withheld from installer errors because an
+operator token must never reach logs. Private capability files remain 0600 and
+are never published; published static assets are 0644.
 
 The stable entry remains `${origin}/apps/admin-v3/unlock.html`; the immutable
-release is addressed only in the verified file roster and manifest.
+release is addressed only in the verified file roster and manifest. After
+verified publication, the password is also written to a private 0600 recovery
+file under the artifact root.
 
 ## Password and vault boundary
 

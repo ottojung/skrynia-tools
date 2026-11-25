@@ -15,10 +15,8 @@ pub fn recover<D: super::super::Disk>(
     if b.len() != 40 || &b[..4] != MAGIC {
         return Err(super::super::StoreErr::BadRecord);
     }
-    let n: Vec<u32> = b[4..]
-        .chunks_exact(4)
-        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
-        .collect();
+    let (words, _) = b[4..].as_chunks::<4>();
+    let n: Vec<u32> = words.iter().map(|c| u32::from_le_bytes(*c)).collect();
     let actual = match super::super::read(disk, s.meta())? {
         None => 0,
         Some(m) => {

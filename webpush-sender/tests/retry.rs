@@ -44,3 +44,8 @@ fn out_of_order_hint_survives_lower_seq_transient_failure() {
     assert_eq!(out.calls.borrow().len(), 5);
     assert_eq!(b.run_once().unwrap().skipped, 2);
 }
+
+#[test]
+fn runtime_config_errors_are_redacted() {
+    common::claims::config_err_redacted();
+}

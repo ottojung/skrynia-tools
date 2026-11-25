@@ -1,12 +1,13 @@
 //! Deterministic fakes and disposable fixtures. No real DNS or subscriber
 //! traffic; the tls fake binds loopback only.
 #![allow(dead_code, unused_imports)]
-mod build;
-mod claims;
+pub mod build;
+pub mod claims;
 pub mod fakes;
 mod fixtures;
 mod ledger_cases;
 pub mod ledger_hard;
+pub mod runtime_cfg;
 mod ssrf_cases;
 #[cfg(feature = "test-transport")]
 pub mod tls;

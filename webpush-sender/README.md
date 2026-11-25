@@ -63,6 +63,17 @@ Required JSON fields:
 Hex fields are hex-encoded bytes (`sender_cap`/`ns`/`vapid_private_key`: 32
 bytes, `topic`: 16 bytes). Do not commit or log real operational config.
 
+### Failure disposition
+
+Permanent credential rejection (401/403 from the P1 edge or a push service)
+is a redacted `Error::Auth("edge"|"push")` and stops the process; it is never
+retried or masked as a transient edge I/O error. Other permanent statuses and
+fatal config/wire/quota/uncertain-ledger classes also stop the process. P1(11)
+Busy and 404/410 Gone are nonfatal: Busy gets bounded backoff, and Gone is
+terminal for that one subscription only, without pruning endpoints or
+withholding ACK from successful recipients. Transient cycles use saturating
+backoff bounded by the configured `max_backoff_ms`.
+
 ### Single-writer lock and ledger directory
 
 Before entering the loop, runtime validates `ledger_dir` is a directory with no

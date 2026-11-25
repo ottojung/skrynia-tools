@@ -34,6 +34,9 @@ pub fn send_with_retry(
             Ok(reply) if reply.status == 404 || reply.status == 410 => {
                 return Err(Error::Transport("gone"));
             }
+            Ok(reply) if reply.status == 401 || reply.status == 403 => {
+                return Err(Error::Auth("push"));
+            }
             Ok(reply) if reply.status == 429 || reply.status >= 500 => {
                 reply.retry_after_ms.unwrap_or(0).min(60_000)
             }

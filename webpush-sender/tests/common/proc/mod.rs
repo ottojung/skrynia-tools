@@ -1,4 +1,5 @@
 //! Hermetic operator-runtime tests: hostile files, locks, loop disposition.
+pub mod auth;
 pub mod cfg;
 pub mod dir;
 pub mod gone;
@@ -19,5 +20,6 @@ pub fn hermetic() {
     lock::hostile();
     policy::checks();
     gone::gone_and_success();
+    auth::auth_rejected_once();
     gone::transient_no_ack();
 }

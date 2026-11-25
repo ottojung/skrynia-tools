@@ -20,7 +20,7 @@ mod tests;
 
 #[cfg(test)]
 pub(super) use super::{Client, Config, P1Transport};
-use super::{Error, IoFailure, Result};
+use super::{Error, P1Failure, Result};
 pub use endpoint::Edge;
 
 pub struct HttpP1 {
@@ -39,7 +39,7 @@ impl HttpP1 {
 }
 
 impl super::P1Transport for HttpP1 {
-    fn call(&self, req: &[u8]) -> core::result::Result<Vec<u8>, IoFailure> {
+    fn call(&self, req: &[u8]) -> core::result::Result<Vec<u8>, P1Failure> {
         call::post(&self.client, &self.edge, req)
     }
 }

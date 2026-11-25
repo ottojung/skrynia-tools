@@ -24,7 +24,7 @@ where
             Err(Error::Transport("gone")) => {}
             // Genuine delivery failure: never ACK this hint, but keep trying
             // the remaining subscriptions and the remaining queue entries.
-            Err(e @ (Error::Exhausted | Error::Transport(_))) => failure = Some(e),
+            Err(e @ (Error::Auth(_) | Error::Exhausted | Error::Transport(_))) => failure = Some(e),
             // Malformed or unsafe subscription: fail closed for this item only.
             Err(_) => {}
         }

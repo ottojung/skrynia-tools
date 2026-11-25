@@ -2,7 +2,7 @@ mod body;
 use super::{HINT, list, res};
 use std::cell::{Cell, RefCell};
 use webpush_sender::error::IoFailure;
-use webpush_sender::p1::P1Transport;
+use webpush_sender::p1::{P1Failure, P1Transport};
 
 pub struct FakeP1 {
     pub hints: Vec<u64>,
@@ -35,8 +35,9 @@ fn op(c: &[u8]) -> Option<u8> {
     }
 }
 impl P1Transport for FakeP1 {
-    fn call(&self, req: &[u8]) -> core::result::Result<Vec<u8>, IoFailure> {
+    fn call(&self, req: &[u8]) -> core::result::Result<Vec<u8>, P1Failure> {
         self.calls.borrow_mut().push(req.to_vec());
-        Ok(res(0, &body::reply(self, req)?))
+        let body = body::reply(self, req).map_err(|_| P1Failure::Io)?;
+        Ok(res(0, &body))
     }
 }

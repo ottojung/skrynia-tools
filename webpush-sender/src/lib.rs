@@ -12,6 +12,8 @@ pub mod error {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum Error {
         Config(&'static str),
+        /// Permanent credential rejection (edge or push). Never retried.
+        Auth(&'static str),
         Wire(&'static str),
         Ssrf(&'static str),
         Crypto(&'static str),

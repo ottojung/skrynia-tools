@@ -9,6 +9,7 @@ pub fn fatal(e: &Error) -> bool {
     match e {
         Error::P1(11) => false,
         Error::Config(_)
+        | Error::Auth(_)
         | Error::Ssrf(_)
         | Error::Crypto(_)
         | Error::Wire(_)

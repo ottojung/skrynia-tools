@@ -11,13 +11,21 @@ gateway holds the server-only Program 0 token, which never enters public JS,
 URLs or logs. Release identity, history and activation are enforced by the
 ordinary nonzero WASM service behind that gateway, not by a bootstrap step.
 
-Withdrawn intent (surfaced 2026/11/24): the earlier claim that a one-time Bash
-bootstrap receives `SKRYNIA_URL` and scoped deployment authority via
-environment variables or interactive prompts, publishes the interface and
-prints a random access password, is no longer current intent. That bootstrap
-(`deploy.sh`, `bootstrap/deploy.mjs`, `bootstrap/transport.mjs`) was deleted
-in f92fbea5 and is forbidden by AGENTS.md; no replacement exists. Git carries
-the withdrawn record; do not treat it as current intent.
+Scope clarification (provenance reconciled 2026/11/25 on the hall board,
+[bootstrap-intent-design]): owner messages 2026-11-17 19:53:50 and
+2026-11-17 20:38:44 retain a one-time, trusted-host Bash bootstrap that reads
+its configuration from the environment or `/dev/tty`, publishes the web admin
+assets through the operator's native publication helper and prints a stable
+link plus a strong random access password. It is not a user-facing CLI and
+grants no browser capability before a successful unlock; it never carries a
+root, Program 0, operator or sender token into public assets, URLs or logs.
+
+Withdrawn 2026/11/24 in f92fbea5: the previous `deploy.sh` / `bootstrap/*`
+transport that carried the then-v2 grant, and the HTTP-based `action/deploy/*`,
+`action/publish-stable/*` and `.github/workflows/web-admin.yml` surfaces.
+Those legacy HTTP/v2-grant surfaces are forbidden by AGENTS.md and stay
+withdrawn; the one-time bootstrap concept above is not. Git carries the
+withdrawn record.
 
 The web interface must display every retained version of every app and
 support atomically changing any application's active code release to

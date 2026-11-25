@@ -10,7 +10,9 @@ import {join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {encryptVault} from '../web-admin-v3/crypto.js';
 
-export const KIT_TOOLS_PIN = '639ec720da11ef311471535d6383ff556839a718';
+// Current tools main pin at implementation time (9a8dcc99, post-OP27 merge).
+// The installer verifies this exact reviewed pin; do not override.
+export const KIT_TOOLS_PIN = '9a8dcc996e597e6b582a87d255dc11486dd4e8eb';
 const APP_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const FORBIDDEN = /token|secret|root|operator|sender|grant|password|\/store|v2/i;

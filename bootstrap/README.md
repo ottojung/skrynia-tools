@@ -37,7 +37,8 @@ optional `SKRYNIA_NATIVE_ADMIN_CAPS_FILE`, `SKRYNIA_PUBLISH_HELPER`,
 `SKRYNIA_VERIFY_HELPER`; optional `SKRYNIA_NATIVE_ENDPOINT`
 (default `/_skrynia/`) and `SKRYNIA_ADMIN_APP` (default `admin-v3`).
 `SKRYNIA_TOOLS_PIN` is fixed to the reviewed source pin
-`639ec720da11ef311471535d6383ff556839a718` and is rejected if changed.
+`9a8dcc996e597e6b582a87d255dc11486dd4e8eb` (current tools main at this
+implementation) and is rejected if changed.
 
 ## Pinned distribution
 
@@ -52,10 +53,13 @@ and out-of-band checksum verification (no self-referential hash, no mutable
    of that commit tarball), downloads the immutable tarball, verifies checksum,
    extracts, and executes the local reviewed installer. No mutable branch is
    fetched. Example shape:
-   `SKRYNIA_BOOTSTRAP_SOURCE_REF=<40hex> SKRYNIA_BOOTSTRAP_BUNDLE_SHA256=<sha256> curl -fsSL https://raw.githubusercontent.com/ottojung/skrynia-tools/<40hex>/bootstrap/deploy.sh | bash`
+   `curl -fsSL https://raw.githubusercontent.com/ottojung/skrynia-tools/<40hex>/bootstrap/deploy.sh | SKRYNIA_BOOTSTRAP_SOURCE_REF=<40hex> SKRYNIA_BOOTSTRAP_BUNDLE_SHA256=<sha256> bash`
    (The operator must independently obtain both hashes from reviewed evidence.)
-2. **Trusted local checkout/download:** verify `SHA256SUMS`/source checksum
-   from immutable reviewed evidence outside the tree, then run the local file.
+2. **Trusted local checkout/download:** obtain the reviewed source from an
+   immutable/trusted git checkout or release artifact, verify the out-of-band
+   SHA-256 of `bootstrap/SHA256SUMS` via `SKRYNIA_BOOTSTRAP_SOURCE_SHA256`,
+   then run the local file. The SHA256SUMS file binds all listed bootstrap
+   assets; it is not self-authenticating.
 
 The installer itself performs no network fetch except the explicit piped-mode
 immutable-bundle bootstrap described above.
@@ -92,8 +96,9 @@ are never published; published static assets are 0644.
 
 The stable entry remains `${origin}/apps/admin-v3/unlock.html`; the immutable
 release is addressed only in the verified file roster and manifest. After
-verified publication, the password is also written to a private 0600 recovery
-file under the artifact root.
+verified publication, the password is written to a private 0600 recovery file
+under the artifact root (`password.<release>.txt`) and also printed once to
+stdout; keep the recovery file private and delete/rotate per operator policy.
 
 ## Password and vault boundary
 

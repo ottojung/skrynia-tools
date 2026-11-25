@@ -5,7 +5,7 @@
 set -euo pipefail
 
 umask 077
-TOOLS_PIN=639ec720da11ef311471535d6383ff556839a718
+TOOLS_PIN=9a8dcc996e597e6b582a87d255dc11486dd4e8eb
 REPO="${SKRYNIA_BOOTSTRAP_REPO:-ottojung/skrynia-tools}"
 
 ask() {
@@ -19,12 +19,12 @@ ask() {
 verify_local_bundle() {
   local here="$1"
   local expected="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-}"
-  [[ -n "$expected" ]] || { echo 'SKRYNIA_BOOTSTRAP_SOURCE_SHA256 required (out-of-band immutable checksum)' >&2; exit 2; }
+  [[ -n "$expected" ]] || { echo 'SKRYNIA_BOOTSTRAP_SOURCE_SHA256 required (out-of-band immutable checksum of bootstrap/SHA256SUMS or trusted git checkout)' >&2; exit 2; }
   [[ -f "$here/SHA256SUMS" ]] || { echo 'SHA256SUMS missing; verify immutable bundle outside this tree' >&2; exit 2; }
+  local manifest_actual
+  manifest_actual="$(sha256sum "$here/SHA256SUMS" | awk '{print $1}')"
+  [[ "$manifest_actual" == "$expected" ]] || { echo 'bootstrap SHA256SUMS checksum mismatch (out-of-band anchor required)' >&2; exit 2; }
   (cd "$here" && sha256sum -c SHA256SUMS >/dev/null) || { echo 'bootstrap SHA256SUMS verification failed' >&2; exit 2; }
-  local actual
-  actual="$(sha256sum "$here/deploy.sh" | awk '{print $1}')"
-  [[ "$actual" == "$expected" ]] || { echo 'bootstrap source checksum mismatch' >&2; exit 2; }
 }
 
 SOURCE_FILE="${BASH_SOURCE[0]:-}"
@@ -51,8 +51,12 @@ if [[ -z "$SOURCE_FILE" || "$SOURCE_FILE" == /dev/stdin || "$SOURCE_FILE" == - |
   tar -xzf "$TARBALL" -C "$TMP"
   EXTRACTED="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d | head -1)"
   [[ -f "$EXTRACTED/bootstrap/deploy.sh" ]] || { echo 'pinned bundle missing bootstrap/deploy.sh' >&2; exit 2; }
-  export SKRYNIA_BOOTSTRAP_SOURCE_SHA256="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-$(sha256sum "$EXTRACTED/bootstrap/deploy.sh" | awk '{print $1}')}"
-  exec bash "$EXTRACTED/bootstrap/deploy.sh"
+  # Out-of-band trust anchor is the bundle SHA256. The extracted SHA256SUMS is
+  # verified inside the local bundle; pass its own hash only if operator supplied
+  # it out-of-band, otherwise derive from the already-verified bundle manifest.
+  export SKRYNIA_BOOTSTRAP_SOURCE_SHA256="${SKRYNIA_BOOTSTRAP_SOURCE_SHA256:-$(sha256sum "$EXTRACTED/bootstrap/SHA256SUMS" | awk '{print $1}')}"
+  bash "$EXTRACTED/bootstrap/deploy.sh"
+  exit $?
 fi
 
 HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"

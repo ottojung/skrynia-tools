@@ -40,10 +40,13 @@ the pinned trusted edge gateway `9fa4df14…` and echo guest `dc28e490…`:
   kernel + P0 + P1, small-scale list pagination, A→B→A revision CAS,
   stale/ABA/unsealed/forged/corrupt denials, restart-safe state.
   Evidence: `p1-admin-ops-pinned.json`.
-- `tests/web-admin-v3/real_native_e2e/p1_capacity_ceiling_probe.mjs`: real
+- `tests/web-admin-v3/p1_capacity_ceiling_probe.mjs`: real
   compiled-P1 capacity ceiling — **last successful `ListVersions` at 198
-  ready markers; first failure at 199 with native error 7 (IO/callback budget
-  exhaustion)**. Evidence: `capacity-probe.log`.
+  ready markers; first failure at 199 with native error 7 (a generic store/IO
+  error code; the callback-budget cause is an inference, not proven by the
+  probe output)**. Evidence: `capacity-probe.log`. The probe lives one level
+  above `real_native_e2e/` so that directory stays within the mandatory
+  <=10 direct-entry limit; its imports and real-WASM evidence are unchanged.
 
 ## Honest capacity conclusion
 
@@ -66,19 +69,33 @@ operator replay of `stage_release`/`seal_release` after removing the
 unsupported marker — verified executable by the `legacy` test. There is no
 silent/auto migration path and none is claimed.
 
-## Validation run (exact head `98eaf1d8…`)
+## Validation run (pushed fix head)
+
+All gates below were re-run on a fresh clone at the pushed fix head; the exact
+SHA and tree are recorded in the Antonina board terminal-handoff for this
+branch. The former `98eaf1d8…` label named the pre-probe base and was **not**
+the head these tests were run against, so it has been removed. A literal head
+SHA cannot be placed in its own committed tree without invalidating that SHA.
 
 - `cargo fmt --all -- --check` — clean.
 - Build-time structural lint (50 code LOC/file, ≤10 entries/dir, sibling
   imports) — clean; `rustc --test source_lints/mod.rs` self-tests 7/7.
 - `cargo test -p skrynia-native-service --locked --all-targets --offline` —
   **119 passed, 0 failed** (8 new scale tests among them).
-- `cargo test --locked --all-targets --workspace --offline` — **151 passed,
+- `cargo test --locked --all-targets --workspace --offline` — **152 passed,
+  0 failed** (includes all eight `scale1000` tests).
+- `cargo test --locked --all-targets --offline` (default/CI gate) — **19 passed,
   0 failed**.
 - `cargo clippy --locked --all-targets --workspace --offline -- -D
   clippy::correctness -D clippy::suspicious -D clippy::perf -D
   clippy::complexity` — clean (needed `LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu`
   on this host for build scripts).
+- `cargo clippy --locked --all-targets -- -D warnings` (exact CI command) —
+  clean.
+
+Relocating the probe out of `real_native_e2e/` keeps that directory at exactly
+10 direct entries and `tests/web-admin-v3/` at exactly 10; the <=10 lint and
+the eight Rust tests are untouched.
 
 ## What remains for the gate
 

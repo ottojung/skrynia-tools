@@ -14,9 +14,9 @@ import {
   PINS, putId, putBlob, decodeResponse, freePort, stopProc,
   sha256hex, sha256buf, hashFile, exists,
   startKernel, startGateway, gatewayFetch,
-} from './run.mjs';
+} from './real_native_e2e/run.mjs';
 
-const ADAPTER = new URL('../../../web-admin-v3/binary_transport.js', import.meta.url).href;
+const ADAPTER = new URL('../../web-admin-v3/binary_transport.js', import.meta.url).href;
 const { createBinaryPostTransport } = await import(ADAPTER);
 const MAX = Number(process.env.PROBE_MAX ?? 260);
 const stageOp = (a, c) => Buffer.concat([Buffer.from([1, 9]), putId(a), putBlob(c)]);

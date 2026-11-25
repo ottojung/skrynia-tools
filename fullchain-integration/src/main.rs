@@ -2,6 +2,7 @@
 //! Real v3 main kernel -> dumb P0 -> native P1 WASM via the real Rust
 //! trusted edge -> real sender HttpP1 adapter -> disposable local HTTPS push
 //! provider. No production, main, DNS, real TLS, live secrets or browser claim.
+mod bridge;
 mod caps;
 mod chain;
 mod evidence;
@@ -20,5 +21,9 @@ pub use provider::{
 pub use scenarios::{LoopbackPush, blb, call, fixture, idb, must, req, req_ver, u64b};
 
 fn main() {
-    run::execute();
+    if std::env::var_os("FC_SENDER_BRIDGE").is_some() {
+        bridge::execute();
+    } else {
+        run::execute();
+    }
 }

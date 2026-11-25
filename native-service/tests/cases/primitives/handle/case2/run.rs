@@ -18,22 +18,10 @@ pub fn run() {
     assert_eq!(util::call(&r, &d, &l, reg_req).body, iid);
     let got = util::call(&r, &d, &l, Request::Lookup(iid.clone()));
     assert_eq!(got.body, b"code");
-    let bad = Request::Revoke {
-        admin_cap: vec![0; 32],
-        expect: h.clone(),
-    };
+    let bad = Request::Revoke(vec![0; 32], h.clone());
     assert_eq!(util::call(&r, &d, &l, bad).status, STATUS_ERR);
     assert_eq!(
-        util::call(
-            &r,
-            &d,
-            &l,
-            Request::Revoke {
-                admin_cap: a,
-                expect: h
-            }
-        )
-        .status,
+        util::call(&r, &d, &l, Request::Revoke(a, h)).status,
         STATUS_OK
     );
     let inv = Request::Invoke {

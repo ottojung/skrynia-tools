@@ -16,10 +16,7 @@ pub enum Request {
         input: Vec<u8>,
     },
     Lookup(Vec<u8>),
-    Revoke {
-        admin_cap: Vec<u8>,
-        expect: AppPrecond,
-    },
+    Revoke(Vec<u8>, AppPrecond),
     Admin(super::AdminRequest),
     AppGet {
         read_cap: Vec<u8>,
@@ -47,4 +44,5 @@ pub enum Request {
     HintRead(Vec<u8>, Vec<u8>, Vec<u8>, u64),
     HintAck(Vec<u8>, Vec<u8>, Vec<u8>, u64),
     SubFetch(Vec<u8>, Vec<u8>, Vec<u8>),
+    SubStatus(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>),
 }

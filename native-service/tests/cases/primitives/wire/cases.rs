@@ -17,10 +17,7 @@ pub fn req_cases() -> Vec<Request> {
             input: vec![8, 9],
         },
         Request::Lookup(vec![5; 32]),
-        Request::Revoke {
-            admin_cap: vec![6; 32],
-            expect: AppPrecond::Absent,
-        },
+        Request::Revoke(vec![6; 32], AppPrecond::Absent),
         Request::AppGet {
             read_cap: vec![3; 32],
             key: b"k".to_vec(),

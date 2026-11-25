@@ -35,7 +35,7 @@ pub fn encode_body(out: &mut Vec<u8>, req: &Request) {
             out.push(OP_LOOKUP);
             put_id(out, invoke_id);
         }
-        Request::Revoke { admin_cap, expect } => {
+        Request::Revoke(admin_cap, expect) => {
             out.push(OP_REVOKE);
             put_id(out, admin_cap);
             put_precond(out, expect);

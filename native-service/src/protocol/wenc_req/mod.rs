@@ -3,6 +3,7 @@ mod encode_admin;
 mod encode_app;
 mod encode_app_wake;
 mod encode_push;
+mod encode_push_ops;
 mod encode_sender;
 mod helpers;
 use crate::wire::{Request, VERSION};

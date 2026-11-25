@@ -52,7 +52,7 @@ const SERVED = new Set([
 // Disposable independent static origin: serves only the shipped static app and
 // reverse-proxies /_skrynia/ to the trusted gateway. The edge capability is
 // added here, server-side; it is never present in public assets or URLs.
-async function startStaticHost({ port, edgePort, appHost, appOrigin, edgeCap }) {
+export async function startStaticHost({ port, edgePort, appHost, appOrigin, edgeCap, onRequest = null }) {
   const seen = [];
   const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
@@ -62,6 +62,9 @@ async function startStaticHost({ port, edgePort, appHost, appOrigin, edgeCap }) 
       const chunks = [];
       for await (const c of req) chunks.push(c);
       const body = Buffer.concat(chunks);
+      // Optional read-only observer (used by the 1000-version pagination proof
+      // to assert the wire page cap); never logs or persists frame bytes.
+      if (onRequest) onRequest(body, {path: u.pathname, method: req.method});
       const upstream = http.request({
         hostname: '127.0.0.1', port: edgePort, path: '/_skrynia/', method: 'POST',
         headers: {
@@ -97,7 +100,7 @@ async function startStaticHost({ port, edgePort, appHost, appOrigin, edgeCap }) 
   return {server, seen, origin: appOrigin};
 }
 
-async function cdpTarget(port) {
+export async function cdpTarget(port) {
   for (let i = 0; i < 200; i += 1) {
     try {
       const r = await fetch('http://127.0.0.1:' + port + '/json/list');
@@ -110,7 +113,7 @@ async function cdpTarget(port) {
   throw Error('Chromium CDP target unavailable');
 }
 
-function cdp(socket) {
+export function cdp(socket) {
   let next = 0;
   const pending = new Map();
   socket.addEventListener('message', event => {
@@ -132,7 +135,7 @@ function cdp(socket) {
   return {send, evaluate};
 }
 
-async function until(evaluate, expression, label, tries = 200) {
+export async function until(evaluate, expression, label, tries = 200) {
   let last = null;
   for (let i = 0; i < tries; i += 1) {
     try {
@@ -144,7 +147,7 @@ async function until(evaluate, expression, label, tries = 200) {
   throw Error('Chromium condition timed out: ' + label + ' (last=' + JSON.stringify(last) + ')');
 }
 
-async function postNative(origin, bytes) {
+export async function postNative(origin, bytes) {
   return await new Promise((ok, no) => {
     const req = http.request(origin + '/_skrynia/', {method: 'POST', headers: {
       'Content-Type': 'application/octet-stream', 'Content-Length': bytes.length,
@@ -159,11 +162,11 @@ async function postNative(origin, bytes) {
   });
 }
 
-const stageOp = (admin, code) =>
+export const stageOp = (admin, code) =>
   Buffer.concat([Buffer.from([1, 9]), putId(admin), putBlob(code)]);
-const sealOp = (admin, hash) =>
+export const sealOp = (admin, hash) =>
   Buffer.concat([Buffer.from([1, 10]), putId(admin), Buffer.from(hash)]);
-const getActiveOp = iid => Buffer.concat([Buffer.from([1, 12]), putId(iid)]);
+export const getActiveOp = iid => Buffer.concat([Buffer.from([1, 12]), putId(iid)]);
 
 async function main() {
   for (const [name, a] of Object.entries(PINS)) {
@@ -392,4 +395,7 @@ async function main() {
   }
 }
 
-main().catch(e => { console.error(e.stack || String(e)); process.exit(1); });
+// Reusable as a library (see chromium_pagination_1000.mjs); run only directly.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(e => { console.error(e.stack || String(e)); process.exit(1); });
+}

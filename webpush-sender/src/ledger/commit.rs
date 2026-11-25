@@ -3,9 +3,9 @@
 use super::{Error, Result};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
 
 pub fn replace(final_path: &Path, tmp_path: &Path, bytes: &[u8]) -> Result<()> {
     let mut file = open_tmp(tmp_path)?;
@@ -23,7 +23,8 @@ fn open_tmp(path: &Path) -> Result<File> {
     let mut opts = OpenOptions::new();
     opts.write(true).create_new(true);
     #[cfg(unix)]
-    opts.mode(0o600).custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW);
+    opts.mode(0o600)
+        .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW);
     match opts.open(path) {
         Ok(f) => Ok(f),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {

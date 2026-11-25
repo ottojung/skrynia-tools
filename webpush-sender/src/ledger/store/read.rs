@@ -1,4 +1,4 @@
-use super::{Error, Result, MAX_LEDGER_BYTES};
+use super::{Error, MAX_LEDGER_BYTES, Result};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -8,7 +8,9 @@ pub(super) fn load(path: &Path) -> Result<Option<Vec<u8>>> {
         Some(file) => file,
         None => return Ok(None),
     };
-    let meta = file.metadata().map_err(|_| Error::Transport("ledger-read"))?;
+    let meta = file
+        .metadata()
+        .map_err(|_| Error::Transport("ledger-read"))?;
     if !meta.is_file() || meta.len() > MAX_LEDGER_BYTES {
         return Err(Error::Wire("ledger-shape"));
     }

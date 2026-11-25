@@ -45,5 +45,5 @@ fn response_decode_is_fail_closed() {
 fn file_ledger_store_rejects_oversized_and_enforces_mode() {
     common::ledger_hard::oversized_and_nonfile_rejected();
     common::ledger_hard::writes_private_mode();
-    common::ledger_tmp::stale_tmp_and_symlink_safe();
+    common::build::stale_tmp_and_symlink_safe();
 }

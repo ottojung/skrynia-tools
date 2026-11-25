@@ -4,7 +4,9 @@ use super::os_clock::OsClock;
 use super::os_dns::OsResolver;
 use super::os_rng::OsRng;
 use super::poll;
-use super::{Error, FileLedgerStore, HttpP1, HttpsTransport, Parts, Pump, Result, VapidKey};
+use super::{
+    Error, FileLedgerStore, HttpP1, HttpsTransport, Parts, Pump, Result, VapidKey, self_uid,
+};
 use std::path::Path;
 
 pub fn run(cfg: RuntimeConfig) -> Result<()> {
@@ -19,20 +21,20 @@ pub fn run(cfg: RuntimeConfig) -> Result<()> {
     let parts = Parts::new(&cfg.pump, &p1, &out, &resolver, &key, &rng, &clock);
     let store = FileLedgerStore::from_config(&cfg.ledger_dir, &cfg.pump)?;
     let mut pump = Pump::with_https_transport(parts, store)?;
-    poll::run_loop(&mut pump, cfg.poll_ms);
-    #[allow(unreachable_code)]
-    Ok(())
+    poll::run_loop(&mut pump, cfg.poll_ms, cfg.pump.max_backoff_ms)
 }
 
+/// Parent path components are operator-trusted capabilities: the operator must
+/// own the whole chain and prevent symlink swaps between check and use.
 pub fn validate_ledger_dir(dir: &Path) -> Result<()> {
-    let meta = std::fs::metadata(dir).map_err(|_| Error::Config("ledger-dir"))?;
+    let meta = std::fs::symlink_metadata(dir).map_err(|_| Error::Config("ledger-dir"))?;
     if !meta.is_dir() {
         return Err(Error::Config("ledger-dir"));
     }
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        if meta.permissions().mode() & 0o077 != 0 {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        if meta.uid() != self_uid()? || meta.permissions().mode() & 0o077 != 0 {
             return Err(Error::Config("ledger-dir-mode"));
         }
     }

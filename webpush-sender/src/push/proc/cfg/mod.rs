@@ -1,4 +1,5 @@
 //! Safe local config loading. Secrets are never logged or formatted.
+mod check;
 mod field;
 mod hex;
 mod parse;
@@ -6,7 +7,7 @@ mod pump;
 mod read;
 use std::path::{Path, PathBuf};
 
-pub(super) use super::{Config, Edge, Error, Result};
+pub(super) use super::{Config, Edge, Error, Result, self_uid};
 
 pub struct RuntimeConfig {
     pub edge: Edge,

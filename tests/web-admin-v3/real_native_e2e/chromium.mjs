@@ -13,6 +13,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { chromiumEnvironment } from './chromium_env.mjs';
 import { createServer } from 'node:net';
 import http from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises';
@@ -237,7 +238,7 @@ async function main() {
     browser = spawn(CHROME, ['--headless=new', '--no-sandbox', '--disable-gpu',
       '--disable-dev-shm-usage', '--no-first-run', '--disable-background-networking',
       '--remote-debugging-port=' + cdpPort, '--user-data-dir=' + join(tmp, 'chromium'),
-      'about:blank'], {stdio: ['ignore', 'ignore', 'pipe']});
+      'about:blank'], {env: chromiumEnvironment(), stdio: ['ignore', 'ignore', 'pipe']});
     let chromeStderr = '';
     browser.stderr.on('data', c => { chromeStderr += c.toString(); });
     const wsUrl = await cdpTarget(cdpPort);

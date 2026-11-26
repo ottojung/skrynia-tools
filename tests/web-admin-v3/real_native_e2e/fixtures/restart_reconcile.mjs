@@ -21,6 +21,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { chromiumEnvironment } from '../chromium_env.mjs';
 import { createServer } from 'node:net';
 import http from 'node:http';
 import { mkdtemp, mkdir, readFile, readdir, writeFile, rm } from 'node:fs/promises';
@@ -250,7 +251,7 @@ export async function main() {
     browser = spawn(process.env.CHROME_BIN || 'chromium', ['--headless=new', '--no-sandbox', '--disable-gpu',
       '--disable-dev-shm-usage', '--no-first-run', '--disable-background-networking',
       '--remote-debugging-port=' + cdpPort, '--user-data-dir=' + join(tmp, 'chromium'), 'about:blank'],
-      { stdio: ['ignore', 'ignore', 'pipe'] });
+      { env: chromiumEnvironment(), stdio: ['ignore', 'ignore', 'pipe'] });
     const wsUrl = await cdpTarget(cdpPort);
     socket = new WebSocket(wsUrl);
     await new Promise((ok, no) => { socket.addEventListener('open', ok, { once: true }); socket.addEventListener('error', no, { once: true }); });

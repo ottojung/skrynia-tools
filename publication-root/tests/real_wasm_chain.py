@@ -350,18 +350,46 @@ def main() -> int:
         record("mailbox_clean_after_publish", not os.listdir(mailbox))
 
         record("wasm_unpublish_returns_zero", wasm_call(url, token, OP_UNPUBLISH, rel) == 0)
-        record("after_unpublish_inaccessible", get(nginx_port, "/" + rel)[0] == 404)
+        # Unpublish of an absent path is idempotent: no node, no conflict.
+        record("after_unpublish_inaccessible",
+               get(nginx_port, "/" + rel)[0] == 404
+               and wasm_call(url, token, OP_UNPUBLISH, rel) == 0)
         record("source_file_intact", pathlib.Path(source, rel).read_bytes() == b"REAL WASM PUBLICATION BYTES")
 
+        # Private roots are qualified by the K10 `operator/` and `user/`
+        # tokens; the unqualified legacy names are kept so no spelling of a
+        # private root can reach the mailbox or the provider.
         bad = [b"security/program0.sha256", b"programs/root.wasm", b"publication-requests/00000001",
-               b"apps/../../etc/passwd", b"/apps/qual/x", b"apps/qual/\0x"]
+               b"apps/../../etc/passwd", b"/apps/qual/x", b"apps/qual/\0x",
+               b"user/publication-requests/00000001", b"user/security/program0.sha256",
+               b"user/programs/operator.cap", b"user/private/key", b"user/tokens/issuer",
+               b"operator/security/program0.sha256", b"operator/programs/root.wasm"]
         record("private_paths_rejected_before_import",
                all(wasm_call(url, token, OP_PUBLISH, p.decode("latin1")) == -1 for p in bad))
         record("wrong_token_denied", wasm_call(url, b"\x00" * 32, OP_PUBLISH, rel) == -4)
         missing = f"apps/qual/releases/{RELEASE}/missing.js"
+        # A missing source directory is not silently created and served: the
+        # provider reports INVALID_SOURCE just like a missing final file.
+        missing_dir = f"apps/qual/releases/{RELEASE}/missing-dir/x.js"
         provider_code = wasm_call(url, token, OP_PUBLISH, missing)
-        record("provider_failure_passthrough", provider_code == 3, provider_code)
-        record("failed_publish_creates_no_public_node", get(nginx_port, "/" + missing)[0] == 404)
+        provider_dir_code = wasm_call(url, token, OP_PUBLISH, missing_dir)
+        record("provider_failure_passthrough",
+               provider_code == 3 and provider_dir_code == 3,
+               (provider_code, provider_dir_code))
+        # An existing non-symlink directory at the destination name is a
+        # conflict: it must survive unchanged and never be turned into a link.
+        conflict = f"apps/qual/releases/{RELEASE}/dir-conflict.js"
+        pathlib.Path(source, conflict).write_bytes(b"CONFLICT-SOURCE")
+        os.makedirs(os.path.join(nginx_root, conflict), exist_ok=True)
+        conflict_code = wasm_call(url, token, OP_PUBLISH, conflict)
+        conflict_path = os.path.join(nginx_root, conflict)
+        record("failed_publish_creates_no_public_node",
+               get(nginx_port, "/" + missing)[0] == 404
+               and get(nginx_port, "/" + missing_dir)[0] == 404
+               and conflict_code == 4
+               and os.path.isdir(conflict_path)
+               and not os.path.islink(conflict_path),
+               (conflict_code, conflict))
         record("mailbox_clean_after_failures", not os.listdir(mailbox))
 
         paths = [f"apps/qual/releases/{RELEASE}/part{i}.js" for i in range(16)]

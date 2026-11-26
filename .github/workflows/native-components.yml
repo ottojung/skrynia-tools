@@ -245,11 +245,21 @@ jobs:
             --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
             --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
             --results "$RUNNER_TEMP/wasm-publication-results.json"
+      - name: Real WASM publication overlap (300 invocations, one held)
+        run: |
+          python3 publication-root/tests/real_wasm_chain.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
+            --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
+            --overlap-total 300 \
+            --results "$RUNNER_TEMP/wasm-publication-overlap-results.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: wasm-publication-results
-          path: ${{ runner.temp }}/wasm-publication-results.json
+          path: |
+            ${{ runner.temp }}/wasm-publication-results.json
+            ${{ runner.temp }}/wasm-publication-overlap-results.json
   chromium-admin-e2e:
     # Reuses the exact artifacts built by compiled-stack (explicit-root K10 kernel,
     # P0/P1/edge/echo) rather than duplicating a kernel/guest build.

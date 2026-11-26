@@ -21,12 +21,19 @@ actual built artifact.
 
 ## Mediated userland byte protocol
 
-`GET=0` reads one inbound byte (`0..255`, `-1` EOF/none), `PUT=1` appends one
-outbound byte, `FLUSH=2` commits the framed generic kernel operation and
-switches the stream to the reply, `CB_GET=3`/`CB_PUT=4` carry length-prefixed
-callback frames, `STATUS=5` reports idle/active/trapped state. All values are
-scalars; no private-memory pointer and no function-table index is passed.
-A failed or uncertain FLUSH is final: the guest never replays a write.
+`GET=0` reads one inbound byte (`0..255`, `-1` EOF/none; T2's GET falls through
+to the authenticated input descriptor), `PUT=1` appends one byte to the framed
+generic operation, `FLUSH=2` executes that frame and exposes the reply to GET,
+`CB_GET=3`/`CB_PUT=4` carry length-prefixed callback frames, `STATUS=5` reports
+idle/active/trapped state. All values are scalars; no private-memory pointer
+and no function-table index is passed. A failed or uncertain FLUSH is final:
+the guest never replays a write.
+
+The final application response is itself a framed WRITE (opcode 3, output
+handle 1, `u32` byte length, payload, chunks of at most 64 KiB). Raw response
+bytes are never PUT directly: the evaluator interprets every PUT frame as a
+generic kernel operation. This is the framing implemented by T2 P0 head
+`22c5db2e`.
 
 The framed payload uses the generic wire opcodes already shared with the
 proxy side (`OPEN_DISK`, `READ`, `WRITE`, `CLOSE`, `MKDIR`, `DELETE`, `RENAME`,
@@ -43,9 +50,10 @@ only the capability transport under `cb_guest/` was replaced.
 ## Nested P2 boundary and honest blocker
 
 K2's eval child may import only one function, so P1 cannot import both the
-supplied `invoke` and kernel `eval`. P0 therefore evaluates staged P2 code
-with its own `invoke` function under a nested context; P2 exports `_start`
-and imports only `p0.invoke`.
+supplied `invoke` and kernel `eval`. P0's opcode 15 stages code bytes only;
+the child reads its input from the invocation descriptor. P0 therefore
+evaluates staged P2 code with its own `invoke` function under a nested
+context; P2 exports `_start` and imports only `p0.invoke`.
 
 A P2 that needs P1-owned appdata callbacks cannot run on this P0-mediated
 path: P1 is suspended while P0 evaluates P2, so a CB queue cannot reach the

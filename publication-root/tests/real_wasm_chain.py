@@ -26,6 +26,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -75,9 +76,13 @@ def framed(token: bytes, op: int, path: str) -> bytes:
     return b"\x01" + token + bytes([op]) + struct.pack("<I", len(raw)) + raw
 
 
+CALL_FAILURES: list[tuple[int, int, bytes]] = []
+
+
 def wasm_call(url: str, token: bytes, op: int, path: str) -> int | None:
     status, body = post(url, framed(token, op, path))
     if status != 200 or len(body) != 4:
+        CALL_FAILURES.append((status, len(body), body[:80]))
         return None
     return struct.unpack("<i", body)[0]
 
@@ -192,6 +197,65 @@ class Process:
             self.log.close()
 
 
+class SlowProviderProxy:
+    """Transparent loopback forwarder that holds one marked provider call.
+
+    The root has already CAS-claimed a shared-RAM slot and staged the mailbox
+    ticket before this call reaches the provider. Holding that one call open
+    while >256 other invocations finish proves the active slot is not reused
+    and its staged request path is not clobbered by a peer.
+    """
+
+    def __init__(self, port: int, target: int, mailbox: str, timeout: int):
+        self.target, self.mailbox, self.timeout = target, mailbox, timeout
+        self.held = threading.Event()
+        self.release = threading.Event()
+        self.proxied = 0
+        outer = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def forward(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length) if length else b""
+                if (self.command == "POST" and len(body) == 7
+                        and list(body[:3]) == [1, 1, 0x32]):
+                    ticket = int.from_bytes(body[3:7], "little")
+                    notice = os.path.join(outer.mailbox, f"{ticket:08x}")
+                    if os.path.exists(notice) and b"overlap-hold" in pathlib.Path(notice).read_bytes():
+                        outer.held.set()
+                        outer.release.wait(timeout=outer.timeout)
+                url = f"http://127.0.0.1:{outer.target}{self.path}"
+                req = urllib.request.Request(
+                    url, data=body if body else None, method=self.command,
+                    headers={"Content-Type": "application/octet-stream"})
+                try:
+                    with urllib.request.urlopen(req, timeout=30) as response:
+                        status, payload = response.status, response.read()
+                except urllib.error.HTTPError as exc:
+                    status, payload = exc.code, exc.read()
+                outer.proxied += 1
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            do_GET = forward
+            do_POST = forward
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+
+    def start(self) -> None:
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def stop(self) -> None:
+        self.release.set()
+        self.server.shutdown()
+        self.server.server_close()
+
+
 def require(condition: bool, detail: str) -> None:
     if not condition:
         raise CheckFailure(detail)
@@ -204,6 +268,12 @@ def main() -> int:
     ap.add_argument("--root", required=True)
     ap.add_argument("--nginx")
     ap.add_argument("--results", required=True)
+    ap.add_argument("--overlap-total", type=int, default=0,
+                    help="hold one request active across this many other publishes (>256)")
+    ap.add_argument("--hold-seconds", type=int, default=180,
+                    help="upper bound for the held provider call (released explicitly)")
+    ap.add_argument("--overlap-workers", type=int, default=8,
+                    help="concurrent peer publishes (kernel permits 16 in flight)")
     args = ap.parse_args()
 
     results = {"checks": {}, "artifacts": {}}
@@ -236,6 +306,9 @@ def main() -> int:
     write_atomic(os.path.join(source, active), b'{"release":"' + OLD_RELEASE.encode() + b'"}')
 
     provider_port, kernel_port, nginx_port = free_port(), free_port(), free_port()
+    proxy_port = free_port() if args.overlap_total else provider_port
+    proxy = (SlowProviderProxy(proxy_port, provider_port, mailbox, args.hold_seconds)
+             if args.overlap_total else None)
     provider = Process(args.provider, provider_port, {
         **os.environ,
         "PUBLICATION_PROVIDER_BIND": f"127.0.0.1:{provider_port}",
@@ -249,10 +322,12 @@ def main() -> int:
         "SKRYNIA_OPERATOR_DIR": operator,
         "SKRYNIA_USER_DIR": pub_user,
         "SKRYNIA_BIND": f"127.0.0.1:{kernel_port}",
-        "SKRYNIA_SYSCALL_URL": f"http://127.0.0.1:{provider_port}",
+        "SKRYNIA_SYSCALL_URL": f"http://127.0.0.1:{proxy_port}",
     }, f"http://127.0.0.1:{kernel_port}/version", "kernel")
     nginx = Nginx(find_nginx(args.nginx), os.path.join(tmp, "nginx"), nginx_port, nginx_root)
     try:
+        if proxy is not None:
+            proxy.start()
         provider.start(tmp, "provider")
         kernel.start(tmp, "kernel")
         nginx.start()
@@ -298,6 +373,45 @@ def main() -> int:
         record("concurrent_bytes_exact", all(get(nginx_port, "/" + p) == (200, p.encode()) for p in paths))
         record("mailbox_clean_after_concurrency", not os.listdir(mailbox))
 
+        if proxy is not None:
+            total = args.overlap_total
+            held_path = f"apps/qual/releases/{RELEASE}/overlap-hold.js"
+            pathlib.Path(source, held_path).write_bytes(b"OVERLAP-HOLD-BYTES")
+            overlap = []
+            for i in range(total):
+                p = f"apps/qual/releases/{RELEASE}/overlap{i}.js"
+                payload = f"OVERLAP-{i}".encode()
+                pathlib.Path(source, p).write_bytes(payload)
+                overlap.append((p, payload))
+            held_result: dict[str, int | None] = {}
+
+            def held_call() -> None:
+                held_result["code"] = wasm_call(url, token, OP_PUBLISH, held_path)
+
+            thread = threading.Thread(target=held_call, daemon=True)
+            thread.start()
+            observed = proxy.held.wait(timeout=60)
+            codes: list[int | None] = []
+            if observed:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=args.overlap_workers) as pool:
+                    codes = list(pool.map(lambda item: wasm_call(url, token, OP_PUBLISH, item[0]), overlap))
+            proxy.release.set()
+            thread.join(timeout=90)
+            record("overlap_hold_observed", observed)
+            record("overlap_gt_256_total_invocations",
+                   total > 256 and len(codes) == total and not thread.is_alive(),
+                   f"total={total} completed={len(codes)}")
+            record("overlap_active_request_succeeded",
+                   held_result.get("code") == 0
+                   and get(nginx_port, "/" + held_path) == (200, b"OVERLAP-HOLD-BYTES"),
+                   held_result.get("code"))
+            record("overlap_all_peer_codes_zero", all(code == 0 for code in codes),
+                   {"codes": [code for code in codes if code != 0][:8],
+                    "http_failures": CALL_FAILURES[:4]})
+            record("overlap_peer_bytes_exact",
+                   all(get(nginx_port, "/" + p) == (200, payload) for p, payload in overlap))
+            record("overlap_mailbox_clean", not os.listdir(mailbox))
+
         # Active pointer is published ONCE as a permanent symlink. A-B-A switches
         # rewrite only its private source bytes atomically; the public symlink
         # is never unlink/republish, so the switch is a single CAS-visible rename.
@@ -316,6 +430,8 @@ def main() -> int:
         nginx.stop()
         kernel.stop()
         provider.stop()
+        if proxy is not None:
+            proxy.stop()
         results["workdir"] = tmp
         pathlib.Path(args.results).write_text(json.dumps(results, indent=2))
         shutil.rmtree(tmp, ignore_errors=True)

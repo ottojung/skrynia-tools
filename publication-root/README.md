@@ -108,6 +108,22 @@ compiled root and checks root-token, path/security, provider-failure and
 16-way concurrent publication behaviour. The provider HTTP codec is owned and
 built by the coordinator; this crate never edits it.
 
+Slot lifetime regressions are covered at two levels. `tests/slot_occupancy_model.py`
+models the exact `cas1` occupancy protocol deterministically: one byte per slot,
+`0 -> 1` claim, `1 -> 0` release on every ordinary return, no modulo counter,
+no shrink, fail-closed at 256 busy slots, and more than 256 total invocations
+while one request stays active without ever reusing its byte or its staged
+bytes. `real_wasm_chain.py --overlap-total N` drives the same property through
+the real compiled root on the exact target kernel: a transparent loopback
+provider proxy holds one request whose ticket path is marked `overlap-hold`
+after the root has claimed its slot, then N other publishes complete while it
+is still active; the held request and every peer must return 0 with exact
+bytes and a clean mailbox. The overlap phase is opt-in so the ordinary CI
+lifecycle stays bounded. Peer concurrency defaults to 8 (`--overlap-workers`):
+the target kernel admits only 16 requests in flight and answers further ones
+with 503, so one held request plus 8 peers stays inside that kernel limit; the
+>256 count comes from total invocations, not from exceeding the kernel cap.
+
 ## Release deployment gate
 
 Release deployment must boot this generated root WASM through the kernel. A
@@ -152,4 +168,10 @@ provider and real nginx:
 python3 publication-root/tests/real_wasm_chain.py \
   --kernel KERNEL --provider PROVIDER --root ROOT_WASM \
   --results /tmp/opencode/wasm-publication-results.json
+
+python3 publication-root/tests/slot_occupancy_model.py
+
+python3 publication-root/tests/real_wasm_chain.py \
+  --kernel KERNEL --provider PROVIDER --root ROOT_WASM \
+  --overlap-total 300 --results /tmp/opencode/wasm-publication-overlap-results.json
 ```

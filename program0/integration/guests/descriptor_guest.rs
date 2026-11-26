@@ -9,9 +9,11 @@ unsafe extern "C" {
 const GET: i32 = 0;
 const PUT: i32 = 1;
 const FLUSH: i32 = 2;
-const DIR: &str = "programs/appdata/p0ops";
-const NEW: &str = "programs/appdata/p0ops/probe.bin";
-const RENAMED: &str = "programs/appdata/p0ops/renamed.bin";
+// K10 routes kernel FS paths by their explicit root token; this fixture's
+// writable data lives in the user root, never the operator staging root.
+const DIR: &str = "user/programs/appdata/p0ops";
+const NEW: &str = "user/programs/appdata/p0ops/probe.bin";
+const RENAMED: &str = "user/programs/appdata/p0ops/renamed.bin";
 
 fn sent(frame: &[u8]) {
     unsafe {

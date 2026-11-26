@@ -1,6 +1,7 @@
 #![no_std]
 
 mod callback;
+mod compound;
 mod stream;
 
 #[panic_handler]
@@ -22,7 +23,12 @@ pub extern "C" fn _start() {
         request[0] = 1;
     }
     let mut reply = [0u8; 4096];
-    let n = callback::call(&request[..len], &mut reply);
+    // A named read (op 1) must keep OPEN/READ/CLOSE in this one VM request.
+    let n = if request[0] == 1 && !trap {
+        compound::read(&request[..len], &mut reply)
+    } else {
+        callback::call(&request[..len], &mut reply)
+    };
     if n < 0 {
         return;
     }

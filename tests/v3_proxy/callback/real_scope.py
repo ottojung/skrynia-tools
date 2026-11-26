@@ -84,15 +84,12 @@ def checks(port, token, operator, user, verifier, guest):
 
     def call(label, op, value, tail=b''):
         # Historical assertions, mapped onto the target P0 framed ABI: a named
-        # read is OPEN_DISK + READ + CLOSE. Root selection is explicit: every
-        # path carries the `operator/` or `user/` K10 namespace token.
+        # read is OPEN_DISK + READ + CLOSE. The guest issues all three frames
+        # inside ONE VM request: the kernel builds a fresh fd table per HTTP
+        # request, so a handle from a previous request is already stale. Root
+        # selection is explicit: paths carry the `operator/` or `user/` token.
         if op == 1:
-            fd, _ = raw(label + ':open', 1, path(value) + tail)
-            if fd < 0:
-                return fd, b''
-            n, data = raw(label + ':read', 2, u32(fd) + tail)
-            raw(label + ':close', 4, u32(fd))
-            return n, data
+            return raw(label, 1, path(value) + tail)
         if op in (6, 8):
             return raw(label, op, path(value))
         if op == 7:
@@ -107,6 +104,10 @@ def checks(port, token, operator, user, verifier, guest):
         assert code < 0 and not reply, (label, code, len(reply))
 
     allowed()
+    # Descriptor tables belong to one VM request. A plausible fd from an
+    # earlier request must never be revivable; fail closed on -2/EBADF.
+    code, reply = raw('stale-descriptor:read', 2, u32(0x00030003) + u32(1))
+    assert code == -2 and not reply, ('stale descriptor', code, len(reply))
     # Unqualified paths have no root token under K10; traversal and absolute
     # paths are rejected by confinement. Symlink escapes stay inside a root.
     for value in (b'security/program0.sha256', b'programs/root.wasm',
@@ -117,7 +118,9 @@ def checks(port, token, operator, user, verifier, guest):
     # operator bytes remain intact, not an assumed error code.
     assert call('delete-absent-user-path', 6, b'user/security/program0.sha256') == (0, b'')
     denied('operator-rename', 7, b'operator/programs/root.wasm', path(b'user/data/stolen'))
-    denied('operator-directory', 8, b'operator/security')
+    # Unqualified directory paths have no K10 root token; the historical
+    # operator-directory denial is preserved as a token-escape negative.
+    denied('operator-directory', 8, b'security')
     denied('traversal-rename', 7, b'user/data/allowed', path(b'user/../operator/programs/root.wasm'))
     denied('symlink-directory-rename', 7, b'user/data/allowed', path(b'user/escape-dir/program0.sha256'))
     code, reply = call('callback-eval', 15, b'')

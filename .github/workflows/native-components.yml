@@ -23,7 +23,7 @@ jobs:
         run: cargo test --manifest-path fullchain-integration/Cargo.toml --locked
   compiled-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5

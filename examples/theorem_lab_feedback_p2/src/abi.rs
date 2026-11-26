@@ -28,7 +28,7 @@ mod inner {
     }
 
     pub fn flush(op: i32) -> bool {
-        unsafe { invoke(0, op, 0) } >= 0
+        (unsafe { invoke(0, op, 0) }) >= 0
     }
 
     pub fn read_all(_fd: i32) -> Vec<u8> {

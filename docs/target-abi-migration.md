@@ -37,6 +37,16 @@ imports make the module ineligible; a module with an unresolved optional
 import on an unused path is never selected. A failed call is final: this SDK
 has no fallback replay path.
 
+**K6 count extension (explicit implementation choice).** The v1 count byte
+stays literal for 0..=254 values; 255 or more values use the `0xff` sentinel
+followed by a checked 4-byte little-endian `u32` count. Extended counts below
+255 are rejected as non-minimal. The decoder derives the exact frame length
+from the declared result types, so truncated, oversized and mistyped replies
+fail before execution; one frame is bounded by 64 MiB of checked arithmetic.
+Every frame with at most 254 values is byte-identical to the original v1 wire,
+including the publication provider's single-i32 `[0x01,1,0x32,u32-le]` frame.
+This is an SDK/K6 decision recorded for integration, not a new owner intent.
+
 ## Eval, invoke and userland fallback
 
 `eval` supplies zero or one integer-signature function. Selector `-1` means

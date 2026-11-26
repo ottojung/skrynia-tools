@@ -57,8 +57,8 @@ obstructs it.
 No check was removed, skipped or relaxed: the existing negative path list,
 provider-failure pass-through, 16-way concurrency, A-B-A active-pointer switch
 and all overlap assertions remain, and the qualified-path and directory cases
-were added on top. CI now runs both the standard lifecycle and the 300-call
-overlap fixture and uploads both result files.
+were added on top. The integrated CI runs the standard lifecycle and the 300-call
+overlap in one invocation and uploads the combined result file.
 
 Rustdoc doctests were not run locally: this environment has no `rustdoc`
 binary; `cargo test --locked --all-targets` (which excludes doctests) passed.

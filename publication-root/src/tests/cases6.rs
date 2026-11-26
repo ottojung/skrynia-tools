@@ -1,7 +1,5 @@
 use super::{Fake, auth, path};
 
-const PUBLIC: &[u8] = b"apps/hello/releases/r1/index.html";
-
 fn credential(token: &[u8; 32]) -> Fake {
     let mut fake = Fake::with_verifier(token);
     fake.input = [vec![1u8], token.to_vec()].concat();

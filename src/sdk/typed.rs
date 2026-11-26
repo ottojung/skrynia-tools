@@ -1,4 +1,14 @@
 //! Integer value types and exact ordered signatures.
+use super::TypedValue;
+
+impl TypedValue {
+    pub fn kind(self) -> ValType {
+        match self {
+            Self::I32(_) => ValType::I32,
+            Self::I64(_) => ValType::I64,
+        }
+    }
+}
 
 /// Name and ordered integer types of a fixed machine import.
 #[derive(Clone, Debug, Eq, PartialEq)]

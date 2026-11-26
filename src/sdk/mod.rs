@@ -22,6 +22,30 @@ pub const ERR_IO: i32 = -5;
 pub const ERR_RANGE: i32 = -6;
 pub const ERR_BOUNDS: i32 = -7;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TypedValue {
+    I32(i32),
+    I64(i64),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WireError {
+    Version,
+    Count,
+    NonMinimal,
+    Tag,
+    Truncated,
+    Trailing,
+    TooLarge,
+}
+
+pub(super) fn word(bytes: &[u8], at: usize, len: usize) -> Result<u64, WireError> {
+    let slice = bytes.get(at..at + len).ok_or(WireError::Truncated)?;
+    let mut buf = [0u8; 8];
+    buf[..len].copy_from_slice(slice);
+    Ok(u64::from_le_bytes(buf))
+}
+
 pub use abi::{fixed, names};
 pub use decode::decode;
 pub use deploy::{DeployCheck, ImportNeed, check_imports};
@@ -30,4 +54,4 @@ pub use fallback::{ByteIo, CopyFailure, Progress, copy_bytes, skip_input};
 pub use invoke::{BindingError, NO_FUNCTION, check_binding};
 pub use scalar::{ScalarError, cas1, read1, seek, status, write1};
 pub use typed::{FixedSignature, Signature, ValType};
-pub use wire::{TAG_I32, TAG_I64, TypedValue, VERSION, WireError, encode};
+pub use wire::{COUNT_EXTENDED, TAG_I32, TAG_I64, VERSION, encode};

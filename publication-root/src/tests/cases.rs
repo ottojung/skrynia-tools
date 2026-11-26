@@ -20,7 +20,7 @@ fn public_path_grammar_and_private_roots() {
     for p in bad {
         assert!(!path::valid(p), "accepted unsafe path {:?}", p);
     }
-    assert_eq!(&path::mailbox(0x2a), b"publication-requests/0000002a");
+    assert_eq!(&path::mailbox(0x2a), b"user/publication-requests/0000002a");
 }
 
 #[test]

@@ -2,7 +2,7 @@ use super::host::Host;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
-const VERIFIER: &[u8] = b"security/program0.sha256";
+const VERIFIER: &[u8] = b"operator/security/program0.sha256";
 const HEADER: usize = 33;
 
 fn exact<H: Host>(host: &mut H, fd: i32, into: &mut [u8]) -> Result<(), i32> {

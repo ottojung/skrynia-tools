@@ -4,7 +4,7 @@ use super::{abi, alloc, auth};
 mod stage;
 pub use stage::stage;
 
-pub const GUEST_PATH: &[u8] = b"programs/root.wasm";
+pub const GUEST_PATH: &[u8] = b"operator/programs/root.wasm";
 
 /// Write bytes at an absolute RAM offset, never at or beyond `limit`.
 /// The whole length is checked before the first byte, so a hostile frame

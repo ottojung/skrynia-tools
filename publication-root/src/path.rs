@@ -1,6 +1,6 @@
-const DIR: &[u8] = b"publication-requests/";
+const DIR: &[u8] = b"user/publication-requests/";
 pub fn mailbox_dir() -> &'static [u8] {
-    b"publication-requests"
+    b"user/publication-requests"
 }
 const HEX: &[u8; 16] = b"0123456789abcdef";
 const PRIVATE: [&[u8]; 6] = [

@@ -35,6 +35,9 @@ fn path_security_rejects_control_characters_and_overlong_paths() {
     }
     assert!(path::valid(b"apps/a-b_c.1/releases/abcdef/index.html"));
     assert!(!path::valid(&vec![b'a'; 4097]));
-    assert_eq!(&path::mailbox(0), b"publication-requests/00000000");
-    assert_eq!(&path::mailbox(u32::MAX), b"publication-requests/ffffffff");
+    assert_eq!(&path::mailbox(0), b"user/publication-requests/00000000");
+    assert_eq!(
+        &path::mailbox(u32::MAX),
+        b"user/publication-requests/ffffffff"
+    );
 }

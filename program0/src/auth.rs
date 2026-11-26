@@ -6,7 +6,7 @@ pub const EOF: i32 = -1;
 pub const DENIED: i32 = -4;
 pub const VERSION: i32 = 1;
 pub const TOKEN_LEN: usize = 32;
-pub const VERIFIER_PATH: &[u8] = b"security/program0.sha256";
+pub const VERIFIER_PATH: &[u8] = b"operator/security/program0.sha256";
 
 pub fn require(input_fd: i32, ram_fd: i32, pos: &mut u64, base: u64) -> Result<(), i32> {
     if unsafe { abi::read1(input_fd) } != VERSION {

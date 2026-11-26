@@ -55,20 +55,54 @@ the child reads its input from the invocation descriptor. P0 therefore
 evaluates staged P2 code with its own `invoke` function under a nested
 context; P2 exports `_start` and imports only `p0.invoke`.
 
-A P2 that needs P1-owned appdata callbacks cannot run on this P0-mediated
-path: P1 is suspended while P0 evaluates P2, so a CB queue cannot reach the
-suspended P1. On `STATUS=ACTIVE` the guest fails closed with `ENOTSUP (-4)`
-instead of pretending success or deadlocking. Callback-dependent P2 guests
-require the separate in-process userland interpreter owned by T6, which calls
-the `Eval` trait callback closure directly inside P1's own store. T3 will
-swap that evaluator into `MediatorEval` only after a real compatible artifact
-with exact head and wasm32 build is delivered. Live end-to-end P2 callback
-acceptance is therefore BLOCKED, not inferred from host tests.
+A P2 that needs P1-owned appdata callbacks cannot run on the P0-mediated path:
+P1 is suspended while P0 evaluates P2, so a CB queue cannot reach the suspended
+P1. The `MediatorEval` path therefore still fails closed with `ENOTSUP (-4)` on
+`STATUS=ACTIVE` rather than pretending success or deadlocking.
 
-## Validation boundary
+## T6 in-process interpreter selection
 
-Host tests exercise the exact framing with a deterministic fake evaluator;
-the built WASM is checked structurally. These are scoped implementation gates,
-not live target integration or release acceptance. Live integration additionally
-needs T2's final P0 head, T6's interpreter artifact, A2's P2 artifact and a
-disposable real-kernel harness at K4.
+The delivered T6 component (`skrynia-tools` head
+`bac975b1610f6bec38ebe7078ccbdc1736078998`, `src/p2`, `docs/p2-interpreter.md`)
+is reused verbatim: `native-service/src/p2` is a symlink to that source tree, so
+no T6 file is edited. `cb_guest::eval::P1CallbackEval` selects
+`p2::Interpreter` as the ordinary P1 `Eval` capability; it implements the
+unchanged `cap::Eval` trait with `Err = i32`. `CB_GET/CB_PUT` call the callback
+closure that `Registry::invoke` already supplies (`appdata::cb::guest_callback`)
+directly on P1's own stack. The adapter frames the interpreter's single opaque
+request byte into a complete `AppGet` request before handing it to that
+callback, because the appdata capability decodes whole wire frames. There is no
+P0 callback relay, no suspended P1, no privileged import and no cross-store
+pointer. Sticky failure/no-replay and fail-closed guest validation are T6's
+contract and are exercised by real-WASM host tests on the exact integrated
+source.
+
+## Validation boundary and real-kernel blocker
+
+Host tests exercise the exact framing with deterministic fake capabilities;
+T6's 12 real-WASM guest tests cover callback roundtrip, sticky no-replay,
+wrong context, malformed/extra imports, missing/wrong `_start`, invalid bytes,
+trap and response cap. The built WASM is checked structurally: exactly one
+`p0.invoke` import, `_start` export, no `skrynia.*` import. These are scoped
+implementation gates, not Theorem Lab end-to-end acceptance or a packaged P1
+module claim.
+
+A disposable K4 (`b8eff729`) + T2 P0 (`985d238b`) harness was exercised with
+the integrated P1. Two concrete constraints were observed:
+
+1. A default release build that actually links `wasmi` is ~2.2 MiB and the
+   kernel rejects it before serving a request (compile child has a 4 s CPU and
+   64 MiB precompile limit). `RUSTFLAGS='-C opt-level=z -C strip=symbols'`
+   produces a ~1.5 MiB artifact that boots and returns framed responses; the
+   size-optimized build is required for any real-kernel run.
+2. T2's final P0 relay implements gateway ops 1, 2, 3, 4, 11, 12, 13, 14 and 15;
+   ops 5-10 (`MKDIR`, `DELETE`, `RENAME`, `OPEN_DIR`, `NEXT_ENTRY`, `SYNC`) are
+   explicitly `ENOTSUP`. Consequently all durable registry/appdata writes fail
+   through P0, so programs and appdata had to be pre-staged directly on the
+   disposable host dirs. Even with active/blob/appdata fixtures staged in both
+   operator and user roots, the nested `open_disk` read returned `E_IO (-5)`
+   and `Registry::invoke` failed before reaching the interpreter. A live
+   appdata callback roundtrip through the real kernel is therefore BLOCKED on
+   the P0 relay/kernel file-access gap, not on the interpreter itself. No live
+   browser, provider, registered program, Theorem Lab P2 or production path was
+   claimed.

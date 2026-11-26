@@ -1,6 +1,15 @@
 //! Harness entrypoint: runs real full-chain scenarios.
 use std::path::PathBuf;
+use std::time::Instant;
 mod tmp;
+
+fn stage<T>(name: &str, f: impl FnOnce() -> T) -> T {
+    let t = Instant::now();
+    println!("stage_start={name}");
+    let v = f();
+    println!("stage_done={name} elapsed_ms={}", t.elapsed().as_millis());
+    v
+}
 
 pub fn execute() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -18,10 +27,10 @@ pub fn execute() {
     for line in crate::chain::manifest(&art).expect("runtime manifest") {
         println!("{line}");
     }
-    let mut ev = crate::scenarios::run_positive(&art, &tmp.join("pos"));
-    ev.extend(crate::scenarios::run_negative(&art, &tmp.join("neg")));
-    ev.extend(crate::scenarios::run_wake(&art, &tmp.join("wake")));
-    ev.extend(crate::scenarios::run_ordinary(&art, &tmp.join("ordinary")));
+    let mut ev = stage("positive", || crate::scenarios::run_positive(&art, &tmp.join("pos")));
+    ev.extend(stage("negative", || crate::scenarios::run_negative(&art, &tmp.join("neg"))));
+    ev.extend(stage("wake", || crate::scenarios::run_wake(&art, &tmp.join("wake"))));
+    ev.extend(stage("ordinary", || crate::scenarios::run_ordinary(&art, &tmp.join("ordinary"))));
     for e in &ev {
         crate::evidence::line("EVIDENCE", e);
     }

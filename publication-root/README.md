@@ -74,10 +74,20 @@ requests could still be in flight.
 
 The root validates generic path grammar (bounded UTF-8, relative, no NUL,
 newline, carriage return, backslash, absolute path, empty/`.`/`..` segments) and
-rejects private roots (`security`, `programs`, `publication-requests`,
-`operator`, `private`, `tokens`). App names, release identity, manifest hashes
-and activation policy remain application/deployment concerns; this program
-never encodes them.
+rejects private roots. Under the qualified-path convention that includes both
+root tokens (`operator/...` and `user/...`, so `user/publication-requests/...`
+and `operator/security/...` are never published), plus the unqualified legacy
+names (`security`, `programs`, `publication-requests`, `operator`, `private`,
+`tokens`). Rejection happens before a ticket is written or the provider is
+invoked. App names, release identity, manifest hashes and activation policy
+remain application/deployment concerns; this program never encodes them.
+
+Directory outcomes are precise: a missing source directory is an invalid source
+(provider code 3), an existing non-symlink destination node is a conflict
+(code 4) and is never replaced, and unpublish of an absent path is idempotent
+(code 0). The mailbox directory uses create-if-absent `mkdir`, so it works
+whether the directory was missing or already present, and fails closed with a
+mailbox error when a non-directory obstructs that path.
 
 ## Target ABI port
 

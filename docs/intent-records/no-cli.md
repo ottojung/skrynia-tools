@@ -7,15 +7,21 @@ kind: requirement
 Skrynia Tools must not expose any CLI functionality. Remove its
 CLI executable, command parser, installation package, tests and
 documentation. Administration must take place through the web interface,
-which sends opaque binary POST through an operator gateway. There is no
-one-time Bash installation bootstrap, no HTTP-based deployment action and
-no publishing workflow: those surfaces are withdrawn, not a separate
-administration channel.
+which sends opaque binary POST through an operator gateway.
 
-Withdrawn intent (surfaced 2026/11/24): the earlier claim that a one-time Bash
-installation bootstrap and noninteractive GitHub Actions for application
-publishing "remain distinct from a user-facing CLI" is no longer current
-intent. `bootstrap/*`, `deploy.sh`, `action/deploy/*`,
-`action/publish-stable/*` and `.github/workflows/web-admin.yml` were deleted
-in f92fbea5, and AGENTS.md forbids reintroducing HTTP-based deployment
-actions. Git carries the withdrawn record; do not treat it as current intent.
+Scope clarification (provenance reconciled 2026/11/25 on the hall board,
+[bootstrap-intent-design]): owner messages 2026-11-17 19:53:50 and
+2026-11-17 20:38:44 retain a single one-time, trusted-host Bash installation
+bootstrap for Skrynia Tools. It is a one-shot installer with no subcommands:
+not a user-facing CLI and not an HTTP-based deployment action. It uses pinned
+reviewed Tools source and scoped native admin/read authority, and must never
+reintroduce a v2 `/store` grant, a legacy HTTP deployment facade, or a kernel
+bootstrap.
+
+Withdrawn 2026/11/24 in f92fbea5: only the obsolete LEGACY v2 HTTP deploy
+routes/actions (`action/deploy/*`, `action/publish-stable/*`,
+`.github/workflows/web-admin.yml`) and the v2-grant-bearing `bootstrap/*`
+transport. Those legacy HTTP surfaces are forbidden by AGENTS.md and stay
+withdrawn; their removal did not withdraw the one-time bootstrap concept
+above. The 2026/11/24 record that labelled the whole bootstrap withdrawn was
+over-broad; Git carries its history.

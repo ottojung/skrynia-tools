@@ -25,7 +25,7 @@ fn serve(input_fd: i32, output_fd: i32) -> Result<(), i32> {
         let (index, base) = alloc::acquire(ram)?;
         let outcome = (|| {
             auth::require(input_fd, ram, &mut pos, base)?;
-            code::put_path(ram, &mut pos, base + alloc::SLOT_PATH_AT, code::GUEST_PATH)?;
+            code::put_path(ram, &mut pos, base, code::GUEST_PATH)?;
             let size = code::stage(
                 ram,
                 &mut pos,

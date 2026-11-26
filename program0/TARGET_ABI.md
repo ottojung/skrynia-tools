@@ -43,7 +43,11 @@ op 9 stages the entry name in the caller's slot and pumps it back byte-wise;
 op 10 to `sync`. OPEN_DISK's trailing `u32` mode is relayed verbatim; the
 kernel still enforces root capabilities, so no implicit authority is added.
 Descriptor handles `0`/`1` denote the per-invocation input/output streams.
-The reply is `[i32 code][data]`.
+The reply is `[i32 code][data]`. Every frame must end exactly after its
+declared fields: a short or trailing byte fails with INVALID before any kernel
+effect. READ/WRITE/NEXT_ENTRY keep their existing chunk caps instead of
+silently truncating a larger request. A READ transport error other than EOF
+(`-1`) is an error reply, not EOF-like partial success.
 
 ## Per-request isolation and recovery
 
@@ -60,6 +64,14 @@ instead of stale bytes. A child trap returns a negative eval status; P0 does
 not replay, CAS-frees the slot and closes descriptors. Denied/malformed auth
 runs inside the outcome closure, so it releases the slot on every result path.
 Lock ops are P0 userland CAS on a slot-local byte.
+
+Both paths of RENAME stay in the path area; nested op-15 code is capped to the
+remainder of one slot before the first byte is written, so no frame can reach
+the next slot's CAS metadata. Random fill is capped to the same code area in
+bits. The nested child context adopts the shared fd cursor on both success and
+trap, then its frame, reply and callback queues are dropped; the parent context
+is restored and stays usable. Exact head, artifact SHA and replay evidence are
+in [`T8_EVIDENCE.md`](integration/T8_EVIDENCE.md).
 
 ## Explicit blockers and non-goals
 

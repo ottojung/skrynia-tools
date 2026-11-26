@@ -59,7 +59,8 @@ Logs: `/tmp/opencode/t2-evidence/real-kernel-final2.log`,
 - Callback-dependent nested P2 guests remain BLOCKED (synchronous P1 suspension
   cannot service P2 callbacks); only byte queues and no-callback nested EVAL
   are relayed.
-- Framed ops 5-10 return ENOTSUP; four-argument `copy` is owner-unresolved and
+- At the original base only: framed ops 5-10 return ENOTSUP (the continuation
+  section below implements them). Four-argument `copy` is owner-unresolved and
   deliberately absent.
 - No production, no PR, no merge, no kernel edit, no old-ABI acceptance.
 

@@ -1,5 +1,5 @@
-//! RENAME (op 7): two staged paths, second in caller RAM after the code.
-use super::{Ctx, INVALID, abi, alloc, code, reply, word};
+//! RENAME (op 7): two paths staged inside the caller's path area only.
+use super::{Ctx, INVALID, abi, alloc, code, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     let Some(n) = word(f, at) else {
@@ -10,10 +10,6 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
         return reply(INVALID, &[]);
     };
     *at = end;
-    let a = c.base + alloc::SLOT_PATH_AT;
-    if code::put_path(c.ram, &mut c.pos, a, old).is_err() {
-        return reply(INVALID, &[]);
-    }
     let Some(m) = word(f, at) else {
         return reply(INVALID, &[]);
     };
@@ -22,10 +18,18 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
         return reply(INVALID, &[]);
     };
     *at = end;
+    if !complete(f, *at) {
+        return reply(INVALID, &[]);
+    }
+    let a = c.base + alloc::SLOT_PATH_AT;
+    // Stage both paths below the code area: a long second path must never
+    // overwrite this slot's code or the next slot's CAS metadata.
+    if code::put_path(c.ram, &mut c.pos, c.base, old).is_err() {
+        return reply(alloc::ERR_RANGE, &[]);
+    }
     let b = c.pos;
-    if b.saturating_add(m as u64) > c.base + alloc::SLOT_SIZE
-        || code::put(c.ram, &mut c.pos, b, new).is_err()
-    {
+    let limit = c.base + alloc::SLOT_CODE_AT;
+    if b > limit || code::put(c.ram, &mut c.pos, b, new, limit).is_err() {
         return reply(alloc::ERR_RANGE, &[]);
     }
     reply(unsafe { abi::rename(a, n as u64, b, m as u64) }, &[])

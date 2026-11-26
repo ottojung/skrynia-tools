@@ -15,12 +15,12 @@ pub fn require(input_fd: i32, ram_fd: i32, pos: &mut u64, base: u64) -> Result<(
     let mut raw = [0u8; TOKEN_LEN];
     for byte in &mut raw {
         let b = unsafe { abi::read1(input_fd) };
-        if b < 0 || b > 255 {
+        if !(0..=255).contains(&b) {
             return Err(DENIED);
         }
         *byte = b as u8;
     }
-    code::put_path(ram_fd, pos, base + alloc::SLOT_PATH_AT, VERIFIER_PATH)?;
+    code::put_path(ram_fd, pos, base, VERIFIER_PATH)?;
     let fd = unsafe { abi::open_disk(base + alloc::SLOT_PATH_AT, VERIFIER_PATH.len() as u64, 1) };
     if fd < 0 {
         return Err(DENIED);
@@ -28,7 +28,7 @@ pub fn require(input_fd: i32, ram_fd: i32, pos: &mut u64, base: u64) -> Result<(
     let mut expected = [0u8; TOKEN_LEN];
     for byte in &mut expected {
         let b = unsafe { abi::read1(fd) };
-        if b < 0 || b > 255 {
+        if !(0..=255).contains(&b) {
             unsafe { abi::close(fd) };
             return Err(DENIED);
         }

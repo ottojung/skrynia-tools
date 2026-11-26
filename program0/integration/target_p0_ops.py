@@ -15,7 +15,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from dumb_p0_http import Srv, check_sha, free_port, wait_port
 
 TOKEN = hashlib.sha256(b't2-ops5to10-fake-bearer').digest()
-WANT = b'OPS5TO10_OK'
 
 
 def main() -> int:
@@ -26,6 +25,8 @@ def main() -> int:
     ap.add_argument('--kernel-sha256')
     ap.add_argument('--p0-sha256')
     ap.add_argument('--workdir')
+    ap.add_argument('--want', default='OPS5TO10_OK', help='expected guest body')
+    ap.add_argument('--label', default='OPS5TO10', help='result label')
     args = ap.parse_args()
     kernel, p0, guest = (pathlib.Path(x) for x in (args.kernel, args.p0, args.guest))
     for path, name in ((kernel, 'kernel'), (p0, 'p0'), (guest, 'guest')):
@@ -56,8 +57,8 @@ def main() -> int:
         srv = Srv(work, port, TOKEN, proc, log)
         try:
             _decoded, status, raw = srv.send(b'p0-descriptor-ops', timeout=60)
-            ok = raw == WANT
-            print('OPS5TO10_' + ('PASS' if ok else 'FAIL'), status, raw, flush=True)
+            ok = raw == args.want.encode()
+            print(args.label + '_' + ('PASS' if ok else 'FAIL'), status, raw, flush=True)
             print('RAW', raw.hex(), flush=True)
             return 0 if ok else 1
         finally:

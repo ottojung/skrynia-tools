@@ -1,6 +1,7 @@
 use super::{call, wire};
 pub fn mkdir_p(dir: &str) -> Result<(), i32> {
     let mut cur = String::new();
+    let mut root = true;
     for part in dir.trim_end_matches('/').split('/') {
         if part.is_empty() {
             continue;
@@ -9,13 +10,19 @@ pub fn mkdir_p(dir: &str) -> Result<(), i32> {
             cur.push('/');
         }
         cur.push_str(part);
-        let mut r = vec![wire::MKDIR];
-        wire::put_bytes(&mut r, cur.as_bytes());
-        wire::put_u32(&mut r, 4);
-        let (n, _) = call::call(&r)?;
-        if n == -3 {
+        // K10 explicit-root token selects the namespace; it is not a directory
+        // to create. Only the leading segment may be such a token.
+        if root && (cur == "user" || cur == "operator") {
+            root = false;
             continue;
         }
+        root = false;
+        let mut r = vec![wire::MKDIR];
+        wire::put_bytes(&mut r, cur.as_bytes());
+        // create + non-exclusive: the kernel makes an existing directory a
+        // no-op success, so there is no benign error code to swallow here.
+        wire::put_u32(&mut r, 4);
+        let (n, _) = call::call(&r)?;
         if n < 0 {
             return Err(n);
         }

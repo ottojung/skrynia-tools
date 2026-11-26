@@ -77,7 +77,7 @@ pointer. Sticky failure/no-replay and fail-closed guest validation are T6's
 contract and are exercised by real-WASM host tests on the exact integrated
 source.
 
-## Validation boundary and real-kernel blocker
+## Validation boundary and disposable real-kernel proof
 
 Host tests exercise the exact framing with deterministic fake capabilities;
 T6's 12 real-WASM guest tests cover callback roundtrip, sticky no-replay,
@@ -87,22 +87,28 @@ trap and response cap. The built WASM is checked structurally: exactly one
 implementation gates, not Theorem Lab end-to-end acceptance or a packaged P1
 module claim.
 
-A disposable K4 (`b8eff729`) + T2 P0 (`985d238b`) harness was exercised with
-the integrated P1. Two concrete constraints were observed:
+A default release build that actually links `wasmi` is ~2.2 MiB and the kernel
+rejects it before serving a request (compile child has a 4 s CPU and 64 MiB
+precompile limit). `RUSTFLAGS='-C opt-level=z -C strip=symbols'` produces a
+~1.5 MiB artifact that boots; the size-optimized build is required for any
+real-kernel run.
 
-1. A default release build that actually links `wasmi` is ~2.2 MiB and the
-   kernel rejects it before serving a request (compile child has a 4 s CPU and
-   64 MiB precompile limit). `RUSTFLAGS='-C opt-level=z -C strip=symbols'`
-   produces a ~1.5 MiB artifact that boots and returns framed responses; the
-   size-optimized build is required for any real-kernel run.
-2. T2's final P0 relay implements gateway ops 1, 2, 3, 4, 11, 12, 13, 14 and 15;
-   ops 5-10 (`MKDIR`, `DELETE`, `RENAME`, `OPEN_DIR`, `NEXT_ENTRY`, `SYNC`) are
-   explicitly `ENOTSUP`. Consequently all durable registry/appdata writes fail
-   through P0, so programs and appdata had to be pre-staged directly on the
-   disposable host dirs. Even with active/blob/appdata fixtures staged in both
-   operator and user roots, the nested `open_disk` read returned `E_IO (-5)`
-   and `Registry::invoke` failed before reaching the interpreter. A live
-   appdata callback roundtrip through the real kernel is therefore BLOCKED on
-   the P0 relay/kernel file-access gap, not on the interpreter itself. No live
-   browser, provider, registered program, Theorem Lab P2 or production path was
-   claimed.
+The earlier P0 relay (`985d238b`) could not complete a nested appdata roundtrip:
+its invoke context started its RAM cursor at zero while the real RAM fd sat
+just past the staged guest, so staged paths were read from the wrong offset and
+`open_disk` returned `E_IO (-5)` before the interpreter was entered. T2's
+replacement P0 (`49a17d97`, WASM `bb3b8afb`) inherits the staging cursor,
+resynchronises after nested EVAL and relays framed ops 5-10. With that P0 and
+the size-optimized P1 (`e9a65426`), the disposable harness
+`native-service/integration/nested/nested_cb.py` boots K4 `b8eff729`
+(`c82ab502`) and passes all six checks: nested echo, P1-owned appdata
+`CB_GET`/`CB_PUT` roundtrip (inner body `P1-OWNED-CB-ROUNDTRIP-OK`), sticky
+callback failure, malformed-import fail-closed, unknown-op fail-closed
+(`EINVAL -3`, no silent no-op) and wrong-bearer denial. The result is
+`T3_T6_NESTED_CB_PASS`. Paths are rebound with `SKRYNIA_*_WASM` and
+`SKRYNIA_NESTED_WORKDIR`; every artifact SHA is re-pinned in the harness.
+
+This is a bounded disposable proof of source correctness and the nested
+callback mechanism only. No live browser, provider, registered program,
+Theorem Lab P2, P1/PX arm, deploy, merge, production cutover or old-ABI
+qualification is claimed.

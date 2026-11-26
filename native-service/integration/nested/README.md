@@ -13,9 +13,14 @@ four real WASM guests compiled from the included WAT:
 - `cb_roundtrip.wat` — one `CB_GET` plus `CB_PUT` drain of a real P1-owned
   appdata `AppGet` reply,
 - `cb_failure.wat` — sticky callback failure and no-replay observation,
-- `malformed_import.wat` — fail-closed validation (`skrynia.eval` import).
+- `malformed_import.wat` — fail-closed validation (`skrynia.eval` import),
+- `unknown_op.wat` — an unrecognised `p0.invoke` op returns `EINVAL (-3)`
+  instead of being silently ignored.
 
-`dumb_p0_http.py` is the unmodified disposable HTTP harness. The pinned
-artifacts and current blocker are recorded in
-`docs/target-t3-native-service-port.md`. Nothing here is production, a
-packaged P1 module, or Theorem Lab end-to-end acceptance.
+`dumb_p0_http.py` is the unmodified disposable HTTP harness. Kernel, P0, P1
+and workdir paths can be rebound with `SKRYNIA_KERNEL_WASM`, `SKRYNIA_P0_WASM`,
+`SKRYNIA_P1_WASM` and `SKRYNIA_NESTED_WORKDIR`; all SHAs are re-pinned in
+`nested_cb.py`. With T2's ops-5-to-10 P0 (`bb3b8afb`) and the size-optimized
+P1 (`e9a65426`), the harness reports `T3_T6_NESTED_CB_PASS` (6/6). Artifacts
+and scope are recorded in `docs/target-t3-native-service-port.md`. Nothing here
+is production, a packaged P1 module, or Theorem Lab end-to-end acceptance.

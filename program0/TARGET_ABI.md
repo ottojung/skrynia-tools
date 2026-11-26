@@ -34,33 +34,43 @@ Coordinated on board issues `vQUJZ6fZ0` (T2) and `rNTsH6jffVX9qzKbF3hf8B`
 | 4 | CB_PUT | one byte to the nested-guest callback answer queue |
 | 5 | STATUS | 0 idle, 1 nested guest active, 2 trapped, negative error |
 
-Framed requests use the existing userland i32-LE opcodes shared with T3
-(`1` OPEN_DISK, `2` READ, `3` WRITE, `4` CLOSE, `11` RANDOM_FILL, `12`/`13`
-userland CAS lock, `14` EXISTS, `15` EVAL). Descriptor handles `0`/`1` denote
-the per-invocation input/output streams. The reply is `[i32 code][data]`.
+Framed requests use the existing userland i32-LE opcodes shared with T3:
+`1` OPEN_DISK, `2` READ, `3` WRITE, `4` CLOSE, `5` MKDIR, `6` DELETE,
+`7` RENAME, `8` OPEN_DIRECTORY, `9` NEXT_ENTRY, `10` SYNC, `11` RANDOM_FILL,
+`12`/`13` userland CAS lock, `14` EXISTS, `15` EVAL. Ops 5/6/8 relay to the
+existing fixed imports `mkdir`/`delete`/`open_directory`; op 7 to `rename`;
+op 9 stages the entry name in the caller's slot and pumps it back byte-wise;
+op 10 to `sync`. OPEN_DISK's trailing `u32` mode is relayed verbatim; the
+kernel still enforces root capabilities, so no implicit authority is added.
+Descriptor handles `0`/`1` denote the per-invocation input/output streams.
+The reply is `[i32 code][data]`.
 
 ## Per-request isolation and recovery
 
 Each HTTP request gets a fresh root instance and a fresh software context.
-The shared-RAM allocator grows once to a fixed arena (monotone `truncate`,
-which requires the K4 stable-page RAM fix) and claims disjoint 2 MiB slots by
-a CAS byte per slot. There is no global request-control page, no native mutex,
-no execution budget and no native lock/limit. Path strings and code bytes are
-staged inside the claimed slot, so concurrent requests cannot overwrite one
-another's scratch. A child trap returns a negative eval status; P0 does not
-replay, CAS-frees the slot, closes descriptors and lets the next request
-proceed. Lock ops are P0 userland CAS on a slot-local byte.
+The shared-RAM allocator probes capacity by relative seek and calls `truncate`
+only when it must grow, so bytes outside the fixed 16-slot arena are never
+discarded; this requires the K4 stable-page RAM fix. Slots are claimed by one
+CAS byte each, with no global request-control page, no native mutex, no
+execution budget and no native lock/limit. Path strings are capped before the
+code area and code staging is capped before the slot boundary; the source fd
+closes on every path. The relay context inherits the real RAM fd cursor left
+after staging, so the kernel resolves staged paths from the intended offsets
+instead of stale bytes. A child trap returns a negative eval status; P0 does
+not replay, CAS-frees the slot and closes descriptors. Denied/malformed auth
+runs inside the outcome closure, so it releases the slot on every result path.
+Lock ops are P0 userland CAS on a slot-local byte.
 
 ## Explicit blockers and non-goals
 
 - `copy` four-argument semantics remain owner-unresolved; no `copy` import or
   guessed signature is generated. The byte pump is internal.
-- Callback-dependent nested P2 guests are BLOCKED: a synchronous P1 -> P0.eval
-  relay cannot service P2 callbacks while P1 is suspended. CB_GET/CB_PUT are
-  byte queues only; no blocking relay is claimed. No-callback nested EVAL is
-  relayed, but shares the parent stream handles and is not a full continuations
-  design.
-- Framed opcodes 5-10 (MKDIR/DELETE/RENAME/OPEN_DIRECTORY/NEXT_ENTRY/SYNC)
-  return `-4` ENOTSUP in this increment; they are not claimed as ported.
+- P0 never relays a callback into a suspended P1: a synchronous P1 -> P0.eval
+  relay would deadlock a P2 awaiting P1 appdata. CB_GET/CB_PUT remain
+  per-invocation byte queues; no blocking relay is claimed. Callback-owning
+  guests run in T6's in-process interpreter inside P1 (separate branch), which
+  P0 merely stages and evaluates as an ordinary `_start` child.
+- Framed opcodes 5-10 are implemented against fixed K0 imports and verified on
+  a disposable real kernel. Ops outside `1..=15` still return `-4` ENOTSUP.
 - d81f16b is documented NO-GO for RAM-resize correctness; validation uses the
   K4 fix branch `b8eff72`. Old-ABI qualification is historical, not acceptance.

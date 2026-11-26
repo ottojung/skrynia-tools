@@ -30,6 +30,10 @@ fn path_security_rejects_control_characters_and_overlong_paths() {
         b"\\apps",
         b"apps//b",
         b"apps/a/../b",
+        b"user/publication-requests/00000001",
+        b"user/security/program0.sha256",
+        b"user/private/key",
+        b"operator/security/program0.sha256",
     ] {
         assert!(!path::valid(p), "accepted {:?}", p);
     }

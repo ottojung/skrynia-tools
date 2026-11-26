@@ -3,11 +3,15 @@ pub fn mailbox_dir() -> &'static [u8] {
     b"user/publication-requests"
 }
 const HEX: &[u8; 16] = b"0123456789abcdef";
-const PRIVATE: [&[u8]; 6] = [
+// Under the K10 explicit-root convention the private roots are qualified by
+// their `operator/` and `user/` tokens. The unqualified names are retained so
+// legacy callers cannot smuggle a private root past this boundary either.
+const PRIVATE: [&[u8]; 7] = [
     b"security",
     b"programs",
     b"publication-requests",
     b"operator",
+    b"user",
     b"private",
     b"tokens",
 ];

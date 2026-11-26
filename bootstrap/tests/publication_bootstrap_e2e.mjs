@@ -78,10 +78,15 @@ async function main() {
   let allOk = false;
   try {
     // Fail immediately on wrong kit digest - no "continue on wrong binary".
+    const kitExpected = {
+      kernel: process.env.SKRYNIA_KIT_KERNEL_SHA256 || 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1',
+      'publication-root': process.env.SKRYNIA_KIT_PUBLICATION_ROOT_SHA256 || '35fe0f955019bc24f40c32c3a3813db25f5a25ee729acc6caed57f20c81da65a',
+      provider: process.env.SKRYNIA_KIT_PROVIDER_SHA256 || '6bedbc1a8f130441ef3d5247cfd82ac62a01cba4e0d07c2ebb6d6a2b64854c0b',
+    };
     for (const [name, path, expected] of [
-      ['kernel', join(KIT, 'kernel-release'), 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1'],
-      ['publication-root', join(KIT, 'publication-root.wasm'), '35fe0f955019bc24f40c32c3a3813db25f5a25ee729acc6caed57f20c81da65a'],
-      ['provider', join(KIT, 'provider'), '6bedbc1a8f130441ef3d5247cfd82ac62a01cba4e0d07c2ebb6d6a2b64854c0b'],
+      ['kernel', join(KIT, 'kernel-release'), kitExpected.kernel],
+      ['publication-root', join(KIT, 'publication-root.wasm'), kitExpected['publication-root']],
+      ['provider', join(KIT, 'provider'), kitExpected.provider],
     ]) {
       const got = sha(await readFile(path));
       rec('exact-kit-' + name, got === expected, got);

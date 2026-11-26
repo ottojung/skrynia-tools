@@ -1,19 +1,20 @@
 # Publication path inventory
 
-Observed v3 paths at the canonical PR98 integration head plus the merged
-provider and apps publication helpers. This is an inventory, not a release
-approval.
+Target integration path inventory; not a release approval. The explicit
+`operator/` and `user/` namespaces are the K10 migration convention, pending
+whole-stack qualification. Prefixes select existing private roots and do not
+change paths relative to those roots or require relocating persisted data.
 
 | Path / surface | Root | Kind | Publication status |
 |---|---|---|---|
-| `security/program0.sha256` | private operator disk | token verifier | never published; read by Program 0 and the publication root after token check |
-| `programs/root.wasm` | private operator disk | normal root program | private; Program 0 loads it with `eval_delegate` |
-| `programs/operator.cap` | private operator disk | test operator capability | private |
-| `publication-requests/<8 hex>` | private root-writable user disk | request-only mailbox | create-only u32 ticket, bounded UTF-8 relative path, read-only to provider, removed by the root after the import |
-| `programs/active/<id>.bin` | private user disk | mutable code pointer | private; revoke any public entry before replacement |
-| `programs/blob/<hash>.bin` | private user disk | immutable sealed code | private |
-| `programs/ready/<id>/<hash>.ready` | private user disk | ready marker | private |
-| `programs/appdata/<cap>/<hash>.bin` | private user disk | application data | private, never published |
+| `operator/security/program0.sha256` | private operator disk | token verifier | never published; read by Program 0 and the publication root to verify the token |
+| `operator/programs/root.wasm` | private operator disk | normal root program | private; Program 0 loads it with single-function `eval` |
+| `user/programs/operator.cap` | private user disk | test operator capability | private |
+| `user/publication-requests/<8 hex>` | private root-writable user disk | request-only mailbox | create-only u32 ticket, bounded UTF-8 relative path, read-only to provider, removed by the root after the import |
+| `user/programs/active/<id>.bin` | private user disk | mutable code pointer | private; revoke any public entry before replacement |
+| `user/programs/blob/<hash>.bin` | private user disk | immutable sealed code | private |
+| `user/programs/ready/<id>/<hash>.ready` | private user disk | ready marker | private |
+| `user/programs/appdata/<cap>/<hash>.bin` | private user disk | application data | private, never published |
 | `apps/<app>/...` | separate nginx root | releases, stable assets, active pointer | only publishable namespace; explicit syscall, never a storage alias |
 
 ## Actual WASM publication lifecycle
@@ -22,7 +23,7 @@ approval.
 It imports `syscall.publish`/`syscall.unpublish` directly, authenticates the
 operator token, validates generic path grammar and private-root exclusion,
 writes the mailbox, invokes the import synchronously and returns the outcome.
-Program 0 is unchanged and does **not** import any syscall; children get no
+Ordinary Program 0 does **not** import either publication syscall; children get no
 publication authority. The outcome contract is in
 [publication-root/README.md](../publication-root/README.md).
 
@@ -34,12 +35,12 @@ kernel, the produced root WASM, the real provider and real nginx.
 
 ## Configuration and deploy integration
 
-- Discovery is `GET <base>/syscalls_list` (HTTP 200, plain JSON array of
-  strings), superseding `POST /version` provider discovery. Per-call
-  `POST <base>/<name>` still uses exactly four little-endian bytes. Startup
-  fails closed if either imported name is unavailable.
-- The kernel's write default is the private user root, so the mailbox is that
-  root's `publication-requests/` directory. The provider mounts it read-only;
+- Discovery is `GET <base>/syscalls_list` with ordered typed function metadata.
+  Both operations accept one i32 and return one i32, encoded as the seven-byte
+  version-1 frame `[1, 1, 0x32, u32-le]`. Startup fails closed if either
+  imported name or signature is unavailable.
+- The mailbox remains the private user root's `publication-requests/` directory;
+  the target ABI addresses it as `user/publication-requests/`. The provider mounts it read-only;
   nginx never mounts it and children cannot scope into it.
 - Provider roots are disjoint: `PATH_TO_SKRYNIA_DISK` holds source bytes,
   `PATH_TO_NGINX_SKRYNIA_ROOT` holds only publication symlinks. The full

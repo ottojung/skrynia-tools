@@ -28,7 +28,7 @@ deployment concerns, not kernel operations.
 ## Explicit publication
 
 Private disk bytes are never assumed to be nginx-servable. Publication is an
-explicit root-only operation. Only Program 0 may import `syscall.publish` and
+explicit root-only operation. Only the selected root WASM may import `syscall.publish` and
 `syscall.unpublish`; the kernel rejects those imports in evaluated children.
 A dedicated generic root WASM, `skrynia-publication-root`, makes those imports
 directly. The ordinary Program 0 stays a token-checking proxy with no
@@ -37,7 +37,7 @@ publication policy, and the native service keeps application semantics.
 The publication root authenticates the same operator token, accepts a bounded
 framed request containing one relative path, validates only generic path
 grammar and private-root exclusion, writes the path to
-`publication-requests/<8 hex>` on its private root-writable disk with a fresh
+`user/publication-requests/<8 hex>` (the target namespace convention) on its private root-writable disk with a fresh
 create-only u32 ticket, invokes the named import synchronously, removes its
 request file, and returns the exact outcome. There is no queue and no effect
 after the response: a trapping import yields no response and therefore an

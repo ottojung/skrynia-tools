@@ -44,8 +44,8 @@ Private `open_disk` storage is not a static website root. Only the root program
 imports `syscall.publish`/`syscall.unpublish`; evaluated children cannot import
 that namespace. A dedicated generic publication root program is used for the
 publication lifecycle, while Program 0 remains a dumb token-checking proxy with
-no app policy and no mailbox authority. The root ABI writes by default to the
-private user root, so `publication-requests/<8 lower hex>` lives on that disk;
+no app policy and no mailbox authority. The mailbox remains on the private user root. The K10 migration explicitly
+addresses it as `user/publication-requests/<8 lower hex>`;
 the provider mounts only that directory read-only and nginx never mounts it.
 
 The root authenticates the operator token, accepts a bounded UTF-8 relative

@@ -1,7 +1,9 @@
 #![cfg(target_arch = "wasm32")]
+use super::cb::invoke_raw;
+use super::io::{read_all, write_all};
 use super::run::ExecError;
 use super::run::submit_json;
-use crate::{invoke_raw, read_all, write_all};
+use crate::MAX_INPUT;
 use alloc::vec::Vec;
 
 fn err(code: &str) -> Vec<u8> {
@@ -10,8 +12,11 @@ fn err(code: &str) -> Vec<u8> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
-    let input = read_all(input_fd);
+pub extern "C" fn _start() {
+    let input = match read_all(MAX_INPUT) {
+        Ok(bytes) => bytes,
+        Err(_) => return,
+    };
     let bytes = match submit_json(&input, |req, out| invoke_raw(req, out)) {
         Ok(b) => b,
         Err(ExecError::BadInput) => err("bad_input"),
@@ -19,6 +24,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         Err(ExecError::Busy) => err("busy"),
         Err(ExecError::Io) => err("io"),
     };
-    write_all(output_fd, &bytes);
-    0
+    if write_all(&bytes).is_err() {
+        core::arch::wasm32::unreachable();
+    }
 }

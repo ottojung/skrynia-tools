@@ -10,13 +10,16 @@ pub fn named(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
         return reply(INVALID, &[]);
     };
     *at = end;
-    if code::put(c.ram, &mut c.pos, c.base + alloc::SLOT_PATH_AT, path).is_err() {
+    if code::put_path(c.ram, &mut c.pos, c.base + alloc::SLOT_PATH_AT, path).is_err() {
         return reply(-5, &[]);
     }
     let at_path = c.base + alloc::SLOT_PATH_AT;
+    // OPEN_DISK's trailing u32 mode is relayed verbatim; the kernel still
+    // enforces root capabilities, so this adds no implicit authority.
+    let mode = word(f, at).unwrap_or(1) as i32;
     let rc = unsafe {
         if op == 1 {
-            abi::open_disk(at_path, n as u64, 1)
+            abi::open_disk(at_path, n as u64, mode)
         } else {
             abi::exists(at_path, n as u64)
         }
@@ -28,11 +31,10 @@ pub fn stream(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
         return reply(INVALID, &[]);
     };
-    let raw = fd as i32;
-    let fd = match raw {
+    let fd = match fd as i32 {
         0 => c.input,
         1 => c.output,
-        _ => raw,
+        other => other,
     };
     if op == 4 {
         return reply(unsafe { abi::close(fd) }, &[]);

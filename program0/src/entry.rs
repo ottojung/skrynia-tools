@@ -23,16 +23,16 @@ fn serve(input_fd: i32, output_fd: i32) -> Result<(), i32> {
     let result = (|| {
         alloc::ensure(ram)?;
         let (index, base) = alloc::acquire(ram)?;
-        auth::require(input_fd, ram, &mut pos, base)?;
         let outcome = (|| {
-            code::put(ram, &mut pos, base + alloc::SLOT_PATH_AT, code::GUEST_PATH)?;
+            auth::require(input_fd, ram, &mut pos, base)?;
+            code::put_path(ram, &mut pos, base + alloc::SLOT_PATH_AT, code::GUEST_PATH)?;
             let size = code::stage(
                 ram,
                 &mut pos,
                 base + alloc::SLOT_CODE_AT,
                 base + alloc::SLOT_PATH_AT,
             )?;
-            invoke::enter(input_fd, output_fd, ram, base, input_fd, output_fd);
+            invoke::enter(input_fd, output_fd, ram, base, input_fd, output_fd, pos);
             let rc = unsafe {
                 abi::eval(
                     base + alloc::SLOT_CODE_AT,

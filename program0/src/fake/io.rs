@@ -11,8 +11,8 @@ pub unsafe fn read1(fd: i32) -> i32 {
                 v.map(i32::from).unwrap_or(-1)
             }
             Some(Kind::Disk(i)) => {
-                let v = b.files[i].1.get(b.fpos[i]).copied();
-                b.fpos[i] += usize::from(v.is_some());
+                let v = b.files[i].1.get(b.fpos[fd as usize]).copied();
+                b.fpos[fd as usize] += usize::from(v.is_some());
                 v.map(i32::from).unwrap_or(-1)
             }
             Some(Kind::Ram) => {

@@ -20,7 +20,7 @@ pub fn require(input_fd: i32, ram_fd: i32, pos: &mut u64, base: u64) -> Result<(
         }
         *byte = b as u8;
     }
-    code::put(ram_fd, pos, base + alloc::SLOT_PATH_AT, VERIFIER_PATH)?;
+    code::put_path(ram_fd, pos, base + alloc::SLOT_PATH_AT, VERIFIER_PATH)?;
     let fd = unsafe { abi::open_disk(base + alloc::SLOT_PATH_AT, VERIFIER_PATH.len() as u64, 1) };
     if fd < 0 {
         return Err(DENIED);

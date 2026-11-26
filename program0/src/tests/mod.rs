@@ -1,6 +1,10 @@
 //! Host-side deterministic tests for target-ABI P0 (fake capabilities only).
+mod arena;
+mod descriptors;
 mod ops;
-use super::{alloc, auth, code, entry, fake, invoke, token};
+mod regressions;
+mod support;
+use super::{abi, alloc, auth, code, entry, fake, invoke, token};
 use sha2::{Digest, Sha256};
 
 pub fn seed(bearer: &[u8; 32], sent: &[u8; 32], guest: &[u8], payload: &[u8]) -> (i32, i32, i32) {

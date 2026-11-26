@@ -7,6 +7,7 @@ pub enum Kind {
     Output,
     Ram,
     Disk(usize),
+    Dir(usize),
 }
 pub struct State {
     pub input: Vec<u8>,
@@ -16,6 +17,7 @@ pub struct State {
     pub rpos: usize,
     pub files: Vec<(String, Vec<u8>)>,
     pub fpos: Vec<usize>,
+    pub dirs: Vec<String>,
     pub fds: Vec<Kind>,
     pub eval_code: Vec<u8>,
     pub eval_result: i64,
@@ -31,6 +33,7 @@ impl State {
             rpos: 0,
             files: vec![],
             fpos: vec![],
+            dirs: vec![],
             fds: vec![],
             eval_code: vec![],
             eval_result: 0,
@@ -39,6 +42,7 @@ impl State {
     }
     pub fn fd(&mut self, k: Kind) -> i32 {
         self.fds.push(k);
+        self.fpos.push(0);
         (self.fds.len() - 1) as i32
     }
     pub fn get(&self, fd: i32) -> Option<&Kind> {

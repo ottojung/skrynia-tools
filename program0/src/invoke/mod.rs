@@ -2,7 +2,7 @@
 mod queue;
 mod relay;
 use super::{abi, alloc, code};
-pub use queue::{Ctx, enter, feed_cb, leave, set, swap, take, with};
+pub use queue::{Ctx, enter, feed_cb, leave, set, take, with};
 
 pub const GET: i32 = 0;
 pub const PUT: i32 = 1;

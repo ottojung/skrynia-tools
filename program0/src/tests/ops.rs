@@ -18,7 +18,7 @@ fn get_put_flush_and_callback_queues_are_request_scoped() {
     let (input, output, ram) = fake::seed(vec![7, 8], vec![]);
     alloc::ensure(ram).expect("arena");
     alloc::acquire(ram).expect("slot");
-    invoke::enter(input, output, ram, alloc::BASE, input, output);
+    invoke::enter(input, output, ram, alloc::BASE, input, output, 0);
     assert_eq!(invoke::invoke(0, invoke::GET, 0), 7);
     assert_eq!(invoke::invoke(0, invoke::GET, 0), 8);
     for b in [3u8, 1, 0, 0, 0, 1, 0, 0, 0, 42] {

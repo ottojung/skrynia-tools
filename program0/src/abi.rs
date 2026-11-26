@@ -17,4 +17,10 @@ unsafe extern "C" {
     pub fn cas1(fd: i32, offset: u64, expected: i32, desired: i32) -> i32;
     pub fn eval(code: u64, size: u64, function: i32, arg0: i32, arg1: i32) -> i64;
     pub fn secure_random_bits(dst: u64, bits: u64) -> i32;
+    pub fn mkdir(path: u64, len: u64, mode: i32) -> i32;
+    pub fn delete(path: u64, len: u64) -> i32;
+    pub fn rename(old: u64, old_len: u64, new: u64, new_len: u64) -> i32;
+    pub fn open_directory(path: u64, len: u64) -> i32;
+    pub fn next_entry(fd: i32, dst: u64, cap: u64) -> i32;
+    pub fn sync(fd: i32) -> i32;
 }

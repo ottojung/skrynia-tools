@@ -1,9 +1,12 @@
 //! Framed generic descriptor relay. The i32-LE wire is userland, not kernel ABI.
 mod control;
+mod dir;
 mod io;
+mod path;
+mod rename;
 mod write;
 use super::Ctx;
-use super::{abi, alloc, code, index, set, swap};
+use super::{abi, alloc, code, index, set, with};
 
 pub const INVALID: i32 = -1;
 pub const UNSUPPORTED: i32 = -4;
@@ -29,6 +32,9 @@ fn dispatch(c: &mut Ctx, f: &[u8]) -> Vec<u8> {
         1 | 14 => io::named(c, f, &mut at, op),
         2 | 4 => io::stream(c, f, &mut at, op),
         3 | 11 => write::call(c, f, &mut at, op),
+        5 | 6 | 8 | 10 => path::call(c, f, &mut at, op),
+        7 => rename::call(c, f, &mut at),
+        9 => dir::call(c, f, &mut at),
         12 | 13 | 15 => control::call(c, f, &mut at, op),
         _ => reply(UNSUPPORTED, &[]),
     }

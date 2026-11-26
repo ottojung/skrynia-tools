@@ -1,5 +1,5 @@
 //! Userland CAS locks and no-callback nested eval relay.
-use super::{Ctx, INVALID, UNSUPPORTED, abi, alloc, code, index, reply, set, swap, word};
+use super::{Ctx, INVALID, UNSUPPORTED, abi, alloc, code, index, reply, set, with, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     match op {
@@ -21,6 +21,7 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
                 return reply(-5, &[]);
             }
             let mut child = Ctx::default();
+            child.pos = c.pos;
             child.input = c.input;
             child.output = c.output;
             child.ram = c.ram;
@@ -28,7 +29,7 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
             child.in_handle = c.in_handle;
             child.out_handle = c.out_handle;
             child.status = 1;
-            swap(child);
+            set(Some(child));
             let rc = unsafe {
                 abi::eval(
                     c.base + alloc::SLOT_CODE_AT,
@@ -38,6 +39,9 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
                     c.out_handle,
                 )
             };
+            // The nested guest shares the RAM fd: adopt its final cursor so
+            // the parent's next relative seek lands at the intended offset.
+            c.pos = with(|x| x.pos).unwrap_or(c.pos);
             set(None);
             c.status = if rc < 0 { 2 } else { 0 };
             reply(rc as i32, &[])

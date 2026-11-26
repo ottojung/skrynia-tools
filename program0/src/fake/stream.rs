@@ -8,7 +8,7 @@ pub unsafe fn seek(fd: i32, shift: i64) -> i64 {
         let (pos, len) = match k {
             Some(Kind::Ram) => (b.rpos, b.ram.len()),
             Some(Kind::Input) => (b.inp, b.input.len()),
-            Some(Kind::Disk(i)) => (b.fpos[i], b.files[i].1.len()),
+            Some(Kind::Disk(i)) => (b.fpos[fd as usize], b.files[i].1.len()),
             _ => return -2,
         };
         let next = (pos as i64).checked_add(shift).unwrap_or(i64::MAX);
@@ -19,7 +19,7 @@ pub unsafe fn seek(fd: i32, shift: i64) -> i64 {
         match k {
             Some(Kind::Ram) => b.rpos = next,
             Some(Kind::Input) => b.inp = next,
-            Some(Kind::Disk(i)) => b.fpos[i] = next,
+            Some(Kind::Disk(_)) => b.fpos[fd as usize] = next,
             _ => {}
         }
         next as i64

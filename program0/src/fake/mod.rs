@@ -1,10 +1,16 @@
 //! Host fakes for the target ABI. Never compiled into WASM.
+mod dir;
+mod edit;
 mod io;
+mod scan;
 mod state;
 mod stream;
+pub use dir::*;
+pub use edit::*;
 pub use io::*;
 pub use path::*;
 pub use ram::*;
+pub use scan::*;
 pub use setup::*;
 mod path;
 mod setup;

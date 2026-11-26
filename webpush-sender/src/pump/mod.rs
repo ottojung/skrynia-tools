@@ -1,9 +1,9 @@
 //! Bounded pump: hint -> authoritative re-read -> deliver -> ACK.
 mod construct;
 mod cycle;
+mod cycle_seq;
 mod deliver;
 mod parts;
-mod report;
 mod retry;
 mod run;
 mod seqs;
@@ -17,8 +17,16 @@ pub trait Clock {
     fn sleep_ms(&self, ms: u64);
 }
 
+/// Bounded per-cycle accounting; no push payload or endpoint is exposed.
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct Report {
+    pub hints: usize,
+    pub delivered: usize,
+    pub acked: usize,
+    pub skipped: usize,
+}
+
 pub(super) use deliver::deliver_one;
-pub use report::Report;
 
 pub(super) use super::ledger::LedgerStore;
 pub use super::ledger::{Decision, DurableLedger as Ledger, FileLedgerStore, MemoryLedgerStore};
@@ -31,7 +39,7 @@ pub(super) use super::config::{Config, MAX_HINTS};
 pub(super) use super::error::{Error, Result};
 pub(super) use super::p1::{Client, P1Transport};
 pub(super) use super::push::{
-    HttpsTransport, PushRequest, PushTransport, Rng, build, encrypt, topic_for,
+    HttpsTransport, PushRequest, PushTransport, Rng, build, encrypt, fatal, keep_worse, topic_for,
 };
 pub(super) use super::sub::{
     Resolver, Subscription, check_scope, parse_frame_isolated, validate_url,

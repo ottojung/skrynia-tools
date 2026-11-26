@@ -12,6 +12,8 @@ pub use https::HttpsTransport;
 pub use request::PushRequest;
 pub use transport::{FakeTransport, PushTransport, Reply};
 
+pub(super) use proc::{fatal, keep_worse};
+
 pub(super) use super::config::Config;
 pub(super) use super::error::{Error, IoFailure, Result};
 pub(super) use super::ledger::FileLedgerStore;

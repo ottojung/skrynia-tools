@@ -78,10 +78,18 @@ async function main() {
   let allOk = false;
   try {
     // Fail immediately on wrong kit digest - no "continue on wrong binary".
+    // Exact-head qualification may supply a different compiled kit digest via
+    // SKRYNIA_KIT_<NAME>_SHA256; the historical defaults stay fail-closed and
+    // any override must itself be a 64-hex digest.
+    const kitDigest = (name, def) => {
+      const v = process.env['SKRYNIA_KIT_' + name.toUpperCase().replaceAll('-', '_') + '_SHA256'] || def;
+      if (!/^[0-9a-f]{64}$/i.test(v)) throw Error('invalid kit digest override for ' + name);
+      return v.toLowerCase();
+    };
     for (const [name, path, expected] of [
-      ['kernel', join(KIT, 'kernel-release'), 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1'],
-      ['publication-root', join(KIT, 'publication-root.wasm'), '35fe0f955019bc24f40c32c3a3813db25f5a25ee729acc6caed57f20c81da65a'],
-      ['provider', join(KIT, 'provider'), '6bedbc1a8f130441ef3d5247cfd82ac62a01cba4e0d07c2ebb6d6a2b64854c0b'],
+      ['kernel', join(KIT, 'kernel-release'), kitDigest('kernel', 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1')],
+      ['publication-root', join(KIT, 'publication-root.wasm'), kitDigest('publication-root', '35fe0f955019bc24f40c32c3a3813db25f5a25ee729acc6caed57f20c81da65a')],
+      ['provider', join(KIT, 'provider'), kitDigest('provider', '6bedbc1a8f130441ef3d5247cfd82ac62a01cba4e0d07c2ebb6d6a2b64854c0b')],
     ]) {
       const got = sha(await readFile(path));
       rec('exact-kit-' + name, got === expected, got);

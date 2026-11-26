@@ -1,6 +1,5 @@
-// T6's delivered interpreter is reused verbatim through a symlinked module
-// directory; no file under src/p2 is edited. The self-alias lets that
-// component's `skrynia_native_service::cap::Eval` path resolve inside this crate.
+// The shared P2 interpreter is linked through a module-directory symlink.
+// The self-alias resolves its Eval capability in both library contexts.
 extern crate self as skrynia_native_service;
 pub mod p2;
 

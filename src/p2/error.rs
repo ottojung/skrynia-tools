@@ -20,6 +20,8 @@ pub enum Error {
     Link,
     /// Instantiation or guest execution trapped.
     Trap,
+    /// Userland instruction budget exhausted.
+    Budget,
     /// A callback op was used without a callback capability.
     NoCallback,
     /// A P1-owned callback returned an error code; failure is sticky.
@@ -44,6 +46,7 @@ impl core::fmt::Display for Error {
             Self::WrongStart => f.write_str("_start signature mismatch"),
             Self::Link => f.write_str("host function link failure"),
             Self::Trap => f.write_str("guest trap"),
+            Self::Budget => f.write_str("userland instruction budget exhausted"),
             Self::NoCallback => f.write_str("no callback capability"),
             Self::Callback(code) => write!(f, "P1 callback failed with {code}"),
         }

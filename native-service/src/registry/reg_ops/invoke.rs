@@ -31,14 +31,10 @@ impl Registry {
         let iid = invoke_id.to_vec();
         #[cfg(all(target_arch = "wasm32", not(feature = "cb-guest")))]
         crate::root_eval::set_cb_invoke(iid.clone());
-        #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
-        crate::cb_guest::eval::set_invoke(iid.clone());
         let mut cb = move |req: &[u8]| appdata::cb::guest_callback(disk, lock, &dir, &iid, req);
         let out = eval.eval(&code, input, Some(&mut cb)).map_err(RegErr::Eval);
         #[cfg(all(target_arch = "wasm32", not(feature = "cb-guest")))]
         crate::root_eval::clear_cb_invoke();
-        #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
-        crate::cb_guest::eval::clear_invoke();
         out
     }
 }

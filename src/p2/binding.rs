@@ -53,9 +53,11 @@ pub const GET: i32 = 0;
 pub const PUT: i32 = 1;
 /// Accepted no-op; output is accumulated in the evaluator.
 pub const FLUSH: i32 = 2;
-/// Send one request byte to the P1-owned appdata callback.
+/// Drain one byte from the complete P1 callback reply.
 pub const CB_GET: i32 = 3;
-/// Drain the next byte of the callback reply.
+/// Append one byte to the opaque P1 callback request.
 pub const CB_PUT: i32 = 4;
 /// Status word; zero means ready.
 pub const STATUS: i32 = 5;
+/// Execute the complete pending callback frame exactly once.
+pub const CB_FLUSH: i32 = 6;

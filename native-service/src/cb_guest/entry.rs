@@ -9,7 +9,9 @@ use crate::reg::Registry;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() {
-    let _code = run();
+    if run() != 0 {
+        core::arch::wasm32::unreachable();
+    }
 }
 
 fn run() -> i32 {

@@ -1,11 +1,9 @@
-//! Compile, link, instantiate and run one P2 guest in this evaluator's store.
-
 use super::binding::Binding;
 use super::error::{EBADF, Error};
 use super::limits::Limits;
 use super::state::{Callback, HostState};
 use super::validate;
-use wasmi::{Caller, Engine, Linker, Module, Store};
+use wasmi::{Caller, Config, Engine, Linker, Module, Store};
 
 pub(crate) fn run<'i, 'c>(
     wasm: &[u8],
@@ -14,10 +12,14 @@ pub(crate) fn run<'i, 'c>(
     binding: &Binding,
     limits: Limits,
 ) -> Result<Vec<u8>, Error> {
-    let engine = Engine::default();
+    let mut config = Config::default();
+    config.consume_fuel(true);
+    let engine = Engine::new(&config);
     let module = Module::new(&engine, wasm).map_err(|_| Error::InvalidWasm)?;
     validate::check(&module, binding)?;
     let mut store = Store::new(&engine, HostState::new(input, cb, limits));
+    store.set_fuel(limits.fuel()).map_err(|_| Error::Budget)?;
+    store.limiter(|state| &mut state.resources);
     let mut linker = Linker::new(&engine);
     let wanted = binding.context();
     linker
@@ -38,11 +40,18 @@ pub(crate) fn run<'i, 'c>(
         .map_err(|_| Error::Link)?;
     let instance = linker
         .instantiate_and_start(&mut store, &module)
-        .map_err(|_| Error::Trap)?;
+        .map_err(trap)?;
     instance
         .get_typed_func::<(), ()>(&store, "_start")
         .map_err(|_| Error::MissingStart)?
         .call(&mut store, ())
-        .map_err(|_| Error::Trap)?;
+        .map_err(trap)?;
     store.into_data().finish().map_err(Error::Callback)
+}
+
+fn trap(e: wasmi::Error) -> Error {
+    match e.as_trap_code() {
+        Some(wasmi::TrapCode::OutOfFuel) => Error::Budget,
+        _ => Error::Trap,
+    }
 }

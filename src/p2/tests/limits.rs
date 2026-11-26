@@ -1,5 +1,5 @@
 use super::module;
-use super::{Binding, Interpreter, Limits};
+use super::{Binding, Error, Interpreter, Limits};
 
 const ECHO: &str = r#"
 (module
@@ -9,7 +9,7 @@ const ECHO: &str = r#"
     (block $done
       (loop $loop
         (local.set $b (call $invoke (i32.const 1) (i32.const 0) (i32.const 0)))
-        (br_if $done (i64.eq (local.get $b) (i64.const -1)))
+        (br_if $done (i64.lt_s (local.get $b) (i64.const 0)))
         (drop (call $invoke (i32.const 1) (i32.const 1) (i32.wrap_i64 (local.get $b))))
         (br $loop)))))
 "#;
@@ -18,6 +18,8 @@ const ECHO: &str = r#"
 fn response_cap_bounds_host_allocation() {
     let wasm = module(ECHO);
     let evaluator = Interpreter::with(Binding::p0(), Limits::output(2));
-    let out = evaluator.evaluate(&wasm, &[1, 2, 3, 4], None).unwrap();
-    assert_eq!(out, vec![1, 2]);
+    assert_eq!(
+        evaluator.evaluate(&wasm, &[1, 2, 3, 4], None),
+        Err(Error::Callback(-6))
+    );
 }

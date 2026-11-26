@@ -16,7 +16,7 @@ mod run;
 mod state;
 mod validate;
 
-pub use binding::{Binding, CB_GET, CB_PUT, FLUSH, GET, PUT, STATUS};
+pub use binding::{Binding, CB_FLUSH, CB_GET, CB_PUT, FLUSH, GET, PUT, STATUS};
 pub use error::Error;
 pub use limits::Limits;
 

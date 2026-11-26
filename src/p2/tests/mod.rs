@@ -1,6 +1,8 @@
 //! Host-side tests with real WASM guests compiled from WAT.
 
+mod budget;
 mod callback;
+mod frames;
 mod limits;
 mod reject;
 mod replay;

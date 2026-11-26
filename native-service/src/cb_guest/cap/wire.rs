@@ -11,7 +11,6 @@ pub const SYNC: u8 = 10;
 pub const RANDOM: u8 = 11;
 pub const TRY_LOCK: u8 = 12;
 pub const RELEASE_LOCK: u8 = 13;
-pub const EVAL: u8 = 15;
 pub fn put_u32(v: &mut Vec<u8>, n: u32) {
     v.extend_from_slice(&n.to_le_bytes());
 }

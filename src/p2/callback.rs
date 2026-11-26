@@ -1,49 +1,46 @@
-//! Synchronous P1-owned callback roundtrip and scalar byte queues.
-//!
-//! `CB_GET` passes one opaque request byte to P1's `Eval` callback and stores
-//! its reply bytes; `CB_PUT` drains that reply. The call happens on the
-//! evaluator's own stack, so P1 is never suspended waiting on a P0 relay.
-
-use super::error::{EINVAL, ENOTSUP, EOF, ERANGE};
+//! Complete opaque callback frames execute synchronously in P1.
+use super::error::{EINVAL, EIO, ENOTSUP, EOF, ERANGE};
 use super::state::HostState;
 
 impl HostState<'_, '_> {
-    pub(crate) fn get(&mut self) -> i64 {
-        match self.input.get(self.at) {
-            Some(byte) => {
-                self.at += 1;
-                i64::from(*byte)
-            }
-            None => i64::from(EOF),
-        }
-    }
-
-    pub(crate) fn put(&mut self, value: i32) -> i64 {
-        let Ok(byte) = u8::try_from(value) else {
-            return i64::from(EINVAL);
-        };
-        if self.output.len() >= self.cap {
-            return i64::from(ERANGE);
-        }
-        self.output.push(byte);
-        0
-    }
-
-    pub(crate) fn reply_pending(&self) -> bool {
+    fn reply_pending(&self) -> bool {
         self.reply_at < self.reply.len()
     }
 
-    pub(crate) fn invoke_callback(&mut self, request: u8) -> Result<(), i32> {
-        let Some(cb) = self.cb.as_mut() else {
-            return Err(ENOTSUP);
+    pub(crate) fn callback_put(&mut self, value: i32) -> i64 {
+        if self.reply_pending() {
+            return self.fail(EIO);
+        }
+        let Ok(byte) = u8::try_from(value) else {
+            return self.fail(EINVAL);
         };
-        let reply = cb(&[request])?;
-        self.reply = reply;
-        self.reply_at = 0;
-        Ok(())
+        if self.request.len() >= self.callback_cap {
+            return self.fail(ERANGE);
+        }
+        self.request.push(byte);
+        0
     }
 
-    pub(crate) fn reply_byte(&mut self) -> i64 {
+    pub(crate) fn callback_flush(&mut self) -> i64 {
+        if self.reply_pending() || self.request.is_empty() {
+            return self.fail(EIO);
+        }
+        let request = std::mem::take(&mut self.request);
+        let Some(cb) = self.cb.as_mut() else {
+            return self.fail(ENOTSUP);
+        };
+        match cb(&request) {
+            Ok(reply) if reply.len() <= self.callback_cap => {
+                self.reply = reply;
+                self.reply_at = 0;
+                0
+            }
+            Ok(_) => self.fail(ERANGE),
+            Err(code) => self.fail(code),
+        }
+    }
+
+    pub(crate) fn callback_get(&mut self) -> i64 {
         match self.reply.get(self.reply_at) {
             Some(byte) => {
                 self.reply_at += 1;

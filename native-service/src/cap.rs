@@ -7,14 +7,6 @@ pub trait Disk {
     fn list(&self, dir: &str) -> Result<Vec<String>, Self::Err>;
 }
 
-/// Global RAM capability; implementations must only touch RAM explicitly.
-pub trait Ram {
-    type Err;
-    fn read(&self, off: u64, out: &mut [u8]) -> Result<(), Self::Err>;
-    fn write(&self, off: u64, data: &[u8]) -> Result<(), Self::Err>;
-    fn cas_u64(&self, off: u64, expect: u64, want: u64) -> Result<u64, Self::Err>;
-}
-
 /// Program evaluation capability used to invoke stored WASM.
 pub trait Eval {
     type Err;

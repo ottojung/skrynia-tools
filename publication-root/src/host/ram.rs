@@ -1,19 +1,19 @@
 //! Shared-RAM staging slots: bounded, disjoint, lock-free (no global mutex).
 //!
-//! Byte 0 is a sequentially-consistent slot counter claimed with `cas1`.
-//! Every invocation takes a distinct 8 KiB slot, so concurrent userland
-//! requests never overwrite each other's staged path or random bytes.
+//! Bytes 0..SLOTS are one CAS occupancy byte each (0 free, 1 claimed). A
+//! request claims a distinct byte, then stages inside its own 8 KiB slot, so
+//! concurrent userland invocations never overwrite each other's staged bytes.
 
 #[cfg(target_arch = "wasm32")]
-pub const COUNTER: u64 = 0;
-pub const BASE: u64 = 1;
-pub const SLOT: u64 = 8192;
-#[cfg(target_arch = "wasm32")]
 pub const SLOTS: u64 = 256;
+pub const BASE: u64 = 256;
+pub const SLOT: u64 = 8192;
 #[cfg(target_arch = "wasm32")]
 pub const LIMIT: u64 = BASE + SLOT * SLOTS;
 pub const ERR_RANGE: i32 = -6;
 pub const ERR_BOUNDS: i32 = -7;
+#[cfg(target_arch = "wasm32")]
+pub const ERR_IO: i32 = -5;
 
 #[derive(Clone, Copy)]
 pub struct Cursor {

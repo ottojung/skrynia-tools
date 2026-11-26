@@ -325,4 +325,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        # Surface the concrete failure in CI check-run annotations so an
+        # early startup error is diagnosable without private job logs.
+        print(f"::error::real_wasm_chain failure: {exc}", flush=True)
+        raise

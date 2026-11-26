@@ -1,6 +1,6 @@
 //! NEXT_ENTRY (op 9): kernel writes the name into caller-owned shared RAM;
 //! P0 pumps those bytes back through the reply stream, never a linear pointer.
-use super::{Ctx, INVALID, abi, alloc, reply, word};
+use super::{Ctx, INVALID, abi, alloc, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
@@ -9,9 +9,15 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     let Some(cap) = word(f, at) else {
         return reply(INVALID, &[]);
     };
-    let cap = (cap as u64).min(4096);
+    if cap > 4096 {
+        return reply(alloc::ERR_RANGE, &[]);
+    }
+    if !complete(f, *at) {
+        return reply(INVALID, &[]);
+    }
+    let cap = cap as u64;
     let dst = c.pos;
-    if dst.saturating_add(cap) > c.base + alloc::SLOT_SIZE {
+    if dst < c.base || dst.saturating_add(cap) > c.base + alloc::SLOT_SIZE {
         return reply(alloc::ERR_RANGE, &[]);
     }
     let n = unsafe { abi::next_entry(fd as i32, dst, cap) };

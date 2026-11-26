@@ -17,7 +17,8 @@ mod setup;
 pub use state::*;
 pub use stream::*;
 mod ram;
-use state::{Kind, S};
+use state::Kind;
+pub use state::S;
 
 pub fn inspect<T>(f: impl FnOnce(&State) -> T) -> T {
     S.with(|s| f(&s.borrow()))

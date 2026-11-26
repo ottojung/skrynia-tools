@@ -20,16 +20,18 @@ pub struct Ctx {
 thread_local! { static CURRENT: RefCell<Option<Ctx>> = const { RefCell::new(None) }; }
 
 pub fn enter(input: i32, output: i32, ram: i32, base: u64, ih: i32, oh: i32, pos: u64) {
-    let mut c = Ctx::default();
-    c.input = input;
-    c.output = output;
-    c.ram = ram;
-    c.base = base;
-    c.in_handle = ih;
-    c.out_handle = oh;
     // The RAM fd cursor already sits just past the staged guest; relative
     // seeks in the relay must start from that real position, not from zero.
-    c.pos = pos;
+    let c = Ctx {
+        input,
+        output,
+        ram,
+        base,
+        in_handle: ih,
+        out_handle: oh,
+        pos,
+        ..Ctx::default()
+    };
     CURRENT.with(|s| *s.borrow_mut() = Some(c));
 }
 pub fn leave() {

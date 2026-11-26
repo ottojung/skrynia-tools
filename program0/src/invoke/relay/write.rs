@@ -1,5 +1,5 @@
 //! Byte-out and random-fill relay (no bulk kernel import).
-use super::{Ctx, INVALID, abi, alloc, reply, word};
+use super::{Ctx, INVALID, abi, alloc, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
@@ -14,19 +14,31 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(n) = word(f, at) else {
         return reply(INVALID, &[]);
     };
-    let cap = (n as usize).min(64 * 1024);
     if op == 11 {
+        if u64::from(n) > (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) * 8 {
+            return reply(alloc::ERR_RANGE, &[]);
+        }
+        if !complete(f, *at) {
+            return reply(INVALID, &[]);
+        }
         let dst = c.base + alloc::SLOT_CODE_AT;
         let rc = unsafe { abi::secure_random_bits(dst, n as u64) };
-        if rc != 0 {
-            return reply(rc, &[]);
-        }
-        return reply(n as i32, &[]);
+        return if rc == 0 {
+            reply(n as i32, &[])
+        } else {
+            reply(rc, &[])
+        };
     }
-    let Some(bytes) = f.get(*at..at.saturating_add(cap)) else {
+    if n > 64 * 1024 {
+        return reply(alloc::ERR_RANGE, &[]);
+    }
+    let Some(bytes) = f.get(*at..at.saturating_add(n as usize)) else {
         return reply(INVALID, &[]);
     };
-    *at += cap;
+    *at += n as usize;
+    if !complete(f, *at) {
+        return reply(INVALID, &[]);
+    }
     let mut done = 0i32;
     for &b in bytes {
         let rc = unsafe { abi::write1(fd, i32::from(b)) };

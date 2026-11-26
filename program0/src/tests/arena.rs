@@ -11,7 +11,7 @@ fn stage_caps_at_the_slot_boundary() {
     alloc::ensure(ram).expect("arena");
     let (_slot, base) = alloc::acquire(ram).expect("slot");
     let mut pos = 0;
-    code::put_path(ram, &mut pos, base + alloc::SLOT_PATH_AT, code::GUEST_PATH).unwrap();
+    code::put_path(ram, &mut pos, base, code::GUEST_PATH).unwrap();
     assert_eq!(
         code::stage(
             ram,

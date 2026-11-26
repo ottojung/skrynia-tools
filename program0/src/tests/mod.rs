@@ -1,6 +1,8 @@
 //! Host-side deterministic tests for target-ABI P0 (fake capabilities only).
 mod arena;
 mod descriptors;
+mod frames;
+mod hardening;
 mod ops;
 mod regressions;
 mod support;
@@ -8,9 +10,7 @@ use super::{abi, alloc, auth, code, entry, fake, invoke, token};
 use sha2::{Digest, Sha256};
 
 pub fn seed(bearer: &[u8; 32], sent: &[u8; 32], guest: &[u8], payload: &[u8]) -> (i32, i32, i32) {
-    let mut frame = vec![1u8];
-    frame.extend_from_slice(sent);
-    frame.extend_from_slice(payload);
+    let frame = [&[1u8][..], sent, payload].concat();
     let verifier: [u8; 32] = Sha256::digest(bearer).into();
     fake::seed(
         frame,

@@ -6,6 +6,7 @@
 //! This module is target independent so host tests can exercise the exact
 //! framing the compiled guest uses. No kernel ABI or policy lives here.
 
+pub mod codes;
 pub mod eval;
 pub mod ops;
 pub mod relay;

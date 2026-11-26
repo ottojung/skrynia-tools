@@ -2,6 +2,7 @@ pub mod auth;
 pub mod cap;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub mod cb_guest;
+pub mod gateway;
 #[cfg(not(all(target_arch = "wasm32", feature = "cb-guest")))]
 pub mod host;
 pub mod mlock;

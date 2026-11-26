@@ -4,7 +4,7 @@ mod cb;
 mod kernel;
 
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
-pub use cb::{callback_index, clear_invoke, set_invoke};
+pub use cb::{clear_invoke, set_invoke};
 
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub struct MediatorEval;
@@ -19,6 +19,6 @@ impl crate::cap::Eval for MediatorEval {
         input: &[u8],
         _cb: Option<&mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>>,
     ) -> Result<Vec<u8>, i32> {
-        kernel::eval_buffered_call(wasm, input)
+        kernel::eval_nested(wasm, input)
     }
 }

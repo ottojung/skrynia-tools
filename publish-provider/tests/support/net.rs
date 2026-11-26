@@ -20,11 +20,10 @@ pub fn wait_ready(base: &str) {
 pub fn call_at(base: &str, name: &str, ticket: u32) -> u32 {
     let response = client()
         .post(format!("{base}/{name}"))
-        .body(ticket.to_le_bytes().to_vec())
+        .body(skrynia_publish_provider::abi::encode(ticket))
         .send()
         .expect("post syscall");
     assert_eq!(response.status(), 200);
     let body = response.bytes().expect("response body");
-    assert_eq!(body.len(), 4);
-    u32::from_le_bytes(body.as_ref().try_into().expect("four bytes"))
+    skrynia_publish_provider::abi::decode(&body).expect("typed i32 result")
 }

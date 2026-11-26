@@ -43,17 +43,25 @@ resolution follows the live absolute source path.
 
 ## Syscall ABI
 
-The reference Skrynia kernel
-posts to `<SKRYNIA_SYSCALL_URL>/<name>` with `Content-Type:
-application/octet-stream` and a body of exactly four little-endian bytes. A
-successful response is HTTP 200 with exactly four little-endian result bytes.
-The provider accepts no other body length and emits no other response length.
+The target Skrynia kernel posts to `<SKRYNIA_SYSCALL_URL>/<name>`
+with a typed integer wire body. Both operations have exactly one i32
+argument and one i32 result; all 32 bits are preserved as unsigned tickets
+or result codes. The body is seven bytes: version `0x01`, count `0x01`,
+type tag `0x32`, then four little-endian bytes. A successful response is
+HTTP 200 with the same layout. Invalid version, count, type, length or
+trailing bytes receive HTTP 400 before any publication effect. Unknown
+function routes receive HTTP 404. The old four-byte wire is not accepted.
 
-Configure the kernel with `SKRYNIA_SYSCALL_URL` set to the provider origin with
-no path prefix. The kernel performs `GET <base>/syscalls_list` with no request
-body and expects HTTP 200 with a plain JSON array of strings, for example
-`["publish","unpublish"]`. Per-syscall invocation:
-`POST <base>/<name>` with four little-endian bytes in and out.
+Set `SKRYNIA_SYSCALL_URL` to the provider origin with no path prefix.
+`GET /syscalls_list` returns ordered type metadata:
+
+```json
+{"functions":[{"name":"publish","params":["i32"],"results":["i32"]},{"name":"unpublish","params":["i32"],"results":["i32"]}]}
+```
+
+The provider does not advertise copy or require access to caller RAM or
+descriptors. Provider POST /version is optional; this provider uses the
+discovery endpoint alone.
 
 Result codes (u32 bit patterns):
 

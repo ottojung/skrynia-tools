@@ -1,5 +1,4 @@
-//! Loopback-only HTTP surface. Every syscall response is exactly four
-//! little-endian bytes so the kernel can read a provider error code.
+//! Loopback-only HTTP surface for target typed publication syscalls.
 
 use super::abi;
 use super::config::Config;
@@ -29,7 +28,7 @@ pub async fn run(config: Config) -> Result<(), String> {
         .map_err(|e| format!("provider serve failed: {e}"))
 }
 
-/// Kernel discovery: GET with no request body returns a plain JSON array.
+/// Kernel discovery advertises the exact ordered integer signatures.
 async fn syscalls_list() -> Json<serde_json::Value> {
     Json(abi::syscalls_list())
 }
@@ -45,7 +44,7 @@ async fn unpublish(AxumState(state): AxumState<Arc<fs::State>>, body: Bytes) -> 
 fn respond(state: &Arc<fs::State>, body: &[u8], publish: bool) -> (StatusCode, Vec<u8>) {
     let code = match abi::decode(body) {
         Ok(ticket) => fs::call(state, ticket, publish),
-        Err(code) => code,
+        Err(_) => return (StatusCode::BAD_REQUEST, Vec::new()),
     };
     (StatusCode::OK, abi::encode(code))
 }

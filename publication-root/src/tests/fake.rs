@@ -30,3 +30,11 @@ impl Fake {
         }
     }
 }
+
+pub(super) fn record_invoke(fake: &mut Fake, publish: bool, ticket: u32) -> Option<i32> {
+    if fake.trap {
+        return None;
+    }
+    fake.invokes.push((publish, ticket));
+    Some(fake.provider)
+}

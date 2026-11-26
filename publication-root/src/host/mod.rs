@@ -28,8 +28,16 @@ mod imp;
 mod ops;
 #[cfg(any(target_arch = "wasm32", test))]
 mod ram;
+#[cfg(test)]
+mod ram_tests;
 #[cfg(target_arch = "wasm32")]
 mod stage;
+#[cfg(target_arch = "wasm32")]
+mod stage_claim;
+#[cfg(target_arch = "wasm32")]
+mod stage_io;
+#[cfg(target_arch = "wasm32")]
+mod stage_seek;
 
 /// Root-authority boundary. No evaluated child ever sees these operations.
 pub trait Host {

@@ -5,17 +5,15 @@ impl Host for Fake {
         if mode == 1 {
             return Ok(7);
         }
-        let ticket = self.next_ticket.wrapping_sub(1);
         if self.collisions > 0 {
             self.collisions -= 1;
             return Err(-3);
         }
-        Ok(100 + ticket as i32)
+        Ok(100 + self.next_ticket.wrapping_sub(1) as i32)
     }
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
         if fd == 7 {
-            let mut verifier = self.verifier.to_vec();
-            verifier.extend_from_slice(&self.verifier_extra);
+            let verifier = [self.verifier.as_slice(), self.verifier_extra.as_slice()].concat();
             return Ok(super::take(&verifier, &mut self.vpos, dst));
         }
         Ok(super::take(&self.input, &mut self.pos, dst))
@@ -30,9 +28,9 @@ impl Host for Fake {
         if self.fail_random {
             return Err(-5);
         }
-        let ticket = self.next_ticket;
-        self.next_ticket = self.next_ticket.wrapping_add(1);
-        Ok(ticket)
+        let t = self.next_ticket;
+        self.next_ticket = t.wrapping_add(1);
+        Ok(t)
     }
     fn write(&mut self, _: i32, bytes: &[u8]) -> Result<(), i32> {
         if self.fail_write {
@@ -46,9 +44,6 @@ impl Host for Fake {
         if self.deny_delete { Err(-5) } else { Ok(()) }
     }
     fn invoke(&mut self, publish: bool, ticket: u32) -> Option<i32> {
-        (!self.trap).then(|| {
-            self.invokes.push((publish, ticket));
-            self.provider
-        })
+        super::fake::record_invoke(self, publish, ticket)
     }
 }

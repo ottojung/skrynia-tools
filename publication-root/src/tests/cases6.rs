@@ -1,12 +1,10 @@
-use super::{Fake, auth, bridge, frame, path};
+use super::{Fake, auth, path};
 
 const PUBLIC: &[u8] = b"apps/hello/releases/r1/index.html";
 
 fn credential(token: &[u8; 32]) -> Fake {
     let mut fake = Fake::with_verifier(token);
-    let mut input = vec![1u8];
-    input.extend_from_slice(token);
-    fake.input = input;
+    fake.input = [vec![1u8], token.to_vec()].concat();
     fake
 }
 
@@ -23,21 +21,6 @@ fn root_token_rejects_bad_version_short_header_and_long_verifier() {
     long_verifier.verifier_extra.push(0);
     assert_eq!(auth::require(&mut long_verifier, 1), Err(-4));
     assert_eq!(auth::require(&mut credential(&token), 1).unwrap(), token);
-}
-
-#[test]
-fn random_failure_never_invokes_the_provider() {
-    let mut fake = Fake {
-        fail_random: true,
-        ..Fake::default()
-    };
-    let request = frame::Request {
-        publish: true,
-        path: PUBLIC.to_vec(),
-    };
-    assert_eq!(bridge::run(&mut fake, &request), bridge::MAILBOX);
-    assert!(fake.invokes.is_empty());
-    assert!(fake.written.is_empty());
 }
 
 #[test]

@@ -5,7 +5,7 @@
 // stand-in, no injected fake capability, no Cargo/Podman/WASM rebuild.
 //
 // Stack (SHA-256 verified from the exact bytes consumed at startup):
-//   explicit-root K10 kernel 2fb719b, compiled by the compiled-stack job
+//   explicit-root K10 kernel db08cbc, compiled by the compiled-stack job
 //   token-gating P0, ordinary P1 service, echo guest and trusted edge gateway
 // Every digest is supplied by that job as an override; there is no legacy
 // artifact default and no fallback to an old-ABI stack.

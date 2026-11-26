@@ -116,3 +116,12 @@ tickets, hostile path grammars, symlinked sources, conflicting real files,
 wrong symlink targets and symlinked destination ancestors. The container smoke
 test exercises the same ABI against the built image with read-only source and
 mailbox mounts.
+
+### Disposable target kernel transport smoke test
+
+Build the target Skrynia kernel and this provider independently, then run
+`KERNEL_BIN=/absolute/path/to/skrynia-server PROVIDER_BIN=/absolute/path/to/skrynia-publish-provider python3 publish-provider/target_kernel_smoke.py`
+from the tools repository root. The test uses temporary roots, loopback ports,
+and a scalar-only WASM fixture. It verifies typed discovery, the kernel
+version metadata, and actual idempotent publish/unpublish effects. It does
+not qualify the publication-root WASM, Program 0, Program 1, apps or production.

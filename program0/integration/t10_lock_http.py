@@ -30,6 +30,8 @@ TOKEN = hashlib.sha256(b't10-shared-lease-dummy-bearer').digest()
 BASE = pathlib.Path('programs/appdata/t10lock')
 HELD = BASE / 'held.bin'
 RESULT = BASE / 'result.bin'
+READY = BASE / 'ready.bin'
+GO = BASE / 'go.bin'
 
 
 def boot(root: pathlib.Path, kernel: pathlib.Path, p0: pathlib.Path, guest: pathlib.Path):
@@ -91,10 +93,18 @@ def main() -> int:
                 holder = pool.submit(post, srv, b'H')
                 if wait_file(us / HELD):
                     contender = pool.submit(post, srv, b'C')
-                    if wait_file(us / RESULT):
-                        observed = (us / RESULT).read_bytes()
+                    if wait_file(us / READY):
+                        # Both parties are in position. GO is the only thing
+                        # that lets the contender CAS; the holder still holds
+                        # the lease until RESULT appears, so exclusion is
+                        # deterministic and not a reflection of CPU speed.
+                        (us / GO).write_bytes(b'1')
+                        if wait_file(us / RESULT):
+                            observed = (us / RESULT).read_bytes()
+                        else:
+                            observed = b'NO_RESULT'
                     else:
-                        observed = b'NO_RESULT'
+                        observed = b'NO_CONTENDER_READY'
                     c_ok, c_raw = contender.result(timeout=120)
                 else:
                     observed = b'NO_HOLDER_MARKER'

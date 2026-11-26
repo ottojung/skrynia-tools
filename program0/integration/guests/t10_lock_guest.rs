@@ -9,6 +9,8 @@ const PUT: i32 = 1;
 const FLUSH: i32 = 2;
 const HELD: &str = "user/programs/appdata/t10lock/held.bin";
 const RESULT: &str = "user/programs/appdata/t10lock/result.bin";
+const READY: &str = "user/programs/appdata/t10lock/ready.bin";
+const GO: &str = "user/programs/appdata/t10lock/go.bin";
 
 fn send(f: &[u8]) {
     unsafe {
@@ -18,6 +20,8 @@ fn send(f: &[u8]) {
         invoke(0, FLUSH, 0);
     }
 }
+/// Drain the whole reply queue. Every FLUSH appends a reply; leaving one behind
+/// makes the next `code(&reply())` read a stale code instead of its own result.
 fn reply() -> Vec<u8> {
     let mut out = Vec::new();
     unsafe {
@@ -64,16 +68,28 @@ fn write_file(path: &str, bytes: &[u8]) {
         w.extend(word(bytes.len() as u32));
         w.extend(bytes);
         send(&w);
+        let _ = reply();
         let mut s = vec![10u8];
         s.extend(word(fd as u32));
         send(&s);
+        let _ = reply();
         let mut c = vec![4u8];
         c.extend(word(fd as u32));
         send(&c);
+        let _ = reply();
     }
 }
 fn mark(path: &str) {
     write_file(path, b"1");
+}
+/// Kernel `exists` is 0 for MISSING and 1 for present. Poll until > 0 so a
+/// missing marker never releases a lease early.
+fn wait_present(path: &str) {
+    for _ in 0..2_000_000 {
+        if named(14, path, &[]) > 0 {
+            return;
+        }
+    }
 }
 fn out(body: &[u8]) {
     let mut f = vec![3u8];
@@ -102,15 +118,9 @@ pub extern "C" fn _start() {
                 return;
             }
             mark(HELD);
-            // Kernel `exists` returns 0 for MISSING and 1 for present. Waiting
-            // for > 0 keeps the lease held until the contender has published
-            // its CAS verdict; treating 0 as present releases it immediately
-            // and makes the exclusion check vacuous.
-            for _ in 0..200000 {
-                if named(14, RESULT, &[]) > 0 {
-                    break;
-                }
-            }
+            // Hold until the contender publishes its CAS verdict. GO is
+            // released by the harness only after the contender is ready.
+            wait_present(RESULT);
             out(if rel() == 0 {
                 b"LOCK_HELD_RELEASED"
             } else {
@@ -118,6 +128,9 @@ pub extern "C" fn _start() {
             });
         }
         b'C' => {
+            // Two-way barrier: announce readiness, wait for GO, then CAS.
+            mark(READY);
+            wait_present(GO);
             let seen = acq();
             let rc = rel();
             let verdict = if seen == 0 {
@@ -127,8 +140,6 @@ pub extern "C" fn _start() {
             } else {
                 b"LOCK_ERROR".as_slice()
             };
-            // Publish the verdict before the holder is released, so the
-            // contender's CAS is guaranteed to run inside the holder's lease.
             write_file(RESULT, verdict);
             out(verdict);
         }

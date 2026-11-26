@@ -280,6 +280,7 @@ jobs:
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
             --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
             --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
+            --overlap-total 300 --overlap-workers 8 \
             --results "$RUNNER_TEMP/wasm-publication-results.json"
       - uses: actions/upload-artifact@v4
         if: always()

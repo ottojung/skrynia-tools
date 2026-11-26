@@ -21,8 +21,9 @@ impl Host for Fake {
     fn close(&mut self, _: i32) -> Result<(), i32> {
         if self.fail_close { Err(-5) } else { Ok(()) }
     }
-    fn mkdir(&mut self, _: &[u8]) -> Result<(), i32> {
-        Ok(())
+    fn mkdir(&mut self, path: &[u8]) -> Result<(), i32> {
+        self.mkdirs.push(path.to_vec());
+        self.mkdir_fail.map_or(Ok(()), Err)
     }
     fn random(&mut self) -> Result<u32, i32> {
         if self.fail_random {

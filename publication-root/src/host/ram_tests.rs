@@ -21,3 +21,14 @@ fn reset_reclaims_only_its_own_slot() {
     assert_eq!(c.alloc(4).unwrap(), BASE + 3 * SLOT);
     assert_eq!(c.next(), BASE + 3 * SLOT + 4);
 }
+
+#[test]
+fn last_slot_is_bounded_and_never_wraps_into_slot_zero() {
+    let mut c = Cursor::for_slot(255);
+    assert_eq!(c.base(), BASE + 255 * SLOT);
+    assert_eq!(c.alloc(SLOT).unwrap(), BASE + 255 * SLOT);
+    assert_eq!(c.alloc(1), Err(ERR_BOUNDS));
+    c.reset();
+    assert_eq!(c.alloc(1).unwrap(), BASE + 255 * SLOT);
+    assert_ne!(c.base(), Cursor::for_slot(0).base());
+}

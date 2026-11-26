@@ -19,7 +19,9 @@ fn run() -> i32 {
         Ok(r) => r,
         Err(e) => return e,
     };
-    let reg = match Registry::open(&CbDisk, "programs") {
+    // K10 root tokens select the confined namespace at the kernel ABI. All
+    // registry writes, reads, lists and fsync parents live under user/.
+    let reg = match Registry::open(&CbDisk, "user/programs") {
         Ok(r) => r,
         Err(_) => return -5,
     };

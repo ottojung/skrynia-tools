@@ -16,6 +16,15 @@ hashes to the corresponding read capability. Code registration and
 administration have their own authority. Exact-key subscriptions and durable
 change hints are consumed by an isolated outbound sender, not by the kernel.
 
+On the target ABI the guest uses explicit kernel root tokens: every registry
+path is derived from `user/programs`, so writes, reads, listings and fsync
+parents select the confined user root. Deliberate operator reads stay in the
+operator namespace. Absence is only the kernel's `-8` ENOENT; `-2` EBADF, `-5`
+EIO, `-4` ENOTSUP and unsafe-path failures remain hard errors, so a broken
+descriptor or I/O fault is never silently treated as a missing object. P1's
+`MutLock` is the P0-mediated shared userland lease: `1` acquired, `0` contended
+and a negative code for a non-owner release.
+
 A successful host test is not compiled guest acceptance. Use the pinned
 disposable integration harness, independently verify source and artifact
 identity, and test least-authority delegation, concurrent mutation, restart

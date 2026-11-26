@@ -22,7 +22,9 @@ linear-memory pointers. `read1(fd) -> i32` yields 0..255, `-1` is EOF;
 signed relative displacement returning the new absolute position, with a
 forward-only input skip clamped at EOF; `cas1` returns the observed byte
 scalar. Negative values are error codes (`-2` EBADF, `-3` EINVAL, `-4`
-ENOTSUP, `-5` EIO, `-6` ERANGE, `-7` bounds). No fixed bulk read/write import,
+ENOTSUP, `-5` EIO, `-6` ERANGE, `-7` bounds, `-8` ENOENT). Only genuine
+ENOENT maps to `-8`; EBADF and EIO are failures and must never be read as an
+absent object. No fixed bulk read/write import,
 no global RAM mutex and no engine fuel/budget is used by this layer.
 
 ## Typed FFI discovery and deployment

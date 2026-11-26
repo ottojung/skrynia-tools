@@ -4,7 +4,7 @@ pub fn read_all(path: &str) -> Result<Option<Vec<u8>>, i32> {
     wire::put_bytes(&mut req, path.as_bytes());
     wire::put_u32(&mut req, 1);
     let (fd, _) = call::call(&req)?;
-    if fd == -2 {
+    if wire::is_missing(fd) {
         return Ok(None);
     }
     if fd < 0 {

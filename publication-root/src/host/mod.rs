@@ -1,5 +1,23 @@
 #[cfg(target_arch = "wasm32")]
-pub struct Abi;
+pub struct Abi {
+    staging: stage::Staging,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Abi {
+    pub const fn new() -> Self {
+        Self {
+            staging: stage::Staging::new(),
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.staging.reset();
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) use self::stage::Staging;
 #[cfg(target_arch = "wasm32")]
 pub(super) use super::abi;
 #[cfg(target_arch = "wasm32")]
@@ -8,6 +26,10 @@ mod fs;
 mod imp;
 #[cfg(target_arch = "wasm32")]
 mod ops;
+#[cfg(any(target_arch = "wasm32", test))]
+mod ram;
+#[cfg(target_arch = "wasm32")]
+mod stage;
 
 /// Root-authority boundary. No evaluated child ever sees these operations.
 pub trait Host {

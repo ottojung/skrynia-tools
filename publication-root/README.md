@@ -79,6 +79,31 @@ rejects private roots (`security`, `programs`, `publication-requests`,
 and activation policy remain application/deployment concerns; this program
 never encodes them.
 
+## Target ABI port
+
+All `skrynia` fixed imports now use the owner-approved target ABI: byte-only
+`read1`/`write1`, signed relative `seek`, `truncate`, single-byte `cas1` and
+u64 shared-RAM addresses/lengths for `open_disk`/`mkdir`/`delete`/
+`secure_random_bits`. No caller-linear-memory pointer or bulk `read`/`write`
+crosses the host boundary. The root exports exactly `skrynia_main(i32,i32)->i32`
+plus `memory`; `publish`/`unpublish` keep the typed `(i32)->i32` provider
+signature in the root-only `syscall` namespace.
+
+Shared RAM is one unpartitioned byte region shared by every concurrent request,
+so staging cannot use a per-process fixed offset. Byte 0 is a slot counter
+claimed with a sequentially consistent `cas1` (no global RAM mutex). Each
+invocation gets a distinct bounded 8 KiB slot for its verifier path, mailbox
+path, random ticket and request path; a per-invocation bump cursor keeps those
+staged regions disjoint. The RAM is sized with `truncate` only when still
+empty, so no request resizes a live backing during normal operation.
+
+`tests/check_target_abi.py` parses the compiled WASM and asserts the exact
+target signatures and the preserved provider signature. The disposable
+`tests/real_wasm_chain.py` boots the real kernel and real provider, drives the
+compiled root and checks root-token, path/security, provider-failure and
+16-way concurrent publication behaviour. The provider HTTP codec is owned and
+built by the coordinator; this crate never edits it.
+
 ## Release deployment gate
 
 Release deployment must boot this generated root WASM through the kernel. A

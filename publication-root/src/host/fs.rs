@@ -1,28 +1,28 @@
-use super::abi;
+use super::{Staging, abi, ops};
 
 pub fn write(fd: i32, bytes: &[u8]) -> Result<(), i32> {
-    let mut at = 0;
-    while at < bytes.len() {
-        let n = unsafe { abi::write(fd, bytes[at..].as_ptr() as u32, (bytes.len() - at) as u32) };
-        if n <= 0 {
-            return Err(if n == 0 { -5 } else { n });
+    for &byte in bytes {
+        let rc = unsafe { abi::write1(fd, byte as u32) };
+        if rc != 0 {
+            return Err(rc);
         }
-        at += n as usize;
     }
-    let rc = unsafe { abi::sync(fd) };
-    if rc < 0 { Err(rc) } else { Ok(()) }
+    ops::sync(fd)
 }
-pub fn delete(path: &[u8]) -> Result<(), i32> {
-    let rc = unsafe { abi::delete(path.as_ptr() as u32, path.len() as u32) };
-    if rc == 0 || rc == -2 { Ok(()) } else { Err(rc) }
+
+pub fn delete(stage: &mut Staging, path: &[u8]) -> Result<(), i32> {
+    let (ptr, len) = stage.put(path)?;
+    let rc = unsafe { abi::delete(ptr, len) };
+    if rc == 0 { Ok(()) } else { Err(rc) }
 }
+
 pub fn invoke(publish: bool, ticket: u32) -> Option<i32> {
     // A trapping import has no response; the caller must report UNKNOWN.
     Some(unsafe {
         if publish {
-            abi::publish(ticket)
+            abi::publish(ticket as i32)
         } else {
-            abi::unpublish(ticket)
+            abi::unpublish(ticket as i32)
         }
     })
 }

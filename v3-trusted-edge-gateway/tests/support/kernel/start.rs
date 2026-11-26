@@ -16,7 +16,7 @@ pub fn start(bin: &str, p0_wasm: &str, token: [u8; 32]) -> Kernel {
     let sec = operator.join("security/program0.sha256");
     std::fs::write(&sec, digest).unwrap();
     set_mode(&sec, 0o600);
-    std::fs::write(operator.join("programs/root.wasm"), wasm::echo_wasm()).unwrap();
+    std::fs::write(operator.join("programs/root.wasm"), wasm::p0_child_echo_wasm()).unwrap();
     let addr: SocketAddr = format!("127.0.0.1:{}", free_port()).parse().unwrap();
     let mut child = Command::new(bin)
         .env("SKRYNIA_ROOT_WASM", p0_wasm)

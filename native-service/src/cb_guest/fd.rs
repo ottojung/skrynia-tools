@@ -26,7 +26,15 @@ pub fn write_response(data: &[u8]) -> Result<(), i32> {
         frame.extend_from_slice(&1u32.to_le_bytes());
         frame.extend_from_slice(&(chunk.len() as u32).to_le_bytes());
         frame.extend_from_slice(chunk);
-        crate::gateway::stream::call(&real, ctx, &frame, 16).map_err(|e| e as i32)?;
+        let reply = crate::gateway::stream::call(&real, ctx, &frame, 16).map_err(|e| e as i32)?;
+        let raw: [u8; 4] = reply.try_into().map_err(|_| -5)?;
+        let written = i32::from_le_bytes(raw);
+        if written < 0 {
+            return Err(written);
+        }
+        if written as usize != chunk.len() {
+            return Err(-5);
+        }
     }
     Ok(())
 }

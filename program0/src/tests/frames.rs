@@ -6,12 +6,23 @@ use super::{alloc, fake};
 fn random_fill_is_capped_to_one_slot() {
     let (_i, _o, _r) = setup(vec![]);
     let mut f = vec![11];
-    f.extend_from_slice(&word(1));
     let bits = (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) * 8 + 8;
     f.extend_from_slice(&word(bits as u32));
     assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
     let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
     fake::inspect(|s| assert!(s.ram[at..at + 8].iter().all(|&b| b == 0)));
+}
+
+#[test]
+fn random_fill_returns_the_requested_bytes() {
+    let (_i, _o, _r) = setup(vec![]);
+    let mut f = vec![11];
+    f.extend_from_slice(&word(128));
+    let r = call(&f);
+    assert_eq!(code(&r), 16);
+    assert_eq!(&r[4..], &[0xa5; 16]);
+    f.push(0);
+    assert_eq!(code(&call(&f)), -1);
 }
 
 #[test]

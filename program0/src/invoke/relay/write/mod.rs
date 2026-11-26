@@ -1,7 +1,11 @@
 //! Byte-out and random-fill relay (no bulk kernel import).
+mod random;
 use super::{Ctx, INVALID, abi, alloc, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
+    if op == 11 {
+        return random::call(c, f, at);
+    }
     let Some(fd) = word(f, at) else {
         return reply(INVALID, &[]);
     };
@@ -14,21 +18,6 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(n) = word(f, at) else {
         return reply(INVALID, &[]);
     };
-    if op == 11 {
-        if u64::from(n) > (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) * 8 {
-            return reply(alloc::ERR_RANGE, &[]);
-        }
-        if !complete(f, *at) {
-            return reply(INVALID, &[]);
-        }
-        let dst = c.base + alloc::SLOT_CODE_AT;
-        let rc = unsafe { abi::secure_random_bits(dst, n as u64) };
-        return if rc == 0 {
-            reply(n as i32, &[])
-        } else {
-            reply(rc, &[])
-        };
-    }
     if n > 64 * 1024 {
         return reply(alloc::ERR_RANGE, &[]);
     }

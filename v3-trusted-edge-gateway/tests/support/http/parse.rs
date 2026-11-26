@@ -24,7 +24,13 @@ pub fn parse_http(resp: &[u8]) -> (u16, Vec<(String, String)>, Vec<u8>) {
         .iter()
         .any(|(k, v)| k == "transfer-encoding" && v.to_ascii_lowercase().contains("chunked"));
     if chunked {
-        body = super::dechunk::dechunk(&body);
+        body = super::dechunk::dechunk(&body).expect("complete chunked HTTP response");
+    } else if let Some((_, len)) = headers.iter().find(|(k, _)| k == "content-length") {
+        assert_eq!(
+            body.len(),
+            len.parse::<usize>().expect("content-length"),
+            "complete fixed-length HTTP response"
+        );
     }
     (status, headers, body)
 }

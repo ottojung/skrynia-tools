@@ -25,8 +25,27 @@ pub fn trickle_exceeds_absolute_lifetime() {
     );
     std::io::Write::write_all(&mut s, req.as_bytes()).unwrap();
     let mut buf = Vec::new();
-    let _ = s.read_to_end(&mut buf);
+    let begin = std::time::Instant::now();
+    let rc = s.read_to_end(&mut buf);
+    assert!(
+        begin.elapsed() < Duration::from_secs(4),
+        "gateway must terminate before client timeout"
+    );
     assert!(!buf.is_empty(), "should get response headers/body start");
-    // response should end (connection closed by gateway) due to absolute lifetime, not hang forever
+    let sep = buf
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .expect("HTTP headers");
+    let head = std::str::from_utf8(&buf[..sep]).unwrap();
+    assert!(head.starts_with("HTTP/1.1 200"));
+    assert!(
+        head.to_ascii_lowercase()
+            .contains("transfer-encoding: chunked")
+    );
+    assert!(rc.is_ok() || rc.unwrap_err().kind() == std::io::ErrorKind::ConnectionReset);
+    assert!(
+        super::http::dechunk(&buf[sep + 4..]).is_err(),
+        "deadline must not complete a partial HTTP response"
+    );
     stop.store(true, std::sync::atomic::Ordering::Relaxed);
 }

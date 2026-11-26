@@ -28,6 +28,8 @@ pub fn post_raw(
     stream.write_all(req.as_bytes()).unwrap();
     stream.write_all(body).unwrap();
     let mut resp = Vec::new();
-    let _ = stream.read_to_end(&mut resp);
+    stream
+        .read_to_end(&mut resp)
+        .expect("complete HTTP response");
     super::parse::parse_http(&resp)
 }

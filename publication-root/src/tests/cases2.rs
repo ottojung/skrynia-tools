@@ -24,6 +24,21 @@ fn invalid_path_never_touches_mailbox_or_import() {
 }
 
 #[test]
+fn mailbox_dir_is_ensured_and_obstruction_blocks_import() {
+    // create-if-absent mkdir is ok whether the directory was missing or
+    // already present; an obstructing non-directory fails before any import.
+    let mut fake = super::Fake::default();
+    let req = request(frame::OP_PUBLISH, PUBLIC);
+    assert_eq!(bridge::run(&mut fake, &req), bridge::OK);
+    assert_eq!(fake.mkdirs, vec![super::path::mailbox_dir().to_vec()]);
+    assert_eq!(fake.invokes.len(), 1);
+    fake.mkdir_fail = Some(-5);
+    fake.invokes.clear();
+    assert_eq!(bridge::run(&mut fake, &req), bridge::MAILBOX);
+    assert!(fake.invokes.is_empty());
+}
+
+#[test]
 fn collision_retries_without_overwriting_an_existing_request() {
     let mut fake = super::Fake {
         collisions: 2,

@@ -5,10 +5,10 @@
 // stand-in, no injected fake capability, no Cargo/Podman/WASM rebuild.
 //
 // Stack (SHA-256 verified from the exact bytes consumed at startup):
-//   release kernel 806c172 build kernel-release  -> a1dc4119...
-//   dumb P0 root.wasm 44e845a4...  (token gate + 33-byte strip, decodes no op)
-//   ordinary P1 service.wasm c7239fc5... (opcodes 9/10/11/12/13/14 in WASM)
-//   trusted edge gateway 9fa4df14... (server-only bearer, apex-owned, unmodified)
+//   explicit-root K10 kernel 2fb719b, compiled by the compiled-stack job
+//   token-gating P0, ordinary P1 service, echo guest and trusted edge gateway
+// Every digest is supplied by that job as an override; there is no legacy
+// artifact default and no fallback to an old-ABI stack.
 //
 // The test drives the dedicated native opcodes STAGE=9/SEAL=10/ACTIVATE=11/
 // GET_ACTIVE=12/LIST_VERSIONS=13 as opaque bytes through the shipped
@@ -37,26 +37,20 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-// Pin paths/hashes are fixed here, not trusted from the caller's environment:
-// a substituted artifact can only pass if its bytes hash to these values.
-// A real compiled-stack runner may override each artifact by supplying BOTH
-// the <NAME>_OVERRIDE path and <NAME>_SHA256_OVERRIDE exact digest. Bytes are
-// hashed at startup; a missing path is a hard failure, never a silent skip.
-const DEFAULT_SHA = {
-  kernel: 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1',
-  p0: '44e845a4ca1bfcf6713078ad40d2ce7d387595b08351a5a882bbc38549780c95',
-  service: 'c7239fc5bfd6977e7835eef461a75e274270d9e721d8a2d88121906b1b0c3a36',
-  echo: 'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
-  gateway: '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
-};
+// Pin hashes come from the exact compiled stack, not from stale defaults:
+// the runner supplies BOTH the <NAME>_OVERRIDE path and the exact
+// <NAME>_SHA256_OVERRIDE digest. A missing override is a hard failure, never
+// a silent skip or a fallback to a different ABI.
 const KEY = { kernel: 'KERNEL', p0: 'P0', service: 'P1', echo: 'ECHO', gateway: 'EDGE_GATEWAY' };
-const EXPECTED = Object.fromEntries(Object.keys(DEFAULT_SHA).map(n =>
-  [n, process.env[`SKRYNIA_${KEY[n]}_SHA256_OVERRIDE`] || DEFAULT_SHA[n]]));
-const KIT = process.env.SKRYNIA_KIT_DIR || '/workspace/skrynia-exact-kit-73d8fa1';
-const ECHO = process.env.SKRYNIA_ECHO_GUEST ||
-  '/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm';
-const GATEWAY = process.env.SKRYNIA_EDGE_GATEWAY_BIN ||
-  '/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway';
+const EXPECTED = Object.fromEntries(Object.keys(KEY).map(n =>
+  [n, process.env[`SKRYNIA_${KEY[n]}_SHA256_OVERRIDE`]]));
+for (const [name, digest] of Object.entries(EXPECTED)) {
+  assert.match(digest || '', /^[0-9a-f]{64}$/,
+    `compiled-stack must supply SKRYNIA_${KEY[name]}_SHA256_OVERRIDE`);
+}
+const KIT = process.env.SKRYNIA_KIT_DIR || '';
+const ECHO = process.env.SKRYNIA_ECHO_GUEST || '';
+const GATEWAY = process.env.SKRYNIA_EDGE_GATEWAY_BIN || '';
 
 const override = (n, fallback) => process.env[`SKRYNIA_${KEY[n]}_OVERRIDE`] || fallback;
 process.env.SKRYNIA_KERNEL_BIN = override('kernel', join(KIT, 'kernel-release'));

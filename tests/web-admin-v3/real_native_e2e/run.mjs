@@ -32,33 +32,27 @@ const ADAPTER = new URL('../../../web-admin-v3/binary_transport.js', import.meta
 const { createBinaryPostTransport } = await import(ADAPTER);
 
 // Exact compiled-artifact pins (SHA-256 of bytes, verified at startup).
-// For CI/exact-head runs, override path+sha256 via env; historical defaults are kept.
-const pin = (envPath, envSha, dfltPath, dfltSha, note) => ({
-  path: process.env[envPath] || dfltPath,
-  sha256: (process.env[envSha] || dfltSha).toLowerCase(),
-  note: process.env[envSha] ? `${note} (sha256 overridden by ${envSha})` : note,
-});
+// The compiled-stack runner supplies both path and digest. No historical
+// artifact is used as a default: an unpinned run fails closed.
+const pin = (envPath, envSha, note) => {
+  const path = process.env[envPath];
+  const sha = process.env[envSha];
+  if (!path || !/^[0-9a-f]{64}$/i.test(sha || '')) {
+    throw new Error(`compiled-stack must supply ${envPath} and ${envSha}`);
+  }
+  return { path, sha256: sha.toLowerCase(), note };
+};
 export const PINS = {
   kernel: pin('SKRYNIA_KERNEL_BIN', 'SKRYNIA_KERNEL_SHA256',
-    '/workspace/skrynia-v3-integration-kit/wasm-build-record/main-secure-pr122-20261121/skrynia-server',
-    '8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f',
-    'secure PR122 kernel, source c39bcbf1'),
+    'explicit-root K10 kernel compiled by compiled-stack'),
   p0: pin('SKRYNIA_P0_WASM', 'SKRYNIA_P0_SHA256',
-    '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_program0_pr53_clean_rebuilt_d57ab27a.wasm',
-    'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
-    'clean dumb P0 PR53, source fdf0d027'),
+    'token-gating P0 compiled by compiled-stack'),
   service: pin('SKRYNIA_P1_WASM', 'SKRYNIA_P1_SHA256',
-    '/workspace/skrynia-v3-integration-kit/artifacts/skrynia_native_service_aa6333a_export_table_d3686527bbf29070.wasm',
-    'd3686527bbf290704bf967b2e97f37dda8ff487b7d9f58db28d2a806712f4dd2',
-    'ordinary nonzero WASM service, aa6333a cb-guest export table'),
+    'ordinary nonzero WASM service compiled by compiled-stack'),
   echo: pin('SKRYNIA_ECHO_GUEST', 'SKRYNIA_ECHO_SHA256',
-    '/workspace/skrynia-v3-integration-kit/tests/guests/echo_guest.wasm',
-    'dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5',
-    'ordinary private guest used only to exercise service register/invoke'),
+    'ordinary private guest compiled by compiled-stack'),
   gateway: pin('SKRYNIA_EDGE_GATEWAY_BIN', 'SKRYNIA_EDGE_GATEWAY_SHA256',
-    '/workspace/skrynia-recovery-along-20261121/.cargo-target/debug/skrynia-v3-trusted-edge-gateway',
-    '9fa4df141d5bf12ca90e4b9c69438dfe12e522a62f6da80a3f80c26a8fd0f07f',
-    'trusted edge gateway, source commit 71773b52'),
+    'trusted edge gateway compiled by compiled-stack'),
 };
 export const P0_FRAME_PIN = '8a03330da0c9b1235f5866a41f1e2e9d1ef1732770753387521b5db904f7d217';
 

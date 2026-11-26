@@ -1,53 +1,32 @@
+//! Request/response descriptor streams for the ordinary service entrypoint.
+//!
+//! GET falls through to the authenticated input descriptor. The response is
+//! written with the generic framed WRITE op (3, stdout handle, u32 length),
+//! not by stuffing raw bytes into PUT: P0 interprets every PUT frame as a
+//! kernel operation. No fd number or linear-memory pointer is invented by
+//! the guest beyond that shared userland wire convention.
+
 const MAX_REQ: usize = 16 * 1024 * 1024;
+const CHUNK: usize = 64 * 1024;
 
-#[cfg(target_arch = "wasm32")]
-#[link(wasm_import_module = "skrynia")]
-unsafe extern "C" {
-    fn read(fd: i32, dst: u32, len: u32) -> i32;
-    fn write(fd: i32, src: u32, len: u32) -> i32;
+pub fn read_request() -> Result<Vec<u8>, i32> {
+    crate::gateway::stream::recv(
+        &crate::cb_guest::gateway::Real,
+        crate::gateway::ops::CTX_MAIN,
+        MAX_REQ,
+    )
+    .map_err(|e| e as i32)
 }
 
-#[cfg(target_arch = "wasm32")]
-pub fn read_all(fd: i32) -> Result<Vec<u8>, i32> {
-    let mut out = Vec::new();
-    let mut buf = [0u8; 8192];
-    loop {
-        let n = unsafe { read(fd, buf.as_mut_ptr() as u32, buf.len() as u32) };
-        if n < 0 {
-            return Err(n);
-        }
-        if n == 0 {
-            return Ok(out);
-        }
-        let n = n as usize;
-        if out.len().saturating_add(n) > MAX_REQ {
-            return Err(-11);
-        }
-        out.extend_from_slice(&buf[..n]);
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-pub fn write_all(fd: i32, data: &[u8]) -> Result<(), i32> {
-    let mut off = 0;
-    while off < data.len() {
-        let end = (off + 8192).min(data.len());
-        let chunk = &data[off..end];
-        let n = unsafe { write(fd, chunk.as_ptr() as u32, chunk.len() as u32) };
-        if n <= 0 {
-            return Err(if n == 0 { -5 } else { n });
-        }
-        off += n as usize;
+pub fn write_response(data: &[u8]) -> Result<(), i32> {
+    let real = crate::cb_guest::gateway::Real;
+    let ctx = crate::gateway::ops::CTX_MAIN;
+    for chunk in data.chunks(CHUNK) {
+        let mut frame = vec![crate::cb_guest::cap::wire::WRITE];
+        frame.extend_from_slice(&1u32.to_le_bytes());
+        frame.extend_from_slice(&(chunk.len() as u32).to_le_bytes());
+        frame.extend_from_slice(chunk);
+        crate::gateway::stream::call(&real, ctx, &frame, 16).map_err(|e| e as i32)?;
     }
     Ok(())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn read_all(_fd: i32) -> Result<Vec<u8>, i32> {
-    Err(-13)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn write_all(_fd: i32, _data: &[u8]) -> Result<(), i32> {
-    Err(-13)
 }

@@ -1,24 +1,35 @@
+//! Target entrypoint: a nested guest exports `_start () -> ()` and imports
+//! exactly one evaluator-supplied function. The application wire protocol,
+//! authority and registry logic below this file are unchanged.
+
 use super::cap::{CbDisk, CbLock, CbRandom};
-use super::eval::MediatorEval;
+use super::eval::P1CallbackEval;
 use super::fd;
 use crate::reg::Registry;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
-    let req = match fd::read_all(input_fd) {
+pub extern "C" fn _start() {
+    let _code = run();
+}
+
+fn run() -> i32 {
+    let req = match fd::read_request() {
         Ok(r) => r,
         Err(e) => return e,
     };
-    let disk = CbDisk;
-    let lock = CbLock;
-    let rng = CbRandom;
-    let eval = MediatorEval;
-    let reg = match Registry::open(&disk, "programs") {
+    let reg = match Registry::open(&CbDisk, "programs") {
         Ok(r) => r,
         Err(_) => return -5,
     };
-    let response = crate::handle::handle(&reg, &disk, &lock, &rng, &eval, req.as_slice());
-    match fd::write_all(output_fd, &response) {
+    let response = crate::handle::handle(
+        &reg,
+        &CbDisk,
+        &CbLock,
+        &CbRandom,
+        &P1CallbackEval,
+        req.as_slice(),
+    );
+    match fd::write_response(&response) {
         Ok(()) => 0,
         Err(e) => e,
     }

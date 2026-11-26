@@ -1,7 +1,14 @@
+// T6's delivered interpreter is reused verbatim through a symlinked module
+// directory; no file under src/p2 is edited. The self-alias lets that
+// component's `skrynia_native_service::cap::Eval` path resolve inside this crate.
+extern crate self as skrynia_native_service;
+pub mod p2;
+
 pub mod auth;
 pub mod cap;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub mod cb_guest;
+pub mod gateway;
 #[cfg(not(all(target_arch = "wasm32", feature = "cb-guest")))]
 pub mod host;
 pub mod mlock;

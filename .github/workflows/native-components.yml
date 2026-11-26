@@ -46,7 +46,11 @@ jobs:
         run: cargo build --locked --release -p libskrynia --bin skrynia-server
       - name: Kernel generic eval and callback regressions
         working-directory: upstream-skrynia
-        run: cargo test --locked -p libskrynia --test vm eval::
+        run: |
+          set -eu
+          cargo test --locked -p libskrynia --test vm eval:: -- --list > "$RUNNER_TEMP/eval-tests.txt"
+          grep -q '^eval::.*: test$' "$RUNNER_TEMP/eval-tests.txt"
+          cargo test --locked -p libskrynia --test vm eval::
       - name: Build ordinary guests
         env:
           RUSTFLAGS: "-C link-arg=--export-table -C opt-level=z -C strip=symbols"
@@ -56,7 +60,7 @@ jobs:
       - name: Check guest import surface and arena fit
         run: |
           python3 native-service/integration/verify_target_wasm.py target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
-          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -le 2096000
+          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -lt 2096000
       - name: Compiled Program0 operator-root isolation
         run: |
           rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown \
@@ -80,6 +84,7 @@ jobs:
       - name: Build current Theorem P2 guest
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
+          RUSTFLAGS: "-C link-arg=--export-table -C opt-level=z -C strip=symbols"
         run: cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown --manifest-path examples/theorem_lab_feedback_p2/Cargo.toml
       - name: Real compiled registry recovery (interrupted stage and I/O obstruction)
         run: |

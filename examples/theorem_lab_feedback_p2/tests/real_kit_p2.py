@@ -79,7 +79,7 @@ class Srv:
         h, r = resp.split(b'\r\n\r\n', 1)
         if b'transfer-encoding: chunked' in h.lower(): r = dechunk(r)
         d = dec(r)
-        if label: print(f'{label}: {h.splitlines()[0].decode()} {d}', flush=True)
+        if label: print(f'{label}: {h.splitlines()[0].decode()} {diagnostic(d)}', flush=True)
         return d
 
 def start(base, port, kernel, p0, p1, token, op_cap):
@@ -221,7 +221,15 @@ def parse_json(results, name, d):
     try: return json.loads(d.get('body', b''))
     except Exception: rec(results, name + '-json', False, d); return None
 
+def diagnostic(detail):
+    if isinstance(detail, dict):
+        body = detail.get('body')
+        if isinstance(body, bytes) and len(body) > 2048:
+            return {**detail, 'body': f'<{len(body)} bytes sha256={hashlib.sha256(body).hexdigest()}>'}
+    return detail
+
 def rec(results, name, ok, detail=''):
+    detail = diagnostic(detail)
     results.append((name, bool(ok), str(detail)))
     print(('PASS' if ok else 'FAIL'), name, detail, flush=True)
 

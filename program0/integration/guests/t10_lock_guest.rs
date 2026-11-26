@@ -102,8 +102,12 @@ pub extern "C" fn _start() {
                 return;
             }
             mark(HELD);
+            // Kernel `exists` returns 0 for MISSING and 1 for present. Waiting
+            // for > 0 keeps the lease held until the contender has published
+            // its CAS verdict; treating 0 as present releases it immediately
+            // and makes the exclusion check vacuous.
             for _ in 0..200000 {
-                if named(14, RESULT, &[]) >= 0 {
+                if named(14, RESULT, &[]) > 0 {
                     break;
                 }
             }

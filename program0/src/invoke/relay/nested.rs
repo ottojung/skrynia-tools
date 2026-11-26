@@ -52,7 +52,5 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     if code::put_code(c.ram, &mut c.pos, c.base, bytes).is_err() {
         return reply(alloc::ERR_RANGE, &[]);
     }
-    let rc = eval(c, n);
-    c.status = if rc < 0 { 2 } else { 0 };
-    reply(rc as i32, &[])
+    reply(eval(c, n) as i32, &[])
 }

@@ -1,5 +1,6 @@
 //! Authenticated request fixture shared by host-side tests.
-use super::{auth, code, fake};
+use super::fake;
+use crate::{auth, code};
 use sha2::{Digest, Sha256};
 
 pub fn seed(bearer: &[u8; 32], sent: &[u8; 32], guest: &[u8], payload: &[u8]) -> (i32, i32, i32) {

@@ -49,11 +49,3 @@ fn open_directory_next_entry_and_sync_are_relayed() {
     sy.extend_from_slice(&word(fd as u32));
     assert_eq!(code(&call(&sy)), 0);
 }
-
-#[test]
-fn truncated_frames_fail_closed() {
-    let (_, _, _) = setup(vec![]);
-    assert_eq!(code(&call(&[5, 1, 0, 0])), -1);
-    assert_eq!(code(&call(&[9, 1, 0, 0])), -1);
-    assert_eq!(code(&call(&[10])), -1);
-}

@@ -49,5 +49,9 @@ pub fn place(fd: i32, pos: &mut u64, target: u64) -> Result<(), i32> {
         return Err(at as i32);
     }
     *pos = at as u64;
-    Ok(())
+    if *pos == target {
+        Ok(())
+    } else {
+        Err(ERR_RANGE)
+    }
 }

@@ -20,13 +20,16 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
         Err(e) => return reply(e, &[]),
     };
     let cap = cap as u64;
-    let dst = c.pos;
+    let dst = c.base + alloc::SLOT_CODE_AT;
     if dst < c.base || dst.saturating_add(cap) > c.base + alloc::SLOT_SIZE {
         return reply(alloc::ERR_RANGE, &[]);
     }
     let n = unsafe { abi::next_entry(fd, dst, cap) };
     if n < 0 {
         return reply(n, &[]);
+    }
+    if n as u64 > cap {
+        return reply(alloc::ERR_RANGE, &[]);
     }
     if alloc::place(c.ram, &mut c.pos, dst).is_err() {
         return reply(alloc::ERR_RANGE, &[]);
@@ -37,8 +40,8 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
         if b < 0 {
             return reply(b, &[]);
         }
+        c.pos += 1;
         out.push(b as u8);
     }
-    c.pos = dst.saturating_add(n as u64);
     reply(n, &out)
 }

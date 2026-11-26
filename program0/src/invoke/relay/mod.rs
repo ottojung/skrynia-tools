@@ -24,7 +24,8 @@ fn dispatch(c: &mut Ctx, f: &[u8]) -> Vec<u8> {
         1 | 14 => named::call(c, f, &mut at, op),
         2 | 4 => stream::call(c, f, &mut at, op),
         3 | 11 => write::call(c, f, &mut at, op),
-        5 | 6 | 8 | 10 => path::call(c, f, &mut at, op),
+        5 | 6 | 8 => path::call(c, f, &mut at, op),
+        10 => stream::call(c, f, &mut at, op),
         7 => rename::call(c, f, &mut at),
         9 => dir::call(c, f, &mut at),
         12 | 13 | 15 => control::call(c, f, &mut at, op),
@@ -37,9 +38,16 @@ fn dispatch(c: &mut Ctx, f: &[u8]) -> Vec<u8> {
     }
 }
 pub fn run(c: &mut Ctx) -> i64 {
+    if c.reply_active {
+        return -3;
+    }
+    if core::mem::take(&mut c.frame_failed) {
+        return -3;
+    }
     let frame = core::mem::take(&mut c.frame);
     let outcome = dispatch(c, &frame);
     c.status = 0;
     c.reply.extend(outcome);
+    c.reply_active = true;
     0
 }

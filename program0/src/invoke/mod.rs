@@ -1,10 +1,11 @@
 //! The single userland function P0 supplies: `p0.invoke(ctx,op,value)->i64`.
 mod access;
+mod framing;
 mod queue;
 mod relay;
 use super::{abi, alloc, code};
 use access::check_path;
-pub use queue::{Ctx, enter, feed_cb, leave, set, take, with};
+pub use queue::{Ctx, enter, leave, set, take, with};
 
 pub const GET: i32 = 0;
 pub const PUT: i32 = 1;
@@ -15,29 +16,26 @@ pub const STATUS: i32 = 5;
 
 fn step(c: &mut Ctx, op: i32, value: i32) -> i64 {
     match op {
-        GET => c
-            .reply
-            .pop_front()
-            .map(i64::from)
-            .unwrap_or_else(|| unsafe { abi::read1(c.input) as i64 }),
-        PUT if (0..=255).contains(&value) => {
-            c.frame.push(value as u8);
-            0
-        }
-        CB_GET => c.cb_in.pop_front().map(i64::from).unwrap_or(-1),
-        CB_PUT if (0..=255).contains(&value) => {
-            c.cb_out.push_back(value as u8);
-            0
-        }
+        GET if c.reply_active => match c.reply.pop_front() {
+            Some(b) => i64::from(b),
+            None => {
+                c.reply_active = false;
+                -1
+            }
+        },
+        GET => unsafe { abi::read1(c.input) as i64 },
+        PUT => c.put(value),
+        CB_GET | CB_PUT => -4,
         STATUS => i64::from(c.status),
         _ => -3,
     }
 }
-
 #[unsafe(no_mangle)]
 pub extern "C" fn invoke(_ctx: i32, op: i32, value: i32) -> i64 {
     if op == FLUSH {
-        let mut owned = take().unwrap_or_default();
+        let Some(mut owned) = take() else {
+            return -2;
+        };
         let rc = relay::run(&mut owned);
         set(Some(owned));
         return rc;

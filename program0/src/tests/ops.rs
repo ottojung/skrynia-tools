@@ -14,8 +14,8 @@ fn slots_are_cas_isolated_and_reused_after_release() {
 }
 
 #[test]
-fn get_put_flush_and_callback_queues_are_request_scoped() {
-    let (input, output, ram) = fake::seed(vec![7, 8], vec![]);
+fn get_put_flush_and_reply_eof_are_request_scoped() {
+    let (input, output, ram) = fake::seed(vec![7, 8, 9], vec![]);
     alloc::ensure(ram).expect("arena");
     alloc::acquire(ram).expect("slot");
     invoke::enter(input, output, ram, alloc::BASE, input, output, 0);
@@ -26,13 +26,19 @@ fn get_put_flush_and_callback_queues_are_request_scoped() {
     }
     assert_eq!(invoke::invoke(0, invoke::FLUSH, 0), 0);
     assert_eq!(invoke::invoke(0, invoke::GET, 0), 1);
-    assert_eq!(invoke::invoke(0, invoke::CB_PUT, 9), 0);
-    invoke::feed_cb(9);
-    assert_eq!(invoke::invoke(0, invoke::CB_GET, 0), 9);
-    assert_eq!(invoke::invoke(0, invoke::CB_GET, 0), -1);
+    assert_eq!(invoke::invoke(0, invoke::PUT, 9), -3);
+    assert_eq!(invoke::invoke(0, invoke::FLUSH, 0), -3);
+    for _ in 0..3 {
+        assert_eq!(invoke::invoke(0, invoke::GET, 0), 0);
+    }
+    assert_eq!(invoke::invoke(0, invoke::GET, 0), -1);
+    assert_eq!(invoke::invoke(0, invoke::GET, 0), 9);
+    assert_eq!(invoke::invoke(0, invoke::CB_PUT, 9), -4);
+    assert_eq!(invoke::invoke(0, invoke::CB_GET, 0), -4);
     assert_eq!(invoke::invoke(0, invoke::STATUS, 0), 0);
     assert_eq!(invoke::invoke(0, 99, 0), -3);
     invoke::leave();
     assert_eq!(invoke::invoke(0, invoke::GET, 0), -2);
+    assert_eq!(invoke::invoke(0, invoke::FLUSH, 0), -2);
     fake::inspect(|s| assert_eq!(s.output, vec![42]));
 }

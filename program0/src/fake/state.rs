@@ -10,6 +10,7 @@ pub enum Kind {
     Disk(usize),
     Dir(usize),
 }
+#[derive(Default)]
 pub struct State {
     pub input: Vec<u8>,
     pub inp: usize,
@@ -26,20 +27,7 @@ pub struct State {
 }
 impl State {
     pub fn new() -> Self {
-        Self {
-            input: vec![],
-            inp: 0,
-            output: vec![],
-            ram: vec![],
-            rpos: 0,
-            files: vec![],
-            fpos: vec![],
-            dirs: vec![],
-            fds: vec![],
-            eval_code: vec![],
-            eval_result: 0,
-            eval_calls: 0,
-        }
+        Self::default()
     }
     pub fn fd(&mut self, k: Kind) -> i32 {
         self.fds.push(k);

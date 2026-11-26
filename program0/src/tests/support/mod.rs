@@ -40,3 +40,6 @@ pub fn code(reply: &[u8]) -> i32 {
     assert!(reply.len() >= 4);
     i32::from_le_bytes([reply[0], reply[1], reply[2], reply[3]])
 }
+
+mod seed;
+pub use seed::seed;

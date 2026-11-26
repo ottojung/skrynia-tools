@@ -28,13 +28,9 @@ fn random_fill_returns_the_requested_bytes() {
 #[test]
 fn rename_second_path_cannot_reach_the_code_area() {
     let (_i, _o, _r) = setup(vec![]);
-    let mut f = vec![7];
-    f.extend_from_slice(&word(1000));
-    f.extend_from_slice(b"user/");
-    f.extend_from_slice(&[b'a'; 995]);
+    let mut f = path_frame(7, &format!("user/{}", "a".repeat(995)));
     f.extend_from_slice(&word(100));
-    f.extend_from_slice(b"user/");
-    f.extend_from_slice(&[b'b'; 95]);
+    f.extend_from_slice(format!("user/{}", "b".repeat(95)).as_bytes());
     assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
     let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
     fake::inspect(|s| assert!(s.ram[at..at + 100].iter().all(|&b| b == 0)));

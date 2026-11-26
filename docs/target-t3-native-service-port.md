@@ -8,7 +8,7 @@ ordinary userland program, not part of the Skrynia kernel.
 Build the P1 artifact with the `cb-guest` feature:
 
 ```sh
-RUSTFLAGS='-C opt-level=z -C strip=symbols' cargo build --locked --release \
+RUSTFLAGS='-C link-arg=--export-table -C opt-level=z -C strip=symbols' cargo build --locked --release \
   --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
 ```
 

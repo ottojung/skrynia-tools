@@ -7,6 +7,13 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
         return reply(INVALID, &[]);
     };
+    if op == 10 {
+        return match (complete(f, *at), c.resolve(fd as i32)) {
+            (true, Ok(fd)) => reply(unsafe { abi::sync(fd) }, &[]),
+            (true, Err(e)) => reply(e, &[]),
+            _ => reply(INVALID, &[]),
+        };
+    }
     if op == 4 {
         return if complete(f, *at) {
             reply(c.close_fd(fd as i32), &[])

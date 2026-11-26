@@ -7,11 +7,10 @@ mod hardening;
 mod lock;
 mod ops;
 mod regressions;
-mod seed;
 mod support;
 use super::{abi, alloc, auth, code, entry, fake, invoke, token};
-use seed::seed;
 use sha2::{Digest, Sha256};
+use support::seed;
 
 #[test]
 fn verifies_then_invokes_guest_exactly_once() {

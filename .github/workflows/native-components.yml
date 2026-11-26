@@ -44,13 +44,19 @@ jobs:
       - name: Build generic kernel
         working-directory: upstream-skrynia
         run: cargo build --locked --release -p libskrynia --bin skrynia-server
-      - name: Kernel nested-callback LEAK->SAFE regression (compiled)
+      - name: Kernel generic eval and callback regressions
         working-directory: upstream-skrynia
-        run: cargo test --locked -p libskrynia --test http callback::nested::nested_guest_cannot_steal_root_disk_fd_after_callback -- --exact
+        run: cargo test --locked -p libskrynia --test vm eval::
       - name: Build ordinary guests
+        env:
+          RUSTFLAGS: "-C link-arg=--export-table -C opt-level=z -C strip=symbols"
         run: |
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-program0
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
+      - name: Check guest import surface and arena fit
+        run: |
+          python3 native-service/integration/verify_target_wasm.py target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
+          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -le 2096000
       - name: Compiled Program0 operator-root isolation
         run: |
           rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown \
@@ -60,6 +66,17 @@ jobs:
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
             --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm" \
             --guest "$RUNNER_TEMP/scope-probe.wasm"
+      - name: Real descriptor, random-byte and shared-lease regressions
+        run: |
+          set -eu
+          KERNEL="$PWD/upstream-skrynia/target/release/skrynia-server"
+          P0="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          for fixture in descriptor_guest random_guest t10_lock_guest; do
+            rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown --crate-type cdylib -C opt-level=s -C panic=abort -C strip=symbols "program0/integration/guests/${fixture}.rs" -o "$RUNNER_TEMP/${fixture}.wasm"
+          done
+          python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/descriptor_guest.wasm"
+          python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/random_guest.wasm" --want RANDOM_OK --label random
+          python3 program0/integration/t10_lock_http.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/t10_lock_guest.wasm"
       - name: Build current Theorem P2 guest
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target

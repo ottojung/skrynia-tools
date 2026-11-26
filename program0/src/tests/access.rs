@@ -36,3 +36,11 @@ fn only_explicitly_opened_descriptors_are_usable() {
     invoke::leave();
     assert!(fake::inspect(|s| s.get(next).is_none()));
 }
+
+#[test]
+fn truncated_frames_fail_closed() {
+    let (_, _, _) = setup(vec![]);
+    assert_eq!(code(&call(&[5, 1, 0, 0])), -1);
+    assert_eq!(code(&call(&[9, 1, 0, 0])), -1);
+    assert_eq!(code(&call(&[10])), -1);
+}

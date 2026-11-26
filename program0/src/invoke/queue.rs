@@ -12,8 +12,8 @@ pub struct Ctx {
     pub out_handle: i32,
     pub frame: Vec<u8>,
     pub reply: VecDeque<u8>,
-    pub cb_in: VecDeque<u8>,
-    pub cb_out: VecDeque<u8>,
+    pub reply_active: bool,
+    pub frame_failed: bool,
     pub status: i32,
     pub pos: u64,
     pub handles: Vec<i32>,
@@ -45,13 +45,6 @@ pub fn leave() {
 }
 pub fn set(outer: Option<Ctx>) {
     CURRENT.with(|s| *s.borrow_mut() = outer);
-}
-pub fn feed_cb(byte: u8) {
-    CURRENT.with(|s| {
-        if let Some(c) = s.borrow_mut().as_mut() {
-            c.cb_in.push_back(byte)
-        }
-    });
 }
 pub fn take() -> Option<Ctx> {
     CURRENT.with(|s| s.borrow_mut().take())

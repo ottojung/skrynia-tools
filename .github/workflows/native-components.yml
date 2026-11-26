@@ -23,7 +23,7 @@ jobs:
         run: cargo test --manifest-path fullchain-integration/Cargo.toml --locked
   compiled-stack:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - uses: actions/checkout@v5
@@ -120,7 +120,7 @@ jobs:
             --p0-sha256 "$(sha256sum "$P0" | cut -d' ' -f1)" \
             --p1-sha256 "$(sha256sum "$P1" | cut -d' ' -f1)" \
             --p2-sha256 "$(sha256sum "$P2" | cut -d' ' -f1)"
-      - name: Compiled service and trusted-edge tests
+      - name: Compiled service and build exact kit
         run: |
           export SKRYNIA_REQUIRE_KIT=1
           export SKRYNIA_V3_SERVER_BIN="$PWD/upstream-skrynia/target/release/skrynia-server"
@@ -131,7 +131,7 @@ jobs:
           sha256sum "$SKRYNIA_V3_SERVER_BIN" "$SKRYNIA_V3_PROGRAM0_WASM" "$SKRYNIA_V3_NATIVE_SERVICE_WASM"
           export FC_ARTIFACTS="$RUNNER_TEMP/skrynia-fullchain-artifacts"
           mkdir "$FC_ARTIFACTS"
-          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --test compiled_service -- --test-threads=1
           install -m 700 "$SKRYNIA_V3_SERVER_BIN" "$FC_ARTIFACTS/kernel"
           install -m 700 v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway "$FC_ARTIFACTS/edge"
           cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
@@ -152,12 +152,97 @@ jobs:
             echo "sha256_echo=$(sha256sum "$FC_ARTIFACTS/echo.wasm" | cut -d' ' -f1)"
             echo "sha256_p2=$(sha256sum "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm" | cut -d' ' -f1)"
           } > "$FC_ARTIFACTS/COMMIT_MANIFEST.txt"
-          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+          python3 tests/v3_proxy/verify_kit.py --kit "$FC_ARTIFACTS" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
+      - name: Upload exact compiled stack (reuse by downstream CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-compiled-stack-db08cbc
+          path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
+          if-no-files-found: error
+
+  trusted-edge-tests:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack-db08cbc
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: v3-trusted-edge-gateway -> target
+      - name: Real trusted-edge streaming and liveness
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          export SKRYNIA_REQUIRE_KIT=1
+          export SKRYNIA_V3_SERVER_BIN="$A/kernel"
+          export SKRYNIA_V3_PROGRAM0_WASM="$A/root.wasm"
+          export SKRYNIA_V3_NATIVE_SERVICE_WASM="$A/service.wasm"
+          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+
+  fullchain:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack-db08cbc
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fullchain-integration -> target
+      - name: Real full-chain Web Push and ordinary service
+        shell: bash
+        run: |
+          set -euo pipefail
+          export FC_ARTIFACTS="$RUNNER_TEMP/exact-stack"
+          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked 2>&1 | tee "$RUNNER_TEMP/fullchain.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fullchain-evidence
+          path: ${{ runner.temp }}/fullchain.log
+          if-no-files-found: warn
+
+  scale-1000:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack-db08cbc
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: 1000-version / restart exact-stack acceptance (real compiled kit)
         shell: bash
         run: |
           set -euxo pipefail
-          A="$RUNNER_TEMP/skrynia-fullchain-artifacts"
+          A="$RUNNER_TEMP/exact-stack"
           for f in kernel root.wasm service.wasm echo.wasm edge; do
             test -s "$A/$f"
           done
@@ -172,13 +257,15 @@ jobs:
           export SKRYNIA_ECHO_SHA256_OVERRIDE=$(sha256sum "$A/echo.wasm" | cut -d' ' -f1)
           export SKRYNIA_EDGE_GATEWAY_OVERRIDE="$A/edge"
           export SKRYNIA_EDGE_GATEWAY_SHA256_OVERRIDE=$(sha256sum "$A/edge" | cut -d' ' -f1)
+          export SKRYNIA_GIT_HEAD="$(git rev-parse HEAD)"
+          export E2E_EVIDENCE_OUT="$RUNNER_TEMP/scale-1000.json"
           node tests/web-admin-v3/p1_admin_scale_1000.mjs
-      - name: Upload exact compiled stack (reuse by downstream CI)
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: exact-compiled-stack-db08cbc
-          path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
-          if-no-files-found: error
+          name: scale-1000-evidence
+          path: ${{ runner.temp }}/scale-1000.json
+          if-no-files-found: warn
 
   enospc-recovery:
     # Genuine ENOSPC on a private, disposable 8 MiB tmpfs. Reuses the exact
@@ -206,6 +293,7 @@ jobs:
           grep -qx 'kernel_head=db08cbc7496fafedc6a2e32df80395911b930879' "$A/COMMIT_MANIFEST.txt"
           # The compiled artifact and this job check out the same workflow commit.
           grep -qx "tools_head=$(git rev-parse HEAD)" "$A/COMMIT_MANIFEST.txt"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
       - name: Unit-test ENOSPC harness (safe, no mounts or fills)
         run: python3 tests/v3_proxy/enospc_recovery.py --self-test
       - name: Genuine ENOSPC on private tmpfs (real compiled ordinary P1)
@@ -292,7 +380,7 @@ jobs:
     # P0/P1/edge/echo) rather than duplicating a kernel/guest build.
     needs: [compiled-stack]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
@@ -315,7 +403,7 @@ jobs:
           chmod 700 "$KERNEL" "$GW"
           # Verify against the SHA256SUMS produced by compiled-stack.
           (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
-          test -s "$A/COMMIT_MANIFEST.txt"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head db08cbc7496fafedc6a2e32df80395911b930879
           echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
           echo "p0=$P0" >> "$GITHUB_OUTPUT"
           echo "p1=$P1" >> "$GITHUB_OUTPUT"

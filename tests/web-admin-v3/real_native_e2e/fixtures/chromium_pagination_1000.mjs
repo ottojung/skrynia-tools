@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { chromiumEnvironment } from '../chromium_env.mjs';
+import { chromiumEnvironment } from './chromium_env.mjs';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { hostname, tmpdir } from 'node:os';

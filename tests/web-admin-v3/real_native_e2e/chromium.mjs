@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { chromiumEnvironment } from './chromium_env.mjs';
+import { chromiumEnvironment } from './fixtures/chromium_env.mjs';
 import { createServer } from 'node:net';
 import http from 'node:http';
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from 'node:fs/promises';

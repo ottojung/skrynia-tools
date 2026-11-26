@@ -258,8 +258,15 @@ def main() -> int:
         nginx.start()
         url = kernel.url if hasattr(kernel, "url") else f"http://127.0.0.1:{kernel_port}/"
         syscalls = json.loads(request(f"http://127.0.0.1:{kernel_port}/version", None, "POST")[1])
-        record("kernel_discovers_exact_names",
-               sorted(syscalls.get("syscalls", [])) == ["publish", "unpublish"])
+        descriptors = syscalls.get("syscalls", [])
+        # Target-ABI kernels advertise typed descriptors; legacy kernels
+        # advertised bare names. Accept both shapes but require exact names.
+        names = sorted(d["name"] if isinstance(d, dict) else d for d in descriptors)
+        record("kernel_discovers_exact_names", names == ["publish", "unpublish"], names)
+        record("kernel_discovers_typed_i32_signatures",
+               bool(descriptors) and all(
+                   isinstance(d, dict) and d.get("params") == ["i32"]
+                   and d.get("results") == ["i32"] for d in descriptors))
         record("before_publish_inaccessible", get(nginx_port, "/" + rel)[0] == 404)
 
         record("wasm_publish_returns_zero", wasm_call(url, token, OP_PUBLISH, rel) == 0)

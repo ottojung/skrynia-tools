@@ -211,7 +211,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: 806c172402880389eee94162a020c0f9c4c1bff2
+          # Target-ABI kernel: typed /syscalls_list discovery and byte-scalar
+          # root imports. Pre-typed kernels reject the {"functions": ...} body.
+          ref: 020e14a7b0efec6724208aa479ad3c50b1acfe97
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.93.0

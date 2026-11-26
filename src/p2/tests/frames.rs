@@ -1,6 +1,6 @@
 use super::{Error, Interpreter, P0_IMPORT, module};
 
-fn run(ops: &str, cb: &mut dyn FnMut(&[u8]) -> Result<Vec<u8>, i32>) -> Result<Vec<u8>, Error> {
+fn run(ops: &str, cb: super::super::state::Callback<'_>) -> Result<Vec<u8>, Error> {
     let wat = format!("(module {P0_IMPORT} (func (export \"_start\") {ops}))");
     Interpreter::new().evaluate(&module(&wat), &[], Some(cb))
 }

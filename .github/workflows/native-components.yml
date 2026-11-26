@@ -59,6 +59,7 @@ jobs:
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
       - name: Check guest import surface and arena fit
         run: |
+          python3 native-service/integration/test_verify_target_wasm.py
           python3 native-service/integration/verify_target_wasm.py target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
           test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -lt 2096000
       - name: Compiled Program0 operator-root isolation

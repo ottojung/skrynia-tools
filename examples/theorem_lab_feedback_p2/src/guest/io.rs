@@ -1,11 +1,38 @@
 use super::ExecError;
 use crate::decode_status;
+use crate::{GET, PUT, byte, call};
 use alloc::vec::Vec;
 use sha2::{Digest, Sha256};
 
 pub fn hash32(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
+
+/// Drain the evaluator-supplied input bytes; EOF is -1.
+pub fn read_all(cap: usize) -> Result<Vec<u8>, i32> {
+    let mut out = Vec::new();
+    loop {
+        let value = call(GET, 0);
+        if value == -1 {
+            return Ok(out);
+        }
+        if out.len() >= cap {
+            return Err(-8);
+        }
+        out.push(byte(value)?);
+    }
+}
+
+/// Emit output bytes; the evaluator accumulates them for the native reply.
+pub fn write_all(bytes: &[u8]) -> Result<(), i32> {
+    for &value in bytes {
+        if call(PUT, i32::from(value)) < 0 {
+            return Err(-8);
+        }
+    }
+    Ok(())
+}
+
 pub fn invoke_req<F>(invoke: &mut F, req: &[u8]) -> Result<(u8, Vec<u8>), ExecError>
 where
     F: FnMut(&[u8], &mut [u8]) -> i32,

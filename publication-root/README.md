@@ -90,12 +90,16 @@ plus `memory`; `publish`/`unpublish` keep the typed `(i32)->i32` provider
 signature in the root-only `syscall` namespace.
 
 Shared RAM is one unpartitioned byte region shared by every concurrent request,
-so staging cannot use a per-process fixed offset. Byte 0 is a slot counter
-claimed with a sequentially consistent `cas1` (no global RAM mutex). Each
-invocation gets a distinct bounded 8 KiB slot for its verifier path, mailbox
-path, random ticket and request path; a per-invocation bump cursor keeps those
-staged regions disjoint. The RAM is sized with `truncate` only when still
-empty, so no request resizes a live backing during normal operation.
+so staging cannot use a per-process fixed offset. Bytes 0..255 are one CAS
+occupancy byte per slot; a request claims a free byte with a sequentially
+consistent `cas1` (0 -> 1) and releases it on drop, so no global RAM mutex is
+needed and a wrapped counter cannot reuse a live slot. Each invocation then
+uses its own bounded 8 KiB slot for the verifier path, mailbox path, random
+ticket and request path; a per-slot bump cursor keeps those regions disjoint
+and `seek` results are checked against the requested offset. The RAM is sized
+with `truncate` only when still empty, so no request resizes a live backing
+during normal operation. A trapping request can leave its occupancy byte set;
+like a trapped mailbox ticket, that is reclaimed only in a quiesced window.
 
 `tests/check_target_abi.py` parses the compiled WASM and asserts the exact
 target signatures and the preserved provider signature. The disposable

@@ -1,7 +1,9 @@
 //! The single userland function P0 supplies: `p0.invoke(ctx,op,value)->i64`.
+mod access;
 mod queue;
 mod relay;
 use super::{abi, alloc, code};
+use access::check_path;
 pub use queue::{Ctx, enter, feed_cb, leave, set, take, with};
 
 pub const GET: i32 = 0;

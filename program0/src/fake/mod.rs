@@ -29,7 +29,14 @@ pub unsafe fn open_ram() -> i32 {
 }
 
 pub unsafe fn close(fd: i32) -> i32 {
-    S.with(|s| i32::from(s.borrow().get(fd).is_some()))
+    S.with(|s| {
+        let mut b = s.borrow_mut();
+        if b.get(fd).is_none() {
+            return -2;
+        }
+        b.fds[fd as usize] = Kind::Closed;
+        0
+    })
 }
 
 pub unsafe fn truncate(fd: i32, size: u64) -> i32 {

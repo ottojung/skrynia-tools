@@ -9,11 +9,8 @@ pub unsafe fn open_disk(path: u64, len: u64, _mode: i32) -> i32 {
         drop(b);
         let mut b = s.borrow_mut();
         match b.files.iter().position(|f| f.0 == name) {
-            Some(i) => {
-                b.fpos.push(0);
-                b.fd(Kind::Disk(i))
-            }
-            None => -2,
+            Some(i) => b.fd(Kind::Disk(i)),
+            None => -8,
         }
     })
 }

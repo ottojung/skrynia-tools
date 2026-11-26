@@ -1,5 +1,5 @@
 //! RENAME (op 7): two paths staged inside the caller's path area only.
-use super::{Ctx, INVALID, abi, alloc, code, complete, reply, word};
+use super::{Ctx, INVALID, abi, alloc, check_path, code, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     let Some(n) = word(f, at) else {
@@ -20,6 +20,9 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     *at = end;
     if !complete(f, *at) {
         return reply(INVALID, &[]);
+    }
+    if let Err(e) = check_path(old).and_then(|()| check_path(new)) {
+        return reply(e, &[]);
     }
     let a = c.base + alloc::SLOT_PATH_AT;
     // Stage both paths below the code area: a long second path must never

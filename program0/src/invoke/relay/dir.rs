@@ -15,12 +15,16 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize) -> Vec<u8> {
     if !complete(f, *at) {
         return reply(INVALID, &[]);
     }
+    let fd = match c.resolve(fd as i32) {
+        Ok(fd) => fd,
+        Err(e) => return reply(e, &[]),
+    };
     let cap = cap as u64;
     let dst = c.pos;
     if dst < c.base || dst.saturating_add(cap) > c.base + alloc::SLOT_SIZE {
         return reply(alloc::ERR_RANGE, &[]);
     }
-    let n = unsafe { abi::next_entry(fd as i32, dst, cap) };
+    let n = unsafe { abi::next_entry(fd, dst, cap) };
     if n < 0 {
         return reply(n, &[]);
     }

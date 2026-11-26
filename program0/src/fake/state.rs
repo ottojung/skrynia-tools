@@ -3,6 +3,7 @@ use std::cell::RefCell;
 
 #[derive(Clone)]
 pub enum Kind {
+    Closed,
     Input,
     Output,
     Ram,
@@ -46,7 +47,9 @@ impl State {
         (self.fds.len() - 1) as i32
     }
     pub fn get(&self, fd: i32) -> Option<&Kind> {
-        self.fds.get(fd as usize)
+        self.fds
+            .get(fd as usize)
+            .filter(|kind| !matches!(kind, Kind::Closed))
     }
 }
 thread_local! { pub static S: RefCell<State> = RefCell::new(State::new()); }

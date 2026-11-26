@@ -1,5 +1,5 @@
 //! Bounded no-callback nested EVAL: one `_start` child, one shared RAM slot.
-use super::{Ctx, INVALID, abi, alloc, code, complete, index, reply, set, with, word};
+use super::{Ctx, INVALID, abi, alloc, code, complete, index, reply, set, take, word};
 
 fn eval(c: &mut Ctx, n: u32) -> i64 {
     let child = Ctx {
@@ -11,6 +11,7 @@ fn eval(c: &mut Ctx, n: u32) -> i64 {
         in_handle: c.in_handle,
         out_handle: c.out_handle,
         status: 1,
+        nested: true,
         ..Ctx::default()
     };
     set(Some(child));
@@ -26,8 +27,10 @@ fn eval(c: &mut Ctx, n: u32) -> i64 {
     // The child owns this same slot and fd cursor. Adopt its final cursor on
     // both success and trap, then drop its frame/reply/callback queues: they
     // must never outlive this evaluation or leak into the parent request.
-    c.pos = with(|x| x.pos).unwrap_or(c.pos);
-    set(None);
+    if let Some(mut child) = take() {
+        c.pos = child.pos;
+        child.close_all();
+    }
     rc
 }
 

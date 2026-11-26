@@ -9,7 +9,7 @@ mod rename;
 mod stream;
 mod write;
 use super::Ctx;
-use super::{abi, alloc, code, index, set, with};
+use super::{abi, alloc, check_path, code, index, set, take};
 pub use frame::{complete, reply, word};
 
 pub const INVALID: i32 = -1;

@@ -11,6 +11,9 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
             if !complete(f, *at) {
                 return reply(INVALID, &[]);
             }
+            if c.nested {
+                return reply(UNSUPPORTED, &[]);
+            }
             reply(alloc::mediated(c.ram, c.base, op), &[])
         }
         15 => nested::call(c, f, at),

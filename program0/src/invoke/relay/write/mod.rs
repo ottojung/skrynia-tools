@@ -9,12 +9,6 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
         return reply(INVALID, &[]);
     };
-    let raw = fd as i32;
-    let fd = match raw {
-        0 => c.input,
-        1 => c.output,
-        _ => raw,
-    };
     let Some(n) = word(f, at) else {
         return reply(INVALID, &[]);
     };
@@ -28,6 +22,10 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     if !complete(f, *at) {
         return reply(INVALID, &[]);
     }
+    let fd = match c.resolve(fd as i32) {
+        Ok(fd) => fd,
+        Err(e) => return reply(e, &[]),
+    };
     let mut done = 0i32;
     for &b in bytes {
         let rc = unsafe { abi::write1(fd, i32::from(b)) };

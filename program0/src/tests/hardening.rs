@@ -47,7 +47,7 @@ fn nested_trap_leaves_the_parent_context_usable() {
     assert_eq!(code(&call(&eval_frame(5, b"child"))), -9);
     assert_eq!(invoke::invoke(0, invoke::STATUS, 0), 0);
     let mut exists = vec![14];
-    exists.extend_from_slice(&3u32.to_le_bytes());
-    exists.extend_from_slice(b"missing");
-    assert_eq!(code(&call(&exists)), -1);
+    exists.extend_from_slice(&12u32.to_le_bytes());
+    exists.extend_from_slice(b"user/missing");
+    assert_eq!(code(&call(&exists)), 0);
 }

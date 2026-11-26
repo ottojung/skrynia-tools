@@ -16,6 +16,8 @@ pub struct Ctx {
     pub cb_out: VecDeque<u8>,
     pub status: i32,
     pub pos: u64,
+    pub handles: Vec<i32>,
+    pub nested: bool,
 }
 thread_local! { static CURRENT: RefCell<Option<Ctx>> = const { RefCell::new(None) }; }
 
@@ -35,7 +37,11 @@ pub fn enter(input: i32, output: i32, ram: i32, base: u64, ih: i32, oh: i32, pos
     CURRENT.with(|s| *s.borrow_mut() = Some(c));
 }
 pub fn leave() {
-    CURRENT.with(|s| *s.borrow_mut() = None);
+    CURRENT.with(|s| {
+        if let Some(mut c) = s.borrow_mut().take() {
+            c.close_all();
+        }
+    });
 }
 pub fn set(outer: Option<Ctx>) {
     CURRENT.with(|s| *s.borrow_mut() = outer);

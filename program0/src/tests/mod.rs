@@ -1,4 +1,5 @@
 //! Host-side deterministic tests for target-ABI P0 (fake capabilities only).
+mod access;
 mod arena;
 mod descriptors;
 mod frames;

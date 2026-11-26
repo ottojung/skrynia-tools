@@ -25,7 +25,7 @@ pub unsafe fn open_directory(path: u64, len: u64) -> i32 {
         let n = name(&b, path, len);
         match b.dirs.iter().position(|d| *d == n) {
             Some(i) => b.fd(Kind::Dir(i)),
-            None => -2,
+            None => -8,
         }
     })
 }

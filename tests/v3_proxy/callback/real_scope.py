@@ -110,7 +110,8 @@ def checks(port, token, operator, user, verifier, guest):
     assert code == -2 and not reply, ('stale descriptor', code, len(reply))
     # Unqualified paths have no root token under K10; traversal and absolute
     # paths are rejected by confinement. Symlink escapes stay inside a root.
-    for value in (b'security/program0.sha256', b'programs/root.wasm',
+    for value in (b'operator/security/program0.sha256', b'operator/programs/root.wasm',
+                  b'security/program0.sha256', b'programs/root.wasm',
                   b'user/../operator/security/program0.sha256', b'/security/program0.sha256',
                   b'user/escape', b'user/escape-dir/program0.sha256'):
         denied('read-denied:' + value.decode(), 1, value, u32(1))
@@ -118,9 +119,17 @@ def checks(port, token, operator, user, verifier, guest):
     # operator bytes remain intact, not an assumed error code.
     assert call('delete-absent-user-path', 6, b'user/security/program0.sha256') == (0, b'')
     denied('operator-rename', 7, b'operator/programs/root.wasm', path(b'user/data/stolen'))
-    # Unqualified directory paths have no K10 root token; the historical
-    # operator-directory denial is preserved as a token-escape negative.
-    denied('operator-directory', 8, b'security')
+    # Explicit operator paths are denied by the userland gateway, not merely
+    # rejected by the kernel for an invalid namespace token.
+    denied('operator-directory', 8, b'operator/security')
+    denied('operator-delete', 6, b'operator/security/program0.sha256')
+    denied('operator-rename-internal', 7, b'operator/programs/root.wasm', path(b'operator/programs/stolen.wasm'))
+    code, reply = raw('ungranted-private-ram:read', 2, u32(0x00010002) + u32(1))
+    assert code == -2 and not reply
+    code, reply = raw('ungranted-private-ram:write', 3, u32(0x00010002) + u32(1) + b'X')
+    assert code == -2 and not reply
+    code, reply = raw('ungranted-private-ram:close', 4, u32(0x00010002))
+    assert code == -2 and not reply
     denied('traversal-rename', 7, b'user/data/allowed', path(b'user/../operator/programs/root.wasm'))
     denied('symlink-directory-rename', 7, b'user/data/allowed', path(b'user/escape-dir/program0.sha256'))
     code, reply = call('callback-eval', 15, b'')

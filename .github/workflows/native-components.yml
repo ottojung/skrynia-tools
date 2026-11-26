@@ -81,6 +81,20 @@ jobs:
           python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/descriptor_guest.wasm"
           python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/random_guest.wasm" --want RANDOM_OK --label random
           python3 program0/integration/t10_lock_http.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/t10_lock_guest.wasm"
+      - name: Real compiled nested callback and failure recovery
+        run: |
+          set -eu
+          KERNEL="$PWD/upstream-skrynia/target/release/skrynia-server"
+          P0="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          P1="$PWD/target/wasm32-unknown-unknown/release/skrynia_native_service.wasm"
+          for fixture in probe invalid; do
+            rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown --crate-type cdylib -C opt-level=s -C panic=abort -C strip=symbols "native-service/integration/nested/${fixture}.rs" -o "$RUNNER_TEMP/nested-${fixture}.wasm"
+          done
+          PROBE="$RUNNER_TEMP/nested-probe.wasm"
+          INVALID="$RUNNER_TEMP/nested-invalid.wasm"
+          python3 native-service/integration/nested/nested_cb.py --kernel "$KERNEL" --p0 "$P0" --p1 "$P1" --probe "$PROBE" --invalid "$INVALID" \
+            --kernel-sha256 "$(sha256sum "$KERNEL" | cut -d' ' -f1)" --p0-sha256 "$(sha256sum "$P0" | cut -d' ' -f1)" --p1-sha256 "$(sha256sum "$P1" | cut -d' ' -f1)" \
+            --probe-sha256 "$(sha256sum "$PROBE" | cut -d' ' -f1)" --invalid-sha256 "$(sha256sum "$INVALID" | cut -d' ' -f1)"
       - name: Build current Theorem P2 guest
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target

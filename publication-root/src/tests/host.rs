@@ -14,7 +14,9 @@ impl Host for Fake {
     }
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
         if fd == 7 {
-            return Ok(super::take(&self.verifier, &mut self.vpos, dst));
+            let mut verifier = self.verifier.to_vec();
+            verifier.extend_from_slice(&self.verifier_extra);
+            return Ok(super::take(&verifier, &mut self.vpos, dst));
         }
         Ok(super::take(&self.input, &mut self.pos, dst))
     }
@@ -25,6 +27,9 @@ impl Host for Fake {
         Ok(())
     }
     fn random(&mut self) -> Result<u32, i32> {
+        if self.fail_random {
+            return Err(-5);
+        }
         let ticket = self.next_ticket;
         self.next_ticket = self.next_ticket.wrapping_add(1);
         Ok(ticket)

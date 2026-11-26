@@ -1,10 +1,7 @@
 //! Target-ABI guest transport: one supplied `p0.invoke` and no legacy imports.
 //!
-//! Input/output use the P1-owned GET/PUT byte streams. Opaque application
-//! requests use the generic callback frame: CB_PUT appends one request byte,
-//! CB_FLUSH executes exactly one complete opaque request through the
-//! P1-owned callback, CB_GET drains one reply byte (-1 at EOF). Any negative
-//! status is final: sticky errors prevent replay.
+//! Input/output use the P1-owned GET/PUT byte streams. Application requests
+//! use the generic callback frame implemented in `abi/callback_frame.rs`.
 #[cfg(target_arch = "wasm32")]
 mod inner {
     use alloc::vec::Vec;
@@ -14,20 +11,24 @@ mod inner {
         fn invoke(ctx: i32, op: i32, value: i32) -> i64;
     }
 
-    const GET: i32 = 0;
-    const PUT: i32 = 1;
-    const CB_GET: i32 = 3;
-    const CB_PUT: i32 = 4;
-    const CB_FLUSH: i32 = 6;
-    const EOF: i64 = -1;
+    pub const GET: i32 = 0;
+    pub const PUT: i32 = 1;
+    pub const CB_GET: i32 = 3;
+    pub const CB_PUT: i32 = 4;
+    pub const CB_FLUSH: i32 = 6;
+    pub const EOF: i64 = -1;
 
-    fn call(op: i32, value: i32) -> Result<u8, i32> {
+    pub fn call(op: i32, value: i32) -> Result<u8, i32> {
         match unsafe { invoke(0, op, value) } {
             EOF => Err(-1),
             code if code < 0 => Err(code as i32),
             code if code > 255 => Err(-6),
             code => Ok(code as u8),
         }
+    }
+
+    pub fn flush(op: i32) -> bool {
+        unsafe { invoke(0, op, 0) } >= 0
     }
 
     pub fn read_all(_fd: i32) -> Vec<u8> {
@@ -45,29 +46,10 @@ mod inner {
             }
         }
     }
-
-    pub fn invoke_raw(req: &[u8], out: &mut [u8]) -> i32 {
-        for &byte in req {
-            if call(CB_PUT, i32::from(byte)).is_err() {
-                return -3;
-            }
-        }
-        if unsafe { invoke(0, CB_FLUSH, 0) } < 0 {
-            return -5;
-        }
-        let mut len: usize = 0;
-        loop {
-            match call(CB_GET, 0) {
-                Err(-1) => return len as i32,
-                Err(code) => return code,
-                Ok(byte) if len >= out.len() => return -6,
-                Ok(byte) => {
-                    out[len] = byte;
-                    len += 1;
-                }
-            }
-        }
-    }
 }
 #[cfg(target_arch = "wasm32")]
-pub use inner::*;
+mod callback_frame;
+#[cfg(target_arch = "wasm32")]
+pub use callback_frame::invoke_raw;
+#[cfg(target_arch = "wasm32")]
+pub use inner::{read_all, write_all};

@@ -23,9 +23,11 @@ Use `native-service/integration/verify_target_wasm.py` on the built artifact.
 The P0 gateway owns the authenticated request stream and mediates generic
 descriptor and RAM operations. GET (0) reads one inbound byte; PUT (1)
 appends one byte to a framed operation; FLUSH (2) executes the complete
-frame and exposes its reply to GET. STATUS (5) reports state. Outer
-callback-queue operations are not a mechanism for invoking P1 callbacks
-from a P0-evaluated child while P1 is suspended.
+frame and exposes its reply to GET. Drain the complete framed reply,
+including the terminating GET result -1, before sending another frame
+or returning to input. The reply EOF does not consume an input byte.
+Check every PUT and FLUSH status and the operation result. STATUS (5)
+reports state; outer callback-queue operations are unsupported.
 
 The application response is a framed WRITE (opcode 3, output handle 1,
 u32 byte length, payload), not a raw PUT stream. An uncertain write is

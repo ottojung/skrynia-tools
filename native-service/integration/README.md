@@ -1,45 +1,37 @@
-# Ordinary nonzero native-service P1 — clean current-main consolidation
+# Ordinary service target-ABI integration
 
-This branch is based on clean dumb-P0 PR53 (`fdf0d02`, itself current tools
-main `17b8b41` + 2 commits). It selectively imports **only** the ordinary
-nonzero native-service P1 Rust crate from PR49 (`01e8a84`). It does **not**
-merge or rebase PR49's 56-commit legacy stack, so the current-main trusted
-edge gateway, web-admin and no-CLI scope are untouched.
+Program 0 authenticates and proxies bytes; ordinary P1 owns the registry,
+appdata and userland mutation policy. Its P2 interpreter supplies a single
+framed callback in P1's own execution context. See
+[the P1 port](../../docs/target-t3-native-service-port.md) and
+[the P2 interpreter](../../docs/p2-interpreter.md).
 
-Architecture boundary (unchanged):
-- Program0 is a token/opaque proxy only. It has no app/registry/ CAS logic.
-- Ordinary nonzero P1 owns grants, appdata, registry and CAS.
-- P2 is an arbitrary user module invoked by P1.
+## Build and verify
 
-## Build (real wasm32, shared kit target, jobs <= 2)
+Use Rust 1.93.0 with the wasm32-unknown-unknown target and the locked
+dependencies. From the tools checkout:
 
-See kit `wasm-build-record/README.md`. The P1 requires the indirect function
-table exported so the kernel can resolve the mediator callback;
-`.cargo/config.toml` supplies `-C link-arg=--export-table` for wasm32.
+    export RUSTFLAGS='-C link-arg=--export-table -C opt-level=z -C strip=symbols'
+    cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown \
+      -p skrynia-program0 -p skrynia-native-service --features skrynia-native-service/cb-guest
+    python3 native-service/integration/verify_target_wasm.py \
+      target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
+    test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -lt 2096000
 
-    RUSTC=/workspace/skrynia-buildstd-sysroot/bin/rustc \
-    RUSTC_BOOTSTRAP=1 CARGO_BUILD_JOBS=2 \
-    CARGO_TARGET_DIR=/workspace/skrynia-v3-integration-kit/wasm-target \
-    CARGO_ENCODED_RUSTFLAGS=... linker + export-table ... \
-    cargo build -Z build-std=std,panic_abort --target wasm32-unknown-unknown \
-      --release -p skrynia-native-service --features cb-guest --locked
+The size check enforces the current P0 slot's code capacity. An ordinary
+unoptimized release build may be too large; use the flags above.
 
-P1 artifact from this branch source: `skrynia_native_service_p1clean_83a65a2f.wasm`
-sha256 `83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a`.
+## Real acceptance
 
-## Pinned real HTTP acceptance
+Supply the paths of the compiled kernel, P0, P1 and Theorem Lab P2 via
+KERNEL, P0, P1 and P2, with their expected SHA256 digests via KERNEL_SHA,
+P0_SHA, P1_SHA and P2_SHA. Run native-service/integration/run_acceptance.sh.
+It verifies those pins, the P1 import surface and slot fit, and executes
+registry restart/recovery and real P2 invocation/authorization fixtures
+using disposable storage and synthetic credentials.
 
-`run_acceptance.sh` runs PR53's `program0/integration/dumb_p0_http.py`
-fixture (real compiled kernel + P0 + P1 + echo P2 over HTTP, no mocks) with
-sha256-pinned inputs:
-
-- kernel: secure PR122 bridge `8da114ff4c6c835621eca71a2840c4262c04b9ac1d37705b058dc2f3f9168d0f`
-- P0: clean PR53 dumb proxy rebuilt from PR53 source in this recovered environment `d57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa` (the earlier `ec74523b...` artifact lived under `/tmp` and was lost in the container restart; exact byte reproduction was not possible here because the isolated sysroot snapshot was also lost, but this PR53-source rebuild passes the same acceptance unchanged).
-- P1: this branch `83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a`
-- P2 echo: `dc28e490b107084224562cc02a185e99c64727d6dd185eab5645989aa9c17ec5`
-
-Covered: register + lookup + P1-mediated P2 invoke, AppPut/AppGet, CAS,
-wrong-operator denial, sibling appdata isolation, restart durability,
-wrong/missing/shadow bearer denial.
-
-No production, DNS/TLS, real credentials, user private data or Ivanka changes.
+The native-components workflow additionally builds two dedicated nested
+callback probes, tests the descriptor relay, and qualifies publication
+and the trusted edge. See that workflow for the complete test roster.
+Historical PR53 and PR122 artifacts use an obsolete ABI and are not
+valid evidence for this target.

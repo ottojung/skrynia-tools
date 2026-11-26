@@ -16,6 +16,7 @@ change paths relative to those roots or require relocating persisted data.
 | `user/programs/ready/<id>/<hash>.ready` | private user disk | ready marker | private |
 | `user/programs/appdata/<cap>/<hash>.bin` | private user disk | application data | private, never published |
 | `apps/<app>/...` | separate nginx root | releases, stable assets, active pointer | only publishable namespace; explicit syscall, never a storage alias |
+| `operator/...`, `user/...` | qualified private roots | operator/security, user mailbox, user programs/data | never publishable; the root rejects both qualified tokens before writing a ticket or invoking the provider |
 
 ## Actual WASM publication lifecycle
 
@@ -41,7 +42,15 @@ kernel, the produced root WASM, the real provider and real nginx.
   imported name or signature is unavailable.
 - The mailbox remains the private user root's `publication-requests/` directory;
   the target ABI addresses it as `user/publication-requests/`. The provider mounts it read-only;
-  nginx never mounts it and children cannot scope into it.
+  nginx never mounts it and children cannot scope into it. A publication request whose path names
+  either qualified private root (`operator/...` or `user/...`) is rejected by the root before any
+  ticket is written, so the mailbox cannot be mirrored into the nginx root under a qualified name.
+- Directory semantics are fail-closed: a missing source directory yields `INVALID_SOURCE` (3) and
+  no public node; publish creates only missing nginx ancestors; an existing non-symlink node or
+  symlink at a destination name is a `DEST_CONFLICT` (4) and is left untouched; unpublish of an
+  absent path is idempotent (0). The mailbox directory is ensured with create-if-absent semantics,
+  so a missing or already present directory both work while an obstructing non-directory fails
+  before the provider import.
 - Provider roots are disjoint: `PATH_TO_SKRYNIA_DISK` holds source bytes,
   `PATH_TO_NGINX_SKRYNIA_ROOT` holds only publication symlinks. The full
   relative path is mirrored, e.g. `apps/x/releases/<id>/a.js` becomes

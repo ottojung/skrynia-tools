@@ -26,6 +26,11 @@ pub unsafe fn seek(fd: i32, shift: i64) -> i64 {
     })
 }
 
+/// Force the next recorded eval to trap, without executing guest bytes.
+pub fn set_eval_result(rc: i64) {
+    S.with(|s| s.borrow_mut().eval_result = rc);
+}
+
 pub unsafe fn eval(code: u64, size: u64, _f: i32, _a: i32, _b: i32) -> i64 {
     S.with(|s| {
         let mut v = s.borrow_mut();

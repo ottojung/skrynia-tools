@@ -8,10 +8,7 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         abi::close(input_fd);
         abi::close(output_fd);
     }
-    match result {
-        Ok(()) => 0,
-        Err(e) => e,
-    }
+    result.err().unwrap_or(0)
 }
 
 fn serve(input_fd: i32, output_fd: i32) -> Result<(), i32> {
@@ -45,6 +42,10 @@ fn serve(input_fd: i32, output_fd: i32) -> Result<(), i32> {
             invoke::leave();
             if rc < 0 { Err(rc as i32) } else { Ok(()) }
         })();
+        // Fail-safe: every request exit, including a trapped child, drops
+        // this slot's lease. The CAS is owner-only, so a different request's
+        // lease is never stolen. No kernel lock or native cleanup is used.
+        alloc::reclaim(ram, index);
         alloc::release(ram, index);
         outcome
     })();

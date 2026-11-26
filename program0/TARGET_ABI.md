@@ -63,7 +63,15 @@ after staging, so the kernel resolves staged paths from the intended offsets
 instead of stale bytes. A child trap returns a negative eval status; P0 does
 not replay, CAS-frees the slot and closes descriptors. Denied/malformed auth
 runs inside the outcome closure, so it releases the slot on every result path.
-Lock ops are P0 userland CAS on a slot-local byte.
+Ops `12`/`13` mediate one **absolute, shared** resource-lease byte (`LOCK_AT`),
+never a slot-local byte, so every root request contends for the same P1-wide
+lease. The observed CAS byte is encoded as an owner tag: `0` free, `1..=16` the
+owning slot plus one. Reply codes preserve the P1 boolean convention: op `12`
+returns `1` on acquisition and `0` on contention; op `13` returns `0` for an
+owner release and `-4` for a non-owner or unheld attempt. The release CAS is
+owner-only, and every request exit — including a trapped child — reclaims that
+slot's lease. This is a generic userland resource lease, not a kernel lock,
+native metering or application policy.
 
 Both paths of RENAME stay in the path area; nested op-15 code is capped to the
 remainder of one slot before the first byte is written, so no frame can reach

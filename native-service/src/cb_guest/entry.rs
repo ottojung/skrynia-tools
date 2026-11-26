@@ -3,7 +3,7 @@
 //! authority and registry logic below this file are unchanged.
 
 use super::cap::{CbDisk, CbLock, CbRandom};
-use super::eval::MediatorEval;
+use super::eval::P1CallbackEval;
 use super::fd;
 use crate::reg::Registry;
 
@@ -26,7 +26,7 @@ fn run() -> i32 {
         &CbDisk,
         &CbLock,
         &CbRandom,
-        &MediatorEval,
+        &P1CallbackEval,
         req.as_slice(),
     );
     match fd::write_response(&response) {

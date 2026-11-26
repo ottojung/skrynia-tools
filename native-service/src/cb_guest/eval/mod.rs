@@ -2,9 +2,13 @@
 mod cb;
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 mod kernel;
+#[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
+mod t6;
 
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub use cb::{clear_invoke, set_invoke};
+#[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
+pub use t6::P1CallbackEval;
 
 #[cfg(all(target_arch = "wasm32", feature = "cb-guest"))]
 pub struct MediatorEval;

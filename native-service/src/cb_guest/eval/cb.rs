@@ -18,7 +18,7 @@ pub fn clear_invoke() {
     }
 }
 
-fn current_id() -> Option<Vec<u8>> {
+pub(crate) fn current_id() -> Option<Vec<u8>> {
     unsafe { (&*core::ptr::addr_of!(INVOKE_ID)).clone() }
 }
 

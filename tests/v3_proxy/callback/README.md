@@ -8,6 +8,11 @@ operator data unchanged after mutation attempts, idempotent missing-user
 path deletion, a same-name user-root twin, rejected callback EVAL and wrong
 bearer, and successful requests after a deliberate guest trap.
 
+Named reads keep OPEN_DISK + READ + CLOSE inside a single VM request: the
+kernel creates a fresh descriptor table per request, so a handle carried into
+a later request is stale (-2/EBADF) and must never be revived. The fixture
+also asserts that a stale handle stays rejected.
+
 This is the root isolation boundary: the operator-selected ordinary service
 receives the user root, not the operator root. Isolation between untrusted
 application namespaces is separately mediated by that service and exercised

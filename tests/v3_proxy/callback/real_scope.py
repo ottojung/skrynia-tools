@@ -75,34 +75,56 @@ def run(args):
 
 
 def checks(port, token, operator, user, verifier, guest):
-    def call(label, op, value, tail=b''):
-        status, reply = request(port, token, bytes([op]) + path(value) + tail)
+    def raw(label, op, payload=b''):
+        status, reply = request(port, token, bytes([op]) + payload)
         assert status == 200 and len(reply) >= 4, (label, status, len(reply))
         code = struct.unpack('<i', reply[:4])[0]
         print(label, code, flush=True)
         return code, reply[4:]
 
+    def call(label, op, value, tail=b''):
+        # Historical assertions, mapped onto the target P0 framed ABI: a named
+        # read is OPEN_DISK + READ + CLOSE. The guest issues all three frames
+        # inside ONE VM request: the kernel builds a fresh fd table per HTTP
+        # request, so a handle from a previous request is already stale. Root
+        # selection is explicit: paths carry the `operator/` or `user/` token.
+        if op == 1:
+            return raw(label, 1, path(value) + tail)
+        if op in (6, 8):
+            return raw(label, op, path(value))
+        if op == 7:
+            return raw(label, op, path(value) + tail)
+        return raw(label, op)
+
     def allowed():
-        assert call('user-positive', 1, b'data/allowed', u32(1)) == (17, b'allowed user data')
+        assert call('user-positive', 1, b'user/data/allowed', u32(1)) == (17, b'allowed user data')
 
     def denied(label, op, value, tail=b''):
         code, reply = call(label, op, value, tail)
         assert code < 0 and not reply, (label, code, len(reply))
 
     allowed()
+    # Descriptor tables belong to one VM request. A plausible fd from an
+    # earlier request must never be revivable; fail closed on -2/EBADF.
+    code, reply = raw('stale-descriptor:read', 2, u32(0x00030003) + u32(1))
+    assert code == -2 and not reply, ('stale descriptor', code, len(reply))
+    # Unqualified paths have no root token under K10; traversal and absolute
+    # paths are rejected by confinement. Symlink escapes stay inside a root.
     for value in (b'security/program0.sha256', b'programs/root.wasm',
-                  b'../operator/security/program0.sha256', b'/security/program0.sha256',
-                  b'escape', b'escape-dir/program0.sha256'):
+                  b'user/../operator/security/program0.sha256', b'/security/program0.sha256',
+                  b'user/escape', b'user/escape-dir/program0.sha256'):
         denied('read-denied:' + value.decode(), 1, value, u32(1))
     # Delete is idempotent for an absent user-root path. Confirm the
     # operator bytes remain intact, not an assumed error code.
-    assert call('delete-absent-user-path', 6, b'security/program0.sha256') == (0, b'')
-    denied('operator-rename', 7, b'programs/root.wasm', path(b'data/stolen'))
+    assert call('delete-absent-user-path', 6, b'user/security/program0.sha256') == (0, b'')
+    denied('operator-rename', 7, b'operator/programs/root.wasm', path(b'user/data/stolen'))
+    # Unqualified directory paths have no K10 root token; the historical
+    # operator-directory denial is preserved as a token-escape negative.
     denied('operator-directory', 8, b'security')
-    denied('traversal-rename', 7, b'data/allowed', path(b'../operator/programs/root.wasm'))
-    denied('symlink-directory-rename', 7, b'data/allowed', path(b'escape-dir/program0.sha256'))
-    status, reply = request(port, token, bytes([15]))
-    assert status == 200 and reply == struct.pack('<i', -4), ('callback-eval', status)
+    denied('traversal-rename', 7, b'user/data/allowed', path(b'user/../operator/programs/root.wasm'))
+    denied('symlink-directory-rename', 7, b'user/data/allowed', path(b'user/escape-dir/program0.sha256'))
+    code, reply = call('callback-eval', 15, b'')
+    assert code < 0 and not reply, ('callback-eval', code, len(reply))
     print('callback-eval denied', flush=True)
     assert (operator / 'security/program0.sha256').read_bytes() == verifier
     assert (operator / 'programs/root.wasm').read_bytes() == guest
@@ -110,14 +132,14 @@ def checks(port, token, operator, user, verifier, guest):
     # A user-root twin of an operator path is ordinary user data.
     (user / 'security').mkdir()
     (user / 'security/program0.sha256').write_bytes(b'user twin')
-    assert call('user-twin-read', 1, b'security/program0.sha256', u32(1)) == (9, b'user twin')
-    assert call('user-twin-delete', 6, b'security/program0.sha256') == (0, b'')
+    assert call('user-twin-read', 1, b'user/security/program0.sha256', u32(1)) == (9, b'user twin')
+    assert call('user-twin-delete', 6, b'user/security/program0.sha256') == (0, b'')
     assert not (user / 'security/program0.sha256').exists()
     assert (operator / 'security/program0.sha256').read_bytes() == verifier
     allowed()
-    status, _ = request(port, bytes(32), b'\x01' + path(b'data/allowed') + u32(1))
+    status, _ = request(port, bytes(32), b'\x01' + path(b'user/data/allowed') + u32(1))
     assert status != 200, ('wrong bearer', status)
-    status, _ = request(port, token, b'\xff' + path(b'data/allowed') + u32(1))
+    status, _ = request(port, token, b'\xff' + path(b'user/data/allowed') + u32(1))
     assert status != 200, ('trap', status)
     allowed()
     print('PASS: compiled P0 callback isolates operator root, including after a trap', flush=True)

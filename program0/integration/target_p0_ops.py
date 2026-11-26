@@ -4,8 +4,8 @@
 Boots a compiled K4 kernel with a freshly built target-ABI Program 0 and a
 single-import guest that issues MKDIR/OPEN_DISK/WRITE/SYNC/RENAME/DELETE/
 OPEN_DIRECTORY/NEXT_ENTRY frames. Fake bearer, isolated temp dirs, no
-production. The seeded listing file lives in the operator read root; writes
-land in the user root, matching kernel root selection.
+production. The seeded listing file and all guest writes live in the user
+root under K10's explicit `user/` token; operator holds only P0 staging data.
 """
 from __future__ import annotations
 
@@ -41,12 +41,13 @@ def main() -> int:
         port = free_port()
         op, us = work / 'operator', work / 'user'
         (op / 'security').mkdir(parents=True, exist_ok=True)
-        (op / 'programs' / 'appdata' / 'p0ops').mkdir(parents=True, exist_ok=True)
+        (op / 'programs').mkdir(parents=True, exist_ok=True)
         for name in ('active', 'blob', 'ready', 'appdata'):
             (us / 'programs' / name).mkdir(parents=True, exist_ok=True)
         (op / 'security' / 'program0.sha256').write_bytes(hashlib.sha256(TOKEN).digest())
         (op / 'programs' / 'root.wasm').write_bytes(guest.read_bytes())
-        (op / 'programs' / 'appdata' / 'p0ops' / 'seed.bin').write_bytes(b'seed')
+        (us / 'programs' / 'appdata' / 'p0ops').mkdir(parents=True, exist_ok=True)
+        (us / 'programs' / 'appdata' / 'p0ops' / 'seed.bin').write_bytes(b'seed')
         env = {**os.environ, 'SKRYNIA_ROOT_WASM': str(p0),
                'SKRYNIA_OPERATOR_DIR': str(op), 'SKRYNIA_USER_DIR': str(us),
                'SKRYNIA_BIND': f'127.0.0.1:{port}'}

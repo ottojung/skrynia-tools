@@ -1,6 +1,5 @@
 use super::ExecError;
 use crate::decode_status;
-use crate::{GET, PUT, byte, call};
 use alloc::vec::Vec;
 use sha2::{Digest, Sha256};
 
@@ -9,7 +8,9 @@ pub fn hash32(bytes: &[u8]) -> [u8; 32] {
 }
 
 /// Drain the evaluator-supplied input bytes; EOF is -1.
+#[cfg(target_arch = "wasm32")]
 pub fn read_all(cap: usize) -> Result<Vec<u8>, i32> {
+    use crate::{GET, byte, call};
     let mut out = Vec::new();
     loop {
         let value = call(GET, 0);
@@ -24,7 +25,9 @@ pub fn read_all(cap: usize) -> Result<Vec<u8>, i32> {
 }
 
 /// Emit output bytes; the evaluator accumulates them for the native reply.
+#[cfg(target_arch = "wasm32")]
 pub fn write_all(bytes: &[u8]) -> Result<(), i32> {
+    use crate::{PUT, call};
     for &value in bytes {
         if call(PUT, i32::from(value)) < 0 {
             return Err(-8);

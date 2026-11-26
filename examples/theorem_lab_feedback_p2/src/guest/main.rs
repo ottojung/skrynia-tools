@@ -10,8 +10,8 @@ fn err(code: &str) -> Vec<u8> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
-    let input = read_all(input_fd);
+pub extern "C" fn _start() {
+    let input = read_all(0);
     let bytes = match submit_json(&input, |req, out| invoke_raw(req, out)) {
         Ok(b) => b,
         Err(ExecError::BadInput) => err("bad_input"),
@@ -19,6 +19,5 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
         Err(ExecError::Busy) => err("busy"),
         Err(ExecError::Io) => err("io"),
     };
-    write_all(output_fd, &bytes);
-    0
+    write_all(0, &bytes);
 }

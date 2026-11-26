@@ -1,44 +1,38 @@
 #![no_std]
+
+mod callback;
 mod stream;
+
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     core::arch::wasm32::unreachable()
 }
-mod callback;
-use callback::call;
+
 #[unsafe(no_mangle)]
-pub extern "C" fn skrynia_main(input: i32, output: i32) -> i32 {
-    let mut req = [0u8; 4096];
-    let len = match stream::receive(input, &mut req) {
-        Ok(n) => n,
-        Err(e) => return e,
+pub extern "C" fn _start() {
+    let mut request = [0u8; 4096];
+    let Ok(len) = stream::receive(&mut request) else {
+        return;
     };
     if len == 0 {
-        return -1;
+        return;
     }
-    let trap = req[0] == 255;
+    let trap = request[0] == 255;
     if trap {
-        req[0] = 1;
+        request[0] = 1;
     }
-    let mut out = [0u8; 512];
-    let mut n = call(&req[..len], &mut out);
-    if n == 4 && req[0] == 1 {
-        let fd = i32::from_le_bytes(out[..4].try_into().unwrap());
-        if fd >= 0 {
-            if trap {
-                panic!("deliberate test trap with live fd");
-            }
-            let mut next = [0u8; 9];
-            next[0] = 2;
-            next[1..5].copy_from_slice(&fd.to_le_bytes());
-            next[5..].copy_from_slice(&128u32.to_le_bytes());
-            n = call(&next, &mut out);
-            next[0] = 4;
-            call(&next[..5], &mut [0u8; 4]);
-        }
-    }
+    let mut reply = [0u8; 4096];
+    let n = callback::call(&request[..len], &mut reply);
     if n < 0 {
-        return n;
+        return;
     }
-    stream::send(output, &out[..n as usize])
+    if trap {
+        // Deliberate guest trap after a completed framed request. The kernel
+        // must recover so the next request on this stack is served normally.
+        core::arch::wasm32::unreachable();
+    }
+    let mut frame = [0u8; 4105];
+    if stream::send(&mut frame, &reply[..n as usize]) < 0 {
+        return;
+    }
 }

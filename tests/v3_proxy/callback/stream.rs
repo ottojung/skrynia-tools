@@ -1,26 +1,42 @@
-#[link(wasm_import_module = "skrynia")]
-unsafe extern "C" {
-    fn read(fd: i32, dst: u32, len: u32) -> i32;
-    fn write(fd: i32, src: u32, len: u32) -> i32;
-}
-pub fn receive(fd: i32, buf: &mut [u8]) -> Result<usize, i32> {
-    let mut len = 0;
+//! Descriptor byte streams for the target-ABI P0 child.
+//! GET reads the request; replies go back through a framed WRITE operation
+//! rather than through a linear-memory buffer or a legacy `write` import.
+
+use super::callback;
+
+const WRITE: u8 = 3;
+const OUTPUT: u32 = 1;
+const FRAME_HEAD: usize = 9;
+
+pub fn receive(buf: &mut [u8]) -> Result<usize, i32> {
+    let mut len = 0usize;
     loop {
-        if len == buf.len() {
-            return Err(-1);
+        match callback::get() {
+            -1 => return Ok(len),
+            code if code < 0 => return Err(code as i32),
+            code if len >= buf.len() => return Err(-6),
+            code => {
+                buf[len] = code as u8;
+                len += 1;
+            }
         }
-        let tail = &mut buf[len..];
-        let n = unsafe { read(fd, tail.as_mut_ptr() as u32, tail.len() as u32) };
-        if n < 0 {
-            return Err(n);
-        }
-        if n == 0 {
-            return Ok(len);
-        }
-        len += n as usize;
     }
 }
-pub fn send(fd: i32, bytes: &[u8]) -> i32 {
-    let n = unsafe { write(fd, bytes.as_ptr() as u32, bytes.len() as u32) };
-    if n == bytes.len() as i32 { 0 } else { -1 }
+
+/// Send one framed WRITE to the output descriptor and return its status.
+pub fn send(buf: &mut [u8], bytes: &[u8]) -> i32 {
+    let total = FRAME_HEAD.saturating_add(bytes.len());
+    if total > buf.len() {
+        return -6;
+    }
+    buf[0] = WRITE;
+    buf[1..5].copy_from_slice(&OUTPUT.to_le_bytes());
+    buf[5..9].copy_from_slice(&(bytes.len() as u32).to_le_bytes());
+    buf[FRAME_HEAD..total].copy_from_slice(bytes);
+    let mut reply = [0u8; 4];
+    let n = callback::call(&buf[..total], &mut reply);
+    if n != 4 {
+        return if n < 0 { n } else { -5 };
+    }
+    i32::from_le_bytes(reply)
 }

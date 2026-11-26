@@ -3,6 +3,8 @@ use super::error::{EBADF, Error};
 use super::limits::Limits;
 use super::state::{Callback, HostState};
 use super::validate;
+mod trap;
+use trap::trap;
 use wasmi::{Caller, Config, Engine, Linker, Module, Store};
 
 pub(crate) fn run<'i, 'c>(
@@ -12,9 +14,7 @@ pub(crate) fn run<'i, 'c>(
     binding: &Binding,
     limits: Limits,
 ) -> Result<Vec<u8>, Error> {
-    let mut config = Config::default();
-    config.consume_fuel(true);
-    let engine = Engine::new(&config);
+    let engine = Engine::new(Config::default().consume_fuel(true));
     let module = Module::new(&engine, wasm).map_err(|_| Error::InvalidWasm)?;
     validate::check(&module, binding)?;
     let mut store = Store::new(&engine, HostState::new(input, cb, limits));
@@ -47,11 +47,4 @@ pub(crate) fn run<'i, 'c>(
         .call(&mut store, ())
         .map_err(trap)?;
     store.into_data().finish().map_err(Error::Callback)
-}
-
-fn trap(e: wasmi::Error) -> Error {
-    match e.as_trap_code() {
-        Some(wasmi::TrapCode::OutOfFuel) => Error::Budget,
-        _ => Error::Trap,
-    }
 }

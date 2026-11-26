@@ -1,4 +1,5 @@
 //! Userland evaluator policy; none of these budgets is enforced by the kernel.
+mod resources;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Limits {
@@ -43,14 +44,5 @@ impl Limits {
     }
     pub(crate) fn fuel(&self) -> u64 {
         self.fuel
-    }
-    pub(crate) fn resources(&self) -> wasmi::StoreLimits {
-        wasmi::StoreLimitsBuilder::new()
-            .memory_size(self.memory)
-            .memories(1)
-            .tables(1)
-            .table_elements(1 << 20)
-            .instances(1)
-            .build()
     }
 }

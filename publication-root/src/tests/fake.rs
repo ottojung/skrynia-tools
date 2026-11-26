@@ -4,6 +4,8 @@ use std::collections::HashMap;
 pub struct Fake {
     pub input: Vec<u8>,
     pub verifier: [u8; 32],
+    pub verifier_extra: Vec<u8>,
+    pub fail_random: bool,
     pub files: HashMap<u32, Vec<u8>>,
     pub next_ticket: u32,
     pub collisions: u8,

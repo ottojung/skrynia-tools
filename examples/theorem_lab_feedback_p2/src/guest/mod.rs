@@ -1,4 +1,5 @@
 mod cas;
+#[cfg(target_arch = "wasm32")]
 mod cb;
 mod input;
 mod io;

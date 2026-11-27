@@ -11,10 +11,6 @@ pub fn stage(fd: i32, pos: &mut u64, off: u64, path_at: u64) -> Result<u64, i32>
     let mut len = 0u64;
     let mut rc: Result<u64, i32> = alloc::place(fd, pos, off).map(|()| 0);
     while rc.is_ok() {
-        if len >= alloc::SLOT_SIZE - alloc::SLOT_CODE_AT {
-            rc = Err(alloc::ERR_RANGE);
-            break;
-        }
         let b = unsafe { abi::read1(src) };
         if b == auth::EOF {
             rc = Ok(len);
@@ -22,6 +18,10 @@ pub fn stage(fd: i32, pos: &mut u64, off: u64, path_at: u64) -> Result<u64, i32>
         }
         if b < 0 {
             rc = Err(b);
+            break;
+        }
+        if len >= alloc::SLOT_SIZE - alloc::SLOT_CODE_AT {
+            rc = Err(alloc::ERR_RANGE);
             break;
         }
         let w = unsafe { abi::write1(fd, b) };

@@ -2,18 +2,13 @@
 use super::{Kind, S};
 
 pub unsafe fn secure_random_bits(dst: u64, bits: u64) -> i32 {
-    S.with(|s| {
-        let mut b = s.borrow_mut();
-        let at = dst as usize;
-        let n = (bits / 8) as usize;
-        if at.saturating_add(n) > b.ram.len() {
-            return -6;
-        }
-        for i in 0..n {
-            b.ram[at + i] = 0xA5;
-        }
-        0
-    })
+    let n = bits.div_ceil(8) as usize;
+    let out = unsafe { core::slice::from_raw_parts_mut(dst as usize as *mut u8, n) };
+    out.fill(0xa5);
+    if !bits.is_multiple_of(8) {
+        out[n - 1] &= (1u8 << (bits % 8)) - 1;
+    }
+    0
 }
 
 pub unsafe fn cas1(fd: i32, offset: u64, expected: i32, desired: i32) -> i32 {

@@ -1,6 +1,6 @@
-//! Byte-out and random-fill relay (no bulk kernel import).
+//! Bulk output and random-fill relay through private buffers.
 mod random;
-use super::{Ctx, INVALID, abi, alloc, complete, reply, word};
+use super::{Ctx, INVALID, abi, alloc, code, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     if op == 11 {
@@ -26,13 +26,17 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
         Ok(fd) => fd,
         Err(e) => return reply(e, &[]),
     };
-    let mut done = 0i32;
-    for &b in bytes {
-        let rc = unsafe { abi::write1(fd, i32::from(b)) };
-        if rc != 0 {
-            return reply(rc, &[]);
+    let mut done = 0usize;
+    while done < bytes.len() {
+        let part = &bytes[done..];
+        let n = unsafe { abi::write(fd, part.as_ptr() as u64, part.len() as u64) };
+        if n < 0 {
+            return reply(n as i32, &[]);
         }
-        done += 1;
+        if n == 0 || n as usize > part.len() {
+            return reply(-5, &[]);
+        }
+        done += n as usize;
     }
-    reply(done, &[])
+    reply(done as i32, &[])
 }

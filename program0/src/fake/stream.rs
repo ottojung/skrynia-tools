@@ -15,7 +15,13 @@ pub unsafe fn seek(fd: i32, shift: i64) -> i64 {
         if next < 0 {
             return -6;
         }
-        let next = usize::try_from(next).unwrap_or(usize::MAX).min(len);
+        let next = usize::try_from(next).unwrap_or(usize::MAX);
+        let next = match k {
+            Some(Kind::Input) if shift >= 0 => next.min(len),
+            Some(Kind::Input) => return -4,
+            _ if next > len => return -6,
+            _ => next,
+        };
         match k {
             Some(Kind::Ram) => b.rpos = next,
             Some(Kind::Input) => b.inp = next,
@@ -35,7 +41,9 @@ pub unsafe fn eval(code: u64, size: u64, _f: i32, _a: i32, _b: i32) -> i64 {
     S.with(|s| {
         let mut v = s.borrow_mut();
         v.eval_calls += 1;
-        v.eval_code = v.ram[code as usize..(code + size) as usize].to_vec();
+        v.eval_code =
+            unsafe { core::slice::from_raw_parts(code as usize as *const u8, size as usize) }
+                .to_vec();
         v.eval_result
     })
 }

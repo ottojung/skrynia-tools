@@ -33,8 +33,7 @@ pub fn reclaim(fd: i32, slot: u64) {
 /// Relay the framed acquire/release opcode for a request's slot, mapping the
 /// observed CAS byte to the P1 boolean convention: 1 acquired, 0 contended,
 /// 0 released, and a negative error for a non-owner release or CAS failure.
-pub fn mediated(fd: i32, base: u64, op: u8) -> i32 {
-    let slot = super::slot_of(base);
+pub fn mediated(fd: i32, slot: u64, op: u8) -> i32 {
     let seen = if op == 12 {
         lease(fd, slot)
     } else {

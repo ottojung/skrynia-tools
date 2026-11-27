@@ -1,6 +1,5 @@
-//! Software shared-RAM allocator: one monotone arena, one CAS byte per slot
-//! plus one process-wide resource-lease byte. No global mutex, native lock or
-//! execution budget: all coordination is single-byte CAS on shared RAM.
+//! Shared RAM contains only owner tags and a process-wide resource lease.
+//! Private WASM memory holds all transient request buffers.
 use super::abi;
 
 mod lease;
@@ -13,14 +12,10 @@ pub const ERR_RANGE: i32 = -6;
 pub const FREE: i32 = 0;
 pub const BUSY: i32 = 1;
 pub const SLOTS: u64 = 16;
-pub const SLOT_SIZE: u64 = 2 * 1024 * 1024;
-pub const BASE: u64 = 4096;
-pub const ARENA: u64 = SLOTS * SLOT_SIZE;
 pub const META_AT: u64 = 64;
-pub const SLOT_PATH_AT: u64 = 128;
-pub const SLOT_CODE_AT: u64 = 1152;
 /// One absolute, slot-independent byte: the generic userland lease owner.
-pub const LOCK_AT: u64 = 80;
+pub const LOCK_AT: u64 = META_AT + SLOTS;
+pub const META_END: u64 = LOCK_AT + 1;
 /// Non-owner or unheld release attempt, reported as a precise protocol error.
 pub const ERR_NOT_OWNER: i32 = -4;
 

@@ -1,5 +1,5 @@
 //! Operator-supplied Program 0: token verifier and dumb byte proxy only.
-//! Target ABI (0ccc90f intents / K0 choices), no kernel application policy,
+//! ABI 3.1, no kernel application policy,
 //! no CLI, no old `eval_delegate` / `fs_delegate_scope` imports.
 #[cfg(any(target_arch = "wasm32", test))]
 mod abi;

@@ -4,8 +4,8 @@ use super::{alloc, fake, invoke};
 pub fn setup(files: Vec<(String, Vec<u8>)>) -> (i32, i32, i32) {
     let (i, o, r) = fake::seed(vec![], files);
     alloc::ensure(r).expect("arena");
-    let (_slot, base) = alloc::acquire(r).expect("slot");
-    invoke::enter(i, o, r, base, i, o, 0);
+    let slot = alloc::acquire(r).expect("slot");
+    invoke::enter(i, o, r, slot, i, o);
     (i, o, r)
 }
 

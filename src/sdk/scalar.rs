@@ -1,5 +1,5 @@
 //! Decode scalar machine results. Negative is an error, nonnegative a value.
-use super::{ERR_BADF, ERR_BOUNDS, ERR_INVAL, ERR_IO, ERR_RANGE, ERR_UNSUPPORTED, READ1_EOF};
+use super::READ1_EOF;
 
 /// Raw negative code (or EOF). Positive/zero values are not errors.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -8,19 +8,6 @@ pub struct ScalarError(pub i64);
 impl ScalarError {
     pub fn is_eof(self) -> bool {
         self.0 == i64::from(READ1_EOF)
-    }
-
-    pub fn name(self) -> &'static str {
-        match self.0 {
-            x if x == i64::from(READ1_EOF) => "EOF",
-            x if x == i64::from(ERR_BADF) => "EBADF",
-            x if x == i64::from(ERR_INVAL) => "EINVAL",
-            x if x == i64::from(ERR_UNSUPPORTED) => "ENOTSUP",
-            x if x == i64::from(ERR_IO) => "EIO",
-            x if x == i64::from(ERR_RANGE) => "ERANGE",
-            x if x == i64::from(ERR_BOUNDS) => "BOUNDS",
-            _ => "unknown",
-        }
     }
 }
 
@@ -33,7 +20,6 @@ pub fn read1(raw: i32) -> Result<u8, ScalarError> {
     }
 }
 
-/// write1 and status-only imports: 0 is success, any negative is an error.
 pub fn write1(raw: i32) -> Result<(), ScalarError> {
     status(raw)
 }
@@ -58,4 +44,14 @@ pub fn seek(raw: i64) -> Result<u64, ScalarError> {
 /// cas1: the observed byte is returned scalar, including on mismatch.
 pub fn cas1(raw: i32) -> Result<u8, ScalarError> {
     read1(raw)
+}
+
+/// read/write: nonnegative is bytes transferred (0 at EOF is success);
+/// negative is an error before progress.
+pub fn bulk(raw: i64) -> Result<u64, ScalarError> {
+    if raw < 0 {
+        Err(ScalarError(raw))
+    } else {
+        Ok(raw as u64)
+    }
 }

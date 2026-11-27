@@ -1,3 +1,3 @@
-//! Independently runnable deployment binding tests.
 mod binding;
+mod fixed;
 mod imports;

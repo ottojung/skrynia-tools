@@ -322,7 +322,9 @@ jobs:
             --guest "$A/theorem_lab_feedback_p2.wasm" \
             --volume "$VOL" \
             --log-dir "$LOGS" \
-            --manifest "$A/COMMIT_MANIFEST.txt"
+            --manifest "$A/COMMIT_MANIFEST.txt" \
+            --kernel-head "$SKRYNIA_KERNEL_HEAD" \
+            --tools-head "$(git rev-parse HEAD)"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

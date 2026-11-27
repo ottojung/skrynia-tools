@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 env:
-  SKRYNIA_KERNEL_HEAD: 52f86d0d7556510a507421bc6510409142eda0e3
+  SKRYNIA_KERNEL_HEAD: b37cd95da8cdb14517ecf9e3236afc3611d41b56
 jobs:
   native-components:
     runs-on: ubuntu-latest
@@ -46,6 +46,8 @@ jobs:
       - name: Build generic kernel
         working-directory: upstream-skrynia
         run: cargo build --locked --release -p libskrynia --bin skrynia-server
+      - name: Verify ABI 3.1 identity in the pinned kernel
+        run: python3 tests/v3_proxy/check_kernel_abi.py --kernel-source upstream-skrynia --kernel-bin "$PWD/upstream-skrynia/target/release/skrynia-server"
       - name: Kernel generic eval and callback regressions
         working-directory: upstream-skrynia
         run: |

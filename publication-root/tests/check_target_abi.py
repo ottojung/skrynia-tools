@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Assert the compiled root uses only target-ABI fixed imports.
+"""Assert the compiled root uses only ABI 3.1 fixed imports.
 
-Checks exact WASM value types against the kernel's 19-function inventory and
-the preserved typed (i32)->i32 publish/unpublish provider signature. Old bulk
-imports and caller-linear-memory pointer signatures are rejected.
+Checks exact WASM value types against the kernel's 21-function inventory and
+the preserved typed (i32)->i32 publish/unpublish provider signature. The
+retired `skrynia` namespace and old scalar-only pointer signatures are
+rejected; buffer pointers and lengths are u64 (WASM i64).
 """
 from __future__ import annotations
 import argparse
 import pathlib
 import sys
 
-from check_wasm_abi import sections, varuint, name
+from check_wasm_abi import FIXED_MODULE, FFI_MODULE, sections, varuint, name
 
 I32, I64 = 0x7F, 0x7E
 
@@ -18,6 +19,8 @@ TARGET = {
     "open_ram": ((), (I32,)),
     "open_disk": ((I64, I64, I32), (I32,)),
     "close": ((I32,), (I32,)),
+    "read": ((I32, I64, I64), (I64,)),
+    "write": ((I32, I64, I64), (I64,)),
     "read1": ((I32,), (I32,)),
     "write1": ((I32, I32), (I32,)),
     "seek": ((I32, I64), (I64,)),
@@ -81,9 +84,9 @@ def main() -> int:
     ap.add_argument("--root", required=True)
     args = ap.parse_args()
     imports, exports = inspect(args.root)
-    fixed = {k: v for (m, k), v in imports.items() if m == "skrynia"}
+    fixed = {k: v for (m, k), v in imports.items() if m == FIXED_MODULE}
     for key, sig in imports.items():
-        if key[0] not in ("skrynia", "syscall"):
+        if key[0] not in (FIXED_MODULE, FFI_MODULE):
             print("foreign import namespace", key, file=sys.stderr)
             return 1
     for import_name, sig in fixed.items():
@@ -93,7 +96,7 @@ def main() -> int:
         if sig != TARGET[import_name]:
             print("wrong target signature", import_name, sig, file=sys.stderr)
             return 1
-    syscall = {k: v for (m, k), v in imports.items() if m == "syscall"}
+    syscall = {k: v for (m, k), v in imports.items() if m == FFI_MODULE}
     if set(syscall) != {"publish", "unpublish"}:
         print("unexpected syscall namespace", sorted(syscall), file=sys.stderr)
         return 1

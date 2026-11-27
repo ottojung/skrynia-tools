@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Verify real compiled WASM linkage: dedicated root imports syscalls, P0 does not.
+"""Verify real compiled WASM linkage under the ABI 3.1 fixed namespace.
 
-Parses the WASM import/export/type sections directly; no external tools needed.
+The dedicated root imports the publish/unpublish named FFI and only fixed
+imports from `skrynia_v3_1`; the dumb P0 imports no named FFI. Parses the WASM
+import/export/type sections directly; no external tools needed.
 Usage: check_wasm_abi.py --root <publication-root.wasm> --generic-p0 <program0.wasm>
 """
 from __future__ import annotations
 import argparse
 import pathlib
 import sys
+
+FIXED_MODULE = "skrynia_v3_1"
+FFI_MODULE = "syscall"
 
 
 def varuint(data: bytes, at: int) -> tuple[int, int]:
@@ -91,7 +96,7 @@ def main() -> int:
     ap.add_argument("--generic-p0", required=True)
     args = ap.parse_args()
     imports, exports = inspect(args.root)
-    wanted = {("syscall", "publish"), ("syscall", "unpublish")}
+    wanted = {(FFI_MODULE, "publish"), (FFI_MODULE, "unpublish")}
     if not wanted.issubset(imports):
         print("root missing syscalls", sorted(wanted - set(imports)), file=sys.stderr)
         return 1
@@ -101,11 +106,11 @@ def main() -> int:
     if "skrynia_main" not in exports:
         print("root missing skrynia_main export", file=sys.stderr)
         return 1
-    if any(module not in ("skrynia", "syscall") for module, _ in imports):
+    if any(module not in (FIXED_MODULE, FFI_MODULE) for module, _ in imports):
         print("root has unexpected import namespace", sorted(imports), file=sys.stderr)
         return 1
     p0_imports, _ = inspect(args.generic_p0)
-    if any(module == "syscall" for module, _ in p0_imports):
+    if any(module == FFI_MODULE for module, _ in p0_imports):
         print("generic P0 must not import syscalls", file=sys.stderr)
         return 1
     print("PUBLICATION_WASM_ABI_OK", sorted(imports), "exports", sorted(exports))

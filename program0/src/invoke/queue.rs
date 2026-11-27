@@ -7,7 +7,7 @@ pub struct Ctx {
     pub input: i32,
     pub output: i32,
     pub ram: i32,
-    pub base: u64,
+    pub slot: u64,
     pub in_handle: i32,
     pub out_handle: i32,
     pub frame: Vec<u8>,
@@ -15,23 +15,19 @@ pub struct Ctx {
     pub reply_active: bool,
     pub frame_failed: bool,
     pub status: i32,
-    pub pos: u64,
     pub handles: Vec<i32>,
     pub nested: bool,
 }
 thread_local! { static CURRENT: RefCell<Option<Ctx>> = const { RefCell::new(None) }; }
 
-pub fn enter(input: i32, output: i32, ram: i32, base: u64, ih: i32, oh: i32, pos: u64) {
-    // The RAM fd cursor already sits just past the staged guest; relative
-    // seeks in the relay must start from that real position, not from zero.
+pub fn enter(input: i32, output: i32, ram: i32, slot: u64, ih: i32, oh: i32) {
     let c = Ctx {
         input,
         output,
         ram,
-        base,
+        slot,
         in_handle: ih,
         out_handle: oh,
-        pos,
         ..Ctx::default()
     };
     CURRENT.with(|s| *s.borrow_mut() = Some(c));

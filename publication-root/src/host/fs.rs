@@ -1,13 +1,11 @@
-use super::{Staging, abi, ops};
+use super::{Staging, abi, write_all};
 
 pub fn write(fd: i32, bytes: &[u8]) -> Result<(), i32> {
-    for &byte in bytes {
-        let rc = unsafe { abi::write1(fd, byte as u32) };
-        if rc != 0 {
-            return Err(rc);
-        }
-    }
-    ops::sync(fd)
+    write_all(
+        |ptr, len| unsafe { abi::write(fd, ptr as u64, len as u64) },
+        bytes,
+    )?;
+    super::ops::sync(fd)
 }
 
 pub fn delete(stage: &mut Staging, path: &[u8]) -> Result<(), i32> {

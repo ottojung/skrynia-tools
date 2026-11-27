@@ -14,8 +14,10 @@ RUSTFLAGS='-C link-arg=--export-table -C opt-level=z -C strip=symbols' cargo bui
 
 The artifact imports exactly one function,
 `p0.invoke(ctx: i32, op: i32, value: i32) -> i64`, and exports
-`_start () -> ()`. It has no direct kernel imports. Private linear memory
-is for P1 computation only; no private pointer crosses the ABI boundary.
+`_start () -> ()`. It has no direct kernel imports, so the ABI 3.1
+(`skrynia_v3_1`) fixed-interface change does not alter the P1 guest surface:
+private linear memory is for P1 computation only, no private pointer crosses
+the ABI boundary, and the zero/one-callback `eval` semantics are unchanged.
 Use `native-service/integration/verify_target_wasm.py` on the built artifact.
 
 ## Outer P0 byte protocol
@@ -31,8 +33,12 @@ reports state; outer callback-queue operations are unsupported.
 
 The application response is a framed WRITE (opcode 3, output handle 1,
 u32 byte length, payload), not a raw PUT stream. An uncertain write is
-never automatically replayed. P0 stages paths and code in software-managed
-shared RAM. It implements generic mediation, not application policy.
+never automatically replayed. On ABI 3.1, P0 stages paths, code, random
+output and bulk descriptor data in its private linear memory using the
+`skrynia_v3_1` `read`/`write` byte-count calls; the only shared RAM it uses
+is the genuine inter-program owner tags and lease. It implements generic
+mediation, not application policy. READ/WRITE chunk caps and the framed reply
+encoding are unchanged by the ABI migration.
 
 ## Nested P2
 

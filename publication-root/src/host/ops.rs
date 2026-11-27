@@ -1,4 +1,4 @@
-use super::{Staging, abi};
+use super::{Staging, abi, read_all};
 
 pub fn open(stage: &mut Staging, path: &[u8], mode: u32) -> Result<i32, i32> {
     let (ptr, len) = stage.put(path)?;
@@ -7,19 +7,10 @@ pub fn open(stage: &mut Staging, path: &[u8], mode: u32) -> Result<i32, i32> {
 }
 
 pub fn read(fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
-    let mut at = 0;
-    while at < dst.len() {
-        let byte = unsafe { abi::read1(fd) };
-        if byte == -1 {
-            break;
-        }
-        if byte < 0 {
-            return Err(byte);
-        }
-        dst[at] = byte as u8;
-        at += 1;
-    }
-    Ok(at)
+    read_all(
+        |ptr, len| unsafe { abi::read(fd, ptr as u64, len as u64) },
+        dst,
+    )
 }
 
 pub fn close(fd: i32) -> Result<(), i32> {

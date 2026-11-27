@@ -1,6 +1,6 @@
 //! Nested EVAL staging bounds, malformed frames and trap-cleanup regressions.
 use super::support::{call, code, setup};
-use super::{alloc, fake, invoke};
+use super::{alloc, code as guest_code, fake, invoke};
 
 fn eval_frame(n: usize, bytes: &[u8]) -> Vec<u8> {
     let mut f = vec![15];
@@ -11,20 +11,15 @@ fn eval_frame(n: usize, bytes: &[u8]) -> Vec<u8> {
 
 #[test]
 fn oversized_op15_code_is_rejected_before_any_write() {
-    let cap = (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) as usize;
+    let cap = guest_code::MAX_CODE;
     let (_i, _o, _r) = setup(vec![]);
     let f = eval_frame(cap + 1, &vec![0xA5; cap + 1]);
     assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
     fake::inspect(|s| {
         assert_eq!(s.eval_calls, 0);
-        let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
-        assert!(s.ram[at..at + cap].iter().all(|&b| b == 0));
-        let meta = (alloc::BASE + alloc::SLOT_SIZE + alloc::META_AT) as usize;
-        assert!(
-            s.ram[meta..meta + alloc::SLOTS as usize]
-                .iter()
-                .all(|&b| b == 0)
-        );
+        assert_eq!(s.ram.len(), alloc::META_END as usize);
+        assert_eq!(s.ram[alloc::META_AT as usize], alloc::BUSY as u8);
+        assert!(s.ram[alloc::META_AT as usize + 1..].iter().all(|&b| b == 0));
     });
 }
 

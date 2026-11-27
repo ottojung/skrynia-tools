@@ -119,7 +119,7 @@ class AbiFixtureTests(unittest.TestCase):
     def test_wrong_bulk_signature_is_rejected(self):
         _, target = self.check(wasm(read_params=(I32, I32, I32)))
         self.assertNotEqual(target.returncode, 0)
-        self.assertIn("wrong target signature", target.stderr)
+        self.assertIn("wrong ABI 3.1 signature", target.stderr)
 
     def test_missing_memory_export_is_rejected(self):
         _, target = self.check(wasm(exports=False))

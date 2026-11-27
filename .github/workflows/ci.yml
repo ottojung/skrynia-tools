@@ -48,6 +48,13 @@ jobs:
             esac
             node "$f"
           done
+      - name: Bootstrap installer deterministic tests
+        run: |
+          set -eu
+          for f in bootstrap/*.mjs bootstrap/tests/*.mjs; do
+            node --check "$f"
+          done
+          node --test bootstrap/tests/installer.mjs
 
   webpush-sender:
     runs-on: ubuntu-latest

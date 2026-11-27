@@ -1,0 +1,52 @@
+//! Strict frame validation: no effect from trailing, short or overlapping data.
+use super::support::{call, code, path_frame, setup, word};
+use super::{alloc, fake};
+
+#[test]
+fn random_fill_is_capped_to_one_slot() {
+    let (_i, _o, _r) = setup(vec![]);
+    let mut f = vec![11];
+    let bits = (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) * 8 + 8;
+    f.extend_from_slice(&word(bits as u32));
+    assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
+    let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
+    fake::inspect(|s| assert!(s.ram[at..at + 8].iter().all(|&b| b == 0)));
+}
+
+#[test]
+fn random_fill_returns_the_requested_bytes() {
+    let (_i, _o, _r) = setup(vec![]);
+    let mut f = vec![11];
+    f.extend_from_slice(&word(128));
+    let r = call(&f);
+    assert_eq!(code(&r), 16);
+    assert_eq!(&r[4..], &[0xa5; 16]);
+    f.push(0);
+    assert_eq!(code(&call(&f)), -1);
+}
+
+#[test]
+fn rename_second_path_cannot_reach_the_code_area() {
+    let (_i, _o, _r) = setup(vec![]);
+    let mut f = path_frame(7, &format!("user/{}", "a".repeat(995)));
+    f.extend_from_slice(&word(100));
+    f.extend_from_slice(format!("user/{}", "b".repeat(95)).as_bytes());
+    assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
+    let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
+    fake::inspect(|s| assert!(s.ram[at..at + 100].iter().all(|&b| b == 0)));
+}
+
+#[test]
+fn trailing_or_incomplete_descriptor_frames_have_no_effect() {
+    let (_i, _o, _r) = setup(vec![(String::from("user/programs/appdata/x"), vec![1])]);
+    let mut mkdir = path_frame(5, "user/programs/appdata/y");
+    mkdir.extend_from_slice(&word(4));
+    mkdir.push(0);
+    assert_eq!(code(&call(&mkdir)), -1);
+    fake::inspect(|s| assert!(!s.dirs.iter().any(|d| d == "user/programs/appdata/y")));
+    assert_eq!(code(&call(&path_frame(1, "user/programs/appdata/x"))), -1);
+    let mut sync = vec![10];
+    sync.extend_from_slice(&word(0));
+    sync.push(9);
+    assert_eq!(code(&call(&sync)), -1);
+}

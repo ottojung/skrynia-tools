@@ -5,22 +5,15 @@ const MAX_BODY: usize = 8192;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
-    let mut abi = Abi;
+    let mut abi = Abi::new();
+    abi.reset();
     let code = process(&mut abi, input_fd);
     let reply = frame::reply(code);
-    let mut at = 0;
-    while at < reply.len() {
-        let n = unsafe {
-            abi::write(
-                output_fd,
-                reply[at..].as_ptr() as u32,
-                (reply.len() - at) as u32,
-            )
-        };
-        if n <= 0 {
+    for &byte in &reply {
+        let rc = unsafe { abi::write1(output_fd, byte as u32) };
+        if rc != 0 {
             return -5;
         }
-        at += n as usize;
     }
     let _ = unsafe { abi::close(input_fd) };
     0

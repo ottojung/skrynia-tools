@@ -1,5 +1,5 @@
 //! Deliver one hint. The 32-byte hint is the payload: never object data.
-use super::{Error, Pump, Result, deliver_one, parse_frame_isolated};
+use super::{Error, Pump, Result, deliver_one, keep_worse, parse_frame_isolated};
 
 pub fn process_seq<P, O, R, G, C>(pump: &mut Pump<'_, P, O, R, G, C>, seq: u64) -> Result<usize>
 where
@@ -24,7 +24,9 @@ where
             Err(Error::Transport("gone")) => {}
             // Genuine delivery failure: never ACK this hint, but keep trying
             // the remaining subscriptions and the remaining queue entries.
-            Err(e @ (Error::Auth(_) | Error::Exhausted | Error::Transport(_))) => failure = Some(e),
+            Err(e @ (Error::Auth(_) | Error::Exhausted | Error::Transport(_))) => {
+                keep_worse(&mut failure, e)
+            }
             // Malformed or unsafe subscription: fail closed for this item only.
             Err(_) => {}
         }

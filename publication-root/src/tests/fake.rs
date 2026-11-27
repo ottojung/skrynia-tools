@@ -4,12 +4,16 @@ use std::collections::HashMap;
 pub struct Fake {
     pub input: Vec<u8>,
     pub verifier: [u8; 32],
+    pub verifier_extra: Vec<u8>,
+    pub fail_random: bool,
     pub files: HashMap<u32, Vec<u8>>,
     pub next_ticket: u32,
     pub collisions: u8,
     pub provider: i32,
     pub trap: bool,
     pub deny_delete: bool,
+    pub mkdir_fail: Option<i32>,
+    pub mkdirs: Vec<Vec<u8>>,
     pub fail_write: bool,
     pub fail_close: bool,
     pub invokes: Vec<(bool, u32)>,
@@ -27,4 +31,12 @@ impl Fake {
             ..Self::default()
         }
     }
+}
+
+pub(super) fn record_invoke(fake: &mut Fake, publish: bool, ticket: u32) -> Option<i32> {
+    if fake.trap {
+        return None;
+    }
+    fake.invokes.push((publish, ticket));
+    Some(fake.provider)
 }

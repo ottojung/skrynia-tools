@@ -5,7 +5,7 @@ const PUBLIC: &[u8] = b"apps/hello/releases/r1/index.html";
 #[test]
 fn public_path_grammar_and_private_roots() {
     assert!(path::valid(PUBLIC));
-    let bad: [&[u8]; 10] = [
+    let bad: [&[u8]; 15] = [
         b"",
         b"/apps/a",
         b"apps/a/../b",
@@ -16,11 +16,16 @@ fn public_path_grammar_and_private_roots() {
         b"apps/a\\b",
         b"security/program0.sha256",
         b"programs/root.wasm",
+        b"user/publication-requests/00000001",
+        b"user/security/program0.sha256",
+        b"user/programs/operator.cap",
+        b"operator/security/program0.sha256",
+        b"operator/programs/root.wasm",
     ];
     for p in bad {
         assert!(!path::valid(p), "accepted unsafe path {:?}", p);
     }
-    assert_eq!(&path::mailbox(0x2a), b"publication-requests/0000002a");
+    assert_eq!(&path::mailbox(0x2a), b"user/publication-requests/0000002a");
 }
 
 #[test]

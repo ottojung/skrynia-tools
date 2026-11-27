@@ -34,3 +34,18 @@ fn provider_code_passes_through_and_mailbox_is_cleaned() {
     assert_eq!(fake.invokes, vec![(false, 0)]);
     assert!(fake.files.is_empty());
 }
+
+#[test]
+fn random_failure_never_invokes_the_provider() {
+    let mut fake = Fake {
+        fail_random: true,
+        ..Fake::default()
+    };
+    let request = frame::Request {
+        publish: true,
+        path: PUBLIC.to_vec(),
+    };
+    assert_eq!(bridge::run(&mut fake, &request), bridge::MAILBOX);
+    assert!(fake.invokes.is_empty());
+    assert!(fake.written.is_empty());
+}

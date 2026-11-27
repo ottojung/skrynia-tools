@@ -53,16 +53,18 @@ def get(path):
 
 for _ in range(200):
     try:
-        if json.loads(get("/syscalls_list")) == ["publish", "unpublish"]:
+        if json.loads(get("/syscalls_list")) == {"functions": [
+                {"name": name, "params": ["i32"], "results": ["i32"]}
+                for name in ["publish", "unpublish"]]}:
             break
     except Exception:
         time.sleep(0.05)
 else:
     raise SystemExit("provider did not become ready")
 
-ok = (0).to_bytes(4, "little")
-assert post("/publish", (42).to_bytes(4, "little")) == ok
-assert post("/publish", (42).to_bytes(4, "little")) == ok
+ok = bytes([1, 1, 0x32]) + (0).to_bytes(4, "little")
+assert post("/publish", bytes([1, 1, 0x32]) + (42).to_bytes(4, "little")) == ok
+assert post("/publish", bytes([1, 1, 0x32]) + (42).to_bytes(4, "little")) == ok
 print("container publish ABI OK")
 PY
 
@@ -77,12 +79,12 @@ import http.client, os
 port = int(os.environ["PORT"])
 def post(path):
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
-    conn.request("POST", path, body=(42).to_bytes(4, "little"),
+    conn.request("POST", path, body=bytes([1, 1, 0x32]) + (42).to_bytes(4, "little"),
                  headers={"Content-Type": "application/octet-stream"})
     response = conn.getresponse()
     body = response.read()
     conn.close()
-    assert response.status == 200 and body == (0).to_bytes(4, "little")
+    assert response.status == 200 and body == bytes([1, 1, 0x32]) + (0).to_bytes(4, "little")
 post("/unpublish")
 post("/unpublish")
 print("container unpublish ABI OK")

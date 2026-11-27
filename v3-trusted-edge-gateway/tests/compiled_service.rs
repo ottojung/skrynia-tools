@@ -12,7 +12,7 @@ fn compiled_service_roundtrip() {
     assert!(Path::new(&p1).is_file());
     let work = tempfile::tempdir().unwrap();
     let echo = work.path().join("echo.wasm");
-    std::fs::write(&echo, support::kernel::wasm::echo_wasm()).unwrap();
+    std::fs::write(&echo, support::kernel::wasm::p2_echo_wasm()).unwrap();
     if let Some(dir) = std::env::var_os("FC_ARTIFACTS") {
         std::fs::copy(&echo, Path::new(&dir).join("echo.wasm")).unwrap();
     }

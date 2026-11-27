@@ -14,7 +14,7 @@ pub(super) use super::{
 };
 pub use cfg::RuntimeConfig;
 pub use lock::Lock;
-pub use policy::fatal;
+pub use policy::{fatal, keep_worse};
 pub use run::{run, validate_ledger_dir};
 
 /// This process's identity without unsafe FFI: `/proc/self` is owned by the

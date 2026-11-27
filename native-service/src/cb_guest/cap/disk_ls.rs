@@ -4,7 +4,7 @@ pub fn list(dir: &str) -> Result<Vec<String>, i32> {
     let mut req = vec![wire::OPEN_DIR];
     wire::put_bytes(&mut req, dir.as_bytes());
     let (fd, _) = call::call(&req)?;
-    if fd == -2 {
+    if wire::is_missing(fd) {
         return Ok(Vec::new());
     }
     if fd < 0 {

@@ -10,18 +10,19 @@ import argparse, hashlib, os, pathlib, shutil, socket, struct, subprocess, tempf
 from assertions import forge_denied, sibling_no_leak
 
 KEY = b'theorem-lab/feedback-v1'
-# Canonical available kit pins. The previous kernel pin 8da114ff is the
-# pre-D1/D2-fix binary and fails this fixture's functional checks; 3508938 is
-# the board-published D1/D2-fixed kernel for the same ABI. The former p0 pin
-# ec74523b was lost in a container restart and is not reproducible; d57ab27a
-# is the PR53-source rebuild used by the kit. The former p1 pin d3686527 is the
-# retired aa6333a export-table lineage; 83a65a2f is the current clean-P1 kit
-# artifact and is ABI-compatible with this P2 on the fixed kernel.
+# Exact target-stack kit pins, re-derived from bytes in the decisive compiled
+# run (see docs/compiled-stack-final-pins-KlndxFPa91ne10cVuNvNQV-20261126.md).
+# The kernel is a fresh rebuild of K10 db08cbc with explicit root namespaces;
+# P0/P1 are the scoped T10 artifacts, and P2 is the A3 real-guest artifact that
+# carries a live P1-owned callback context. The old kit pins are retired: the
+# earlier P1 silently returned empty invoke bodies with the P2 example guest.
+# CI supplies its own freshly built digests with --*-sha256; a bare run fails
+# closed unless it is given this exact tested set.
 SHA = {
-    'kernel': '3508938239c4b7f27591000e2d1d1d36f3b3cc1f976c470fe0e5f84274e3176d',
-    'p0': 'd57ab27aacc01f6d76b272aed8621ce9af0f3000ed1de2309ec533cbf181a5fa',
-    'p1': '83a65a2f655ec466f94e57daf25163de60ecf8793bfc6e1be2e0608075b1d80a',
-    'p2': '5a26657858f515d29deaff012fc0109ea2d03a428d19895255239e8b780ad2bc',
+    'kernel': '3da1852e1294f090bcee2c050f12e961e844ae5ae2d144b2453fd3cd2d54e89b',
+    'p0': '3f2d40321c2d2af8a77cbc210f863c963492f1b021885a88d963e8b5bd957357',
+    'p1': 'ec84e056a209d4d58d990a231070c1b55f21f7b564a676426fdcb3599d94fc23',
+    'p2': '19a592588d9f0987ec93b55837778aadf9673c6b35e814cacfa2f1d043e8d11a',
 }
 
 def put_id(b): return struct.pack('<H', len(b)) + b
@@ -78,7 +79,7 @@ class Srv:
         h, r = resp.split(b'\r\n\r\n', 1)
         if b'transfer-encoding: chunked' in h.lower(): r = dechunk(r)
         d = dec(r)
-        if label: print(f'{label}: {h.splitlines()[0].decode()} {d}', flush=True)
+        if label: print(f'{label}: {h.splitlines()[0].decode()} {diagnostic(d)}', flush=True)
         return d
 
 def start(base, port, kernel, p0, p1, token, op_cap):
@@ -220,7 +221,15 @@ def parse_json(results, name, d):
     try: return json.loads(d.get('body', b''))
     except Exception: rec(results, name + '-json', False, d); return None
 
+def diagnostic(detail):
+    if isinstance(detail, dict):
+        body = detail.get('body')
+        if isinstance(body, bytes) and len(body) > 2048:
+            return {**detail, 'body': f'<{len(body)} bytes sha256={hashlib.sha256(body).hexdigest()}>'}
+    return detail
+
 def rec(results, name, ok, detail=''):
+    detail = diagnostic(detail)
     results.append((name, bool(ok), str(detail)))
     print(('PASS' if ok else 'FAIL'), name, detail, flush=True)
 

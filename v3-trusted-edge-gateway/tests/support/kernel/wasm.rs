@@ -1,21 +1,17 @@
-pub fn echo_wasm() -> Vec<u8> {
-    wat::parse_str(r#"(module
-(import "skrynia" "read" (func $read(param i32 i32 i32)(result i32)))
-(import "skrynia" "write" (func $write(param i32 i32 i32)(result i32)))
-(memory(export "memory") 1)
-(func(export "skrynia_main")(param $input i32)(param $output i32)(result i32)
- (local $n i32)(local $sent i32)(local $wrote i32)
- (block $eof (loop $read_more
-  (local.set $n (call $read(local.get $input)(i32.const 0)(i32.const 65536)))
-  (if (i32.lt_s (local.get $n) (i32.const 0)) (then(return(local.get $n))))
-  (br_if $eof (i32.eqz(local.get $n)))
-  (local.set $sent (i32.const 0))
-  (block $done (loop $write_more
-   (br_if $done (i32.ge_s(local.get $sent)(local.get $n)))
-   (local.set $wrote(call $write(local.get $output)(local.get $sent)(i32.sub(local.get $n)(local.get $sent))))
-   (if (i32.le_s(local.get $wrote)(i32.const 0)) (then(return(i32.const -5))))
-   (local.set $sent(i32.add(local.get $sent)(local.get $wrote)))
-   (br $write_more)))
-  (br $read_more)))
- (i32.const 0)))"#).unwrap()
+//! Real target-ABI WASM guests for the two distinct host contracts.
+//!
+//! A child evaluated by the compiled dumb P0 must frame output as a relay
+//! request, while a guest evaluated by P1's userland interpreter streams raw
+//! bytes through GET/PUT. Both import exactly `p0.invoke` and export `_start`;
+//! neither imports retired `skrynia` bulk names or exports `skrynia_main`.
+
+/// Guest staged at `operator/programs/root.wasm` and evaluated as P0's child.
+pub fn p0_child_echo_wasm() -> Vec<u8> {
+    wat::parse_str(include_str!("fixtures/p0_child_echo.wat")).unwrap()
+}
+
+/// Guest registered in P1 and run by its `p0.invoke` interpreter; this is also
+/// the artifact copied into `FC_ARTIFACTS` for the fullchain and scale gates.
+pub fn p2_echo_wasm() -> Vec<u8> {
+    wat::parse_str(include_str!("fixtures/p2_echo.wat")).unwrap()
 }

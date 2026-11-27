@@ -53,3 +53,30 @@ This optimizes the ordinary P1 guest, NOT kernel fuel or Program0 authority.
 Pin the compiled kernel/P0/P1 artifact hashes and run the same fixture against
 both old and new P1 binaries. Preserve the WASM indirect callback table export
 (--export-table) when building P1; without it nested child invocation fails.
+
+## Target-ABI P0 fixture (T2, 2026-11-26)
+
+`target_p0_http.py` replaces the old-ABI fixture for the target port. It boots
+a disposable compiled kernel at the K4 RAM fix (`b8eff72`), stages the new P0
+WASM as root plus a minimal single-`invoke` child, and verifies byte echo,
+wrong-token denial, child-trap recovery and 16 concurrent per-request RAM
+isolation cases. No real token, no production, no kernel patch.
+
+Build (rustup 1.93 toolchain, wasm32 std installed there):
+
+```bash
+cargo build --locked --release --target wasm32-unknown-unknown -p skrynia-program0
+rustc --edition=2024 --target wasm32-unknown-unknown --crate-type=cdylib \
+  -C opt-level=s -C panic=abort -C strip=symbols \
+  program0/integration/guests/echo_guest.rs \
+  -o program0/integration/guests-built/echo_guest.wasm
+# same for trap_guest.rs
+python3 program0/integration/target_p0_http.py \
+  --kernel /path/to/skrynia-server --p0 /path/to/skrynia_program0.wasm \
+  --guest program0/integration/guests-built/echo_guest.wasm \
+  --trap-guest program0/integration/guests-built/trap_guest.wasm
+```
+
+The old `dumb_p0_http.py` exercises the retired bulk-callback ABI and is kept
+only as historical evidence; it is not target acceptance. See
+[`TARGET_ABI.md`](../TARGET_ABI.md) for the invoke protocol and blockers.

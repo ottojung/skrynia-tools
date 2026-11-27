@@ -9,4 +9,6 @@ pub mod client;
 pub mod event_set;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod log;
+pub mod p2;
+pub mod sdk;
 pub mod wire;

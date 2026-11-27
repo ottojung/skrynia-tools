@@ -26,6 +26,7 @@ import hashlib
 import http.client
 import os
 from pathlib import Path
+import re
 import socket
 import struct
 import subprocess
@@ -42,7 +43,11 @@ OP_LIST_VERSIONS = 13
 ERR_STORE = b'\x07'
 ERR_MISSING = b'\x08'
 ERR_CONFLICT = b'\x0a\x00'  # conflict(None): code 10 plus a one-byte current-hash flag
-PIN_KERNEL_SOURCE = '806c172402880389eee94162a020c0f9c4c1bff2'
+# Expected identities are explicit trusted workflow inputs. They are never
+# inferred from the compiled artifact's manifest: on a PR run the manifest's
+# tools_head is the merge checkout, not the PR source head.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FULL_SHA = re.compile(r'^[0-9a-f]{40}$')
 VOLUME_LIMIT_BYTES = 8 * 1024 * 1024
 BALLAST_HEADROOM = 128 * 1024
 STAGE_FAIL_BYTES = 1024 * 1024
@@ -276,12 +281,43 @@ class Fixture:
                          ident(self.admin) + struct.pack('<Q', revision) + code_hash, ok)
 
 
-def check_pins(args):
+def require_full_sha(value, label):
+    """Reject absent, abbreviated or non-hex trusted identities."""
+    assert isinstance(value, str) and FULL_SHA.fullmatch(value), (label, value)
+    return value
+
+
+def git_head(repo):
+    """Read the checked-out tools HEAD without mutating the checkout."""
+    result = subprocess.run(['git', '-C', str(repo), 'rev-parse', 'HEAD'],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, check=False)
+    assert result.returncode == 0, ('git rev-parse HEAD failed', result.stderr.strip())
+    return require_full_sha(result.stdout.strip(), 'checked-out tools HEAD')
+
+
+def parse_manifest(path):
     manifest = {}
-    for line in args.manifest.read_text().splitlines():
+    for line in path.read_text().splitlines():
         key, separator, value = line.partition('=')
         if separator:
             manifest[key.strip()] = value.strip()
+    return manifest
+
+
+def check_pins(args, checked_out_tools_head=None):
+    """Bind kernel/tools identities to explicit trusted workflow inputs.
+
+    --kernel-head comes from the pinned workflow env (SKRYNIA_KERNEL_HEAD).
+    --tools-head comes from git HEAD of the checkout running this test (on a PR
+    run that is the merge checkout recorded in the manifest). The manifest is
+    evidence that must match those inputs; it is never the source of the
+    expected identities. Exact artifact hashes and the genuine tmpfs run are
+    unchanged.
+    """
+    expected_kernel = require_full_sha(getattr(args, 'kernel_head', None), 'kernel-head')
+    expected_tools = require_full_sha(getattr(args, 'tools_head', None), 'tools-head')
+    manifest = parse_manifest(args.manifest)
     paths = {
         'kernel': args.kernel,
         'p0': args.p0,
@@ -293,11 +329,20 @@ def check_pins(args):
         digests[name] = sha(path.read_bytes()).hex()
         wanted = manifest.get(f'sha256_{name}')
         assert digests[name] == wanted, (name, digests[name], wanted)
-    assert manifest.get(KERNEL_SOURCE_KEY) == PIN_KERNEL_SOURCE, manifest
-    assert manifest.get(KERNEL_HEAD_KEY) == PIN_KERNEL_SOURCE, manifest
-    assert manifest.get('tools_head'), manifest
-    print(f'PINS: kernel_source={PIN_KERNEL_SOURCE} tools_head={manifest["tools_head"]} '
-          + ' '.join(f'sha256_{name}={digests[name][:12]}' for name in paths), flush=True)
+    assert manifest.get(KERNEL_SOURCE_KEY) == expected_kernel, (
+        'kernel source pin mismatch', manifest.get(KERNEL_SOURCE_KEY), expected_kernel)
+    assert manifest.get(KERNEL_HEAD_KEY) == expected_kernel, (
+        'kernel head pin mismatch', manifest.get(KERNEL_HEAD_KEY), expected_kernel)
+    assert manifest.get('tools_head') == expected_tools, (
+        'tools head manifest mismatch', manifest.get('tools_head'), expected_tools)
+    if checked_out_tools_head is None:
+        checked_out_tools_head = git_head(REPO_ROOT)
+    require_full_sha(checked_out_tools_head, 'checked-out tools HEAD')
+    assert checked_out_tools_head == expected_tools, (
+        'tools checkout HEAD mismatch', checked_out_tools_head, expected_tools)
+    print(f'PINS: kernel_source={expected_kernel} kernel_head={expected_kernel} '
+          f'tools_head={expected_tools} checkout_head={checked_out_tools_head} '
+          + ' '.join(f'sha256_{name}={digests[name]}' for name in paths), flush=True)
 
 
 def run(args):
@@ -395,6 +440,90 @@ def run(args):
     print('ALL PASS: genuine ENOSPC precommit/postcommit, fail-closed, recovery', flush=True)
 
 
+def pin_self_test():
+    """Negative controls: identities must come from trusted inputs, not the manifest."""
+    from argparse import Namespace
+    import tempfile
+
+    kernel = 'deba688715d6b4557fb05932c8f4f1b8de57b87c'
+    tools = 'b6f72beea60ad8c01e5a309a092ffbba150a6bb4'
+    stale_kernel = 'db08cbc7496fafedc6a2e32df80395911b930879'
+    merge_tools = '21ecb61e413783b2fb6efd0c4a5451013887b4a7'
+    foreign_tools = '7f689bbec20ea590bf00432ee9238fd61cdfabbe'
+
+    with tempfile.TemporaryDirectory(prefix='enospc-pin-selftest-') as tmp:
+        root = Path(tmp)
+        blobs = {}
+        for name in ('kernel', 'p0', 'p1', 'guest'):
+            data = f'{name}-exact-bytes'.encode()
+            (root / name).write_bytes(data)
+            blobs[name] = sha(data).hex()
+
+        def write_manifest(**overrides):
+            values = {
+                'kernel': kernel,
+                KERNEL_HEAD_KEY: kernel,
+                'tools_head': tools,
+                'sha256_kernel': blobs['kernel'],
+                'sha256_p0': blobs['p0'],
+                'sha256_p1': blobs['p1'],
+                'sha256_p2': blobs['guest'],
+            }
+            values.update(overrides)
+            path = root / 'COMMIT_MANIFEST.txt'
+            path.write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
+            return path
+
+        def pins(manifest, kernel_head=kernel, tools_head=tools):
+            return Namespace(kernel=root / 'kernel', p0=root / 'p0', p1=root / 'p1',
+                             guest=root / 'guest', manifest=manifest,
+                             kernel_head=kernel_head, tools_head=tools_head)
+
+        def reject(label, args, marker, checkout=tools):
+            try:
+                check_pins(args, checked_out_tools_head=checkout)
+            except AssertionError as error:
+                assert marker in str(error), (label, str(error), marker)
+                print(f'SELF-TEST pin negative PASS: {label}', flush=True)
+            else:
+                raise AssertionError(f'{label}: bad pins accepted')
+
+        # Positive control: state matching the two explicit trusted inputs.
+        check_pins(pins(write_manifest()), checked_out_tools_head=tools)
+        print('SELF-TEST pin positive PASS: explicit heads + exact artifact hashes', flush=True)
+
+        # Exact CI failure shape: stale db08cbc expectation vs deba688 workflow head.
+        reject('stale kernel pin db08cbc rejected',
+               pins(write_manifest(kernel=stale_kernel,
+                                   **{KERNEL_HEAD_KEY: stale_kernel})),
+               'kernel source pin mismatch')
+        # A correct manifest cannot make a wrong trusted kernel input pass.
+        reject('manifest cannot supply expected kernel identity',
+               pins(write_manifest(), kernel_head=stale_kernel),
+               'kernel source pin mismatch')
+        reject('kernel_head manifest field mismatch rejected',
+               pins(write_manifest(**{KERNEL_HEAD_KEY: stale_kernel})),
+               'kernel head pin mismatch')
+        # PR merge checkout identity must be passed explicitly, never inferred.
+        reject('PR merge tools_head not accepted as checkout HEAD',
+               pins(write_manifest(tools_head=merge_tools)),
+               'tools head manifest mismatch')
+        reject('tools checkout HEAD mismatch rejected',
+               pins(write_manifest()), 'tools checkout HEAD mismatch', checkout=foreign_tools)
+        reject('abbreviated kernel input rejected',
+               pins(write_manifest(), kernel_head='deba688'), 'kernel-head')
+        reject('missing tools input rejected',
+               pins(write_manifest(), tools_head=None), 'tools-head')
+        reject('malformed checkout HEAD rejected',
+               pins(write_manifest()), 'checked-out tools HEAD', checkout='b6f72be')
+        reject('artifact hash mismatch rejected',
+               pins(write_manifest(sha256_p1='0' * 64)), 'p1')
+        # A PR merge checkout passed explicitly as input AND checkout is valid.
+        check_pins(pins(write_manifest(tools_head=merge_tools), tools_head=merge_tools),
+                   checked_out_tools_head=merge_tools)
+        print('SELF-TEST pin merge-checkout PASS: explicit merge HEAD accepted', flush=True)
+
+
 def self_test():
     """Pure stdlib local unit test: no mount, no fills, no kernel required."""
     assert errno.ENOSPC == 28
@@ -417,7 +546,9 @@ def self_test():
     forbidden = ('blocked' + '.mkdir', 'RLIMIT_' + 'FSIZE')
     for token in forbidden:
         assert token not in source, f'{token}: EISDIR/rlimit substitutes must not be copied here'
-    print('SELF-TEST PASS: framing, error codes, no EISDIR/rlimit substitutes', flush=True)
+    pin_self_test()
+    print('SELF-TEST PASS: framing, error codes, no EISDIR/rlimit substitutes, '
+          'explicit-trusted pins', flush=True)
 
 
 def main():
@@ -430,11 +561,14 @@ def main():
     parser.add_argument('--volume', type=Path)
     parser.add_argument('--log-dir', type=Path)
     parser.add_argument('--manifest', type=Path)
+    parser.add_argument('--kernel-head', help='trusted SKRYNIA_KERNEL_HEAD from the workflow')
+    parser.add_argument('--tools-head', help='trusted tools checkout HEAD (git rev-parse HEAD)')
     args = parser.parse_args()
     if args.self_test:
         self_test()
         return 0
-    required = ('kernel', 'p0', 'p1', 'guest', 'volume', 'log_dir', 'manifest')
+    required = ('kernel', 'p0', 'p1', 'guest', 'volume', 'log_dir', 'manifest',
+                'kernel_head', 'tools_head')
     missing = [name for name in required if getattr(args, name) is None]
     assert not missing, f'missing required options: {missing} (or use --self-test)'
     run(args)

@@ -13,7 +13,13 @@ fn syscalls_list_advertises_both_names() {
         .expect("syscalls_list")
         .json()
         .expect("json");
-    assert_eq!(value, serde_json::json!(["publish", "unpublish"]));
+    assert_eq!(
+        value,
+        serde_json::json!({"functions": [
+            {"name": "publish", "params": ["i32"], "results": ["i32"]},
+            {"name": "unpublish", "params": ["i32"], "results": ["i32"]}
+        ]})
+    );
     assert_eq!(
         client()
             .post(format!("{}/syscalls_list", f.base))

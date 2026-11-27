@@ -6,6 +6,7 @@ mod cases2;
 mod cases3;
 mod cases4;
 mod cases5;
+mod cases6;
 mod fake;
 mod host;
 

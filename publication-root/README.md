@@ -74,10 +74,65 @@ requests could still be in flight.
 
 The root validates generic path grammar (bounded UTF-8, relative, no NUL,
 newline, carriage return, backslash, absolute path, empty/`.`/`..` segments) and
-rejects private roots (`security`, `programs`, `publication-requests`,
-`operator`, `private`, `tokens`). App names, release identity, manifest hashes
-and activation policy remain application/deployment concerns; this program
-never encodes them.
+rejects private roots. Under the qualified-path convention that includes both
+root tokens (`operator/...` and `user/...`, so `user/publication-requests/...`
+and `operator/security/...` are never published), plus the unqualified legacy
+names (`security`, `programs`, `publication-requests`, `operator`, `private`,
+`tokens`). Rejection happens before a ticket is written or the provider is
+invoked. App names, release identity, manifest hashes and activation policy
+remain application/deployment concerns; this program never encodes them.
+
+Directory outcomes are precise: a missing source directory is an invalid source
+(provider code 3), an existing non-symlink destination node is a conflict
+(code 4) and is never replaced, and unpublish of an absent path is idempotent
+(code 0). The mailbox directory uses create-if-absent `mkdir`, so it works
+whether the directory was missing or already present, and fails closed with a
+mailbox error when a non-directory obstructs that path.
+
+## Target ABI port
+
+All `skrynia` fixed imports now use the owner-approved target ABI: byte-only
+`read1`/`write1`, signed relative `seek`, `truncate`, single-byte `cas1` and
+u64 shared-RAM addresses/lengths for `open_disk`/`mkdir`/`delete`/
+`secure_random_bits`. No caller-linear-memory pointer or bulk `read`/`write`
+crosses the host boundary. The root exports exactly `skrynia_main(i32,i32)->i32`
+plus `memory`; `publish`/`unpublish` keep the typed `(i32)->i32` provider
+signature in the root-only `syscall` namespace.
+
+Shared RAM is one unpartitioned byte region shared by every concurrent request,
+so staging cannot use a per-process fixed offset. Bytes 0..255 are one CAS
+occupancy byte per slot; a request claims a free byte with a sequentially
+consistent `cas1` (0 -> 1) and releases it on drop, so no global RAM mutex is
+needed and a wrapped counter cannot reuse a live slot. Each invocation then
+uses its own bounded 8 KiB slot for the verifier path, mailbox path, random
+ticket and request path; a per-slot bump cursor keeps those regions disjoint
+and `seek` results are checked against the requested offset. The RAM is sized
+with `truncate` only when still empty, so no request resizes a live backing
+during normal operation. A trapping request can leave its occupancy byte set;
+like a trapped mailbox ticket, that is reclaimed only in a quiesced window.
+
+`tests/check_target_abi.py` parses the compiled WASM and asserts the exact
+target signatures and the preserved provider signature. The disposable
+`tests/real_wasm_chain.py` boots the real kernel and real provider, drives the
+compiled root and checks root-token, path/security, provider-failure and
+16-way concurrent publication behaviour. The provider HTTP codec is owned and
+built by the coordinator; this crate never edits it.
+
+Slot lifetime regressions are covered at two levels. `tests/slot_occupancy_model.py`
+models the exact `cas1` occupancy protocol deterministically: one byte per slot,
+`0 -> 1` claim, `1 -> 0` release on every ordinary return, no modulo counter,
+no shrink, fail-closed at 256 busy slots, and more than 256 total invocations
+while one request stays active without ever reusing its byte or its staged
+bytes. `real_wasm_chain.py --overlap-total N` drives the same property through
+the real compiled root on the exact target kernel: a transparent loopback
+provider proxy holds one request whose ticket path is marked `overlap-hold`
+after the root has claimed its slot, then N other publishes complete while it
+is still active; the held request and every peer must return 0 with exact
+bytes and a clean mailbox. The overlap phase is opt-in so the ordinary CI
+lifecycle stays bounded. Peer concurrency defaults to 8 (`--overlap-workers`):
+the target kernel admits only 16 requests in flight and answers further ones
+with 503, so one held request plus 8 peers stays inside that kernel limit; the
+>256 count comes from total invocations, not from exceeding the kernel cap.
 
 ## Release deployment gate
 
@@ -123,4 +178,10 @@ provider and real nginx:
 python3 publication-root/tests/real_wasm_chain.py \
   --kernel KERNEL --provider PROVIDER --root ROOT_WASM \
   --results /tmp/opencode/wasm-publication-results.json
+
+python3 publication-root/tests/slot_occupancy_model.py
+
+python3 publication-root/tests/real_wasm_chain.py \
+  --kernel KERNEL --provider PROVIDER --root ROOT_WASM \
+  --overlap-total 300 --results /tmp/opencode/wasm-publication-overlap-results.json
 ```

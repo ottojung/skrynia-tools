@@ -23,7 +23,7 @@ pub fn build(
     ttl: u32,
     topic: [u8; 16],
 ) -> Result<PushRequest> {
-    if body.is_empty() || body.len() > 4096 + 130 {
+    if body.is_empty() || body.len() > super::encrypt::MAX_BODY {
         return Err(Error::Quota);
     }
     // RFC 6454 §6.1 step 5 / RFC 8292 §2: the default HTTPS port is omitted

@@ -1,4 +1,4 @@
-//! Four-byte little-endian ABI shared with the reference HTTP syscall protocol.
+//! Target typed integer wire ABI: version 1, one i32 value.
 
 use serde_json::{Value, json};
 
@@ -10,18 +10,26 @@ pub const DEST_CONFLICT: u32 = 4;
 pub const IO_ERROR: u32 = 5;
 pub const INTERNAL: u32 = 6;
 
-/// The request body must be exactly one little-endian `u32` ticket.
+/// One i32 ticket encoded as version, count, tag, and four LE bytes.
 pub fn decode(body: &[u8]) -> Result<u32, u32> {
-    let bytes: [u8; 4] = body.try_into().map_err(|_| BAD_TICKET)?;
+    let [1, 1, 0x32, a, b, c, d] = body else {
+        return Err(BAD_TICKET);
+    };
+    let bytes = [*a, *b, *c, *d];
     Ok(u32::from_le_bytes(bytes))
 }
 
-/// A successful response is exactly four little-endian result bytes.
+/// The result uses the same typed i32 wire representation.
 pub fn encode(code: u32) -> Vec<u8> {
-    code.to_le_bytes().to_vec()
+    let mut result = vec![1, 1, 0x32];
+    result.extend_from_slice(&code.to_le_bytes());
+    result
 }
 
 /// Advertises the complete list of supported syscalls.
 pub fn syscalls_list() -> Value {
-    json!(["publish", "unpublish"])
+    json!({"functions": [
+        {"name": "publish", "params": ["i32"], "results": ["i32"]},
+        {"name": "unpublish", "params": ["i32"], "results": ["i32"]}
+    ]})
 }

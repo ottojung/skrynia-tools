@@ -6,6 +6,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  SKRYNIA_KERNEL_HEAD: 52f86d0d7556510a507421bc6510409142eda0e3
 jobs:
   native-components:
     runs-on: ubuntu-latest
@@ -29,7 +31,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: 806c172402880389eee94162a020c0f9c4c1bff2
+          ref: ${{ env.SKRYNIA_KERNEL_HEAD }}
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.93.0
@@ -44,13 +46,29 @@ jobs:
       - name: Build generic kernel
         working-directory: upstream-skrynia
         run: cargo build --locked --release -p libskrynia --bin skrynia-server
-      - name: Kernel nested-callback LEAK->SAFE regression (compiled)
+      - name: Kernel generic eval and callback regressions
         working-directory: upstream-skrynia
-        run: cargo test --locked -p libskrynia --test http callback::nested::nested_guest_cannot_steal_root_disk_fd_after_callback -- --exact
+        run: |
+          set -eu
+          cargo test --locked -p libskrynia --test vm eval:: -- --list > "$RUNNER_TEMP/eval-tests.txt"
+          grep -q '^eval::.*: test$' "$RUNNER_TEMP/eval-tests.txt"
+          cargo test --locked -p libskrynia --test vm eval::
       - name: Build ordinary guests
+        env:
+          RUSTFLAGS: "-C link-arg=--export-table -C opt-level=z -C strip=symbols"
         run: |
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-program0
           cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown -p skrynia-native-service --features cb-guest
+      - name: Check guest import surface and arena fit
+        run: |
+          python3 native-service/integration/test_verify_target_wasm.py
+          python3 native-service/integration/verify_target_wasm.py target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
+          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -le 2096000
+      - name: Real Program0 exact staging boundary and overflow recovery
+        run: |
+          python3 program0/integration/staging_boundary.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
       - name: Compiled Program0 operator-root isolation
         run: |
           rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown \
@@ -60,9 +78,35 @@ jobs:
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
             --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm" \
             --guest "$RUNNER_TEMP/scope-probe.wasm"
+      - name: Real descriptor, random-byte and shared-lease regressions
+        run: |
+          set -eu
+          KERNEL="$PWD/upstream-skrynia/target/release/skrynia-server"
+          P0="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          for fixture in descriptor_guest random_guest t10_lock_guest; do
+            rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown --crate-type cdylib -C opt-level=s -C panic=abort -C strip=symbols "program0/integration/guests/${fixture}.rs" -o "$RUNNER_TEMP/${fixture}.wasm"
+          done
+          python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/descriptor_guest.wasm"
+          python3 program0/integration/target_p0_ops.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/random_guest.wasm" --want RANDOM_OK --label random
+          python3 program0/integration/t10_lock_http.py --kernel "$KERNEL" --p0 "$P0" --guest "$RUNNER_TEMP/t10_lock_guest.wasm"
+      - name: Real compiled nested callback and failure recovery
+        run: |
+          set -eu
+          KERNEL="$PWD/upstream-skrynia/target/release/skrynia-server"
+          P0="$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
+          P1="$PWD/target/wasm32-unknown-unknown/release/skrynia_native_service.wasm"
+          for fixture in probe invalid; do
+            rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown --crate-type cdylib -C opt-level=s -C panic=abort -C strip=symbols "native-service/integration/nested/${fixture}.rs" -o "$RUNNER_TEMP/nested-${fixture}.wasm"
+          done
+          PROBE="$RUNNER_TEMP/nested-probe.wasm"
+          INVALID="$RUNNER_TEMP/nested-invalid.wasm"
+          python3 native-service/integration/nested/nested_cb.py --kernel "$KERNEL" --p0 "$P0" --p1 "$P1" --probe "$PROBE" --invalid "$INVALID" \
+            --kernel-sha256 "$(sha256sum "$KERNEL" | cut -d' ' -f1)" --p0-sha256 "$(sha256sum "$P0" | cut -d' ' -f1)" --p1-sha256 "$(sha256sum "$P1" | cut -d' ' -f1)" \
+            --probe-sha256 "$(sha256sum "$PROBE" | cut -d' ' -f1)" --invalid-sha256 "$(sha256sum "$INVALID" | cut -d' ' -f1)"
       - name: Build current Theorem P2 guest
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
+          RUSTFLAGS: "-C link-arg=--export-table -C opt-level=z -C strip=symbols"
         run: cargo +1.93.0 build --locked --release --target wasm32-unknown-unknown --manifest-path examples/theorem_lab_feedback_p2/Cargo.toml
       - name: Real compiled registry recovery (interrupted stage and I/O obstruction)
         run: |
@@ -84,7 +128,7 @@ jobs:
             --p0-sha256 "$(sha256sum "$P0" | cut -d' ' -f1)" \
             --p1-sha256 "$(sha256sum "$P1" | cut -d' ' -f1)" \
             --p2-sha256 "$(sha256sum "$P2" | cut -d' ' -f1)"
-      - name: Compiled service and trusted-edge tests
+      - name: Compiled service and build exact kit
         run: |
           export SKRYNIA_REQUIRE_KIT=1
           export SKRYNIA_V3_SERVER_BIN="$PWD/upstream-skrynia/target/release/skrynia-server"
@@ -95,7 +139,7 @@ jobs:
           sha256sum "$SKRYNIA_V3_SERVER_BIN" "$SKRYNIA_V3_PROGRAM0_WASM" "$SKRYNIA_V3_NATIVE_SERVICE_WASM"
           export FC_ARTIFACTS="$RUNNER_TEMP/skrynia-fullchain-artifacts"
           mkdir "$FC_ARTIFACTS"
-          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --test compiled_service -- --test-threads=1
           install -m 700 "$SKRYNIA_V3_SERVER_BIN" "$FC_ARTIFACTS/kernel"
           install -m 700 v3-trusted-edge-gateway/target/debug/skrynia-v3-trusted-edge-gateway "$FC_ARTIFACTS/edge"
           cp "$SKRYNIA_V3_PROGRAM0_WASM" "$FC_ARTIFACTS/root.wasm"
@@ -108,7 +152,7 @@ jobs:
           {
             echo "tools_head=$(git rev-parse HEAD)"
             echo "kernel_head=$(git -C upstream-skrynia rev-parse HEAD)"
-            echo "kernel=806c172402880389eee94162a020c0f9c4c1bff2"
+            echo "kernel=$SKRYNIA_KERNEL_HEAD"
             echo "sha256_kernel=$(sha256sum "$SKRYNIA_V3_SERVER_BIN" | cut -d' ' -f1)"
             echo "sha256_p0=$(sha256sum "$SKRYNIA_V3_PROGRAM0_WASM" | cut -d' ' -f1)"
             echo "sha256_p1=$(sha256sum "$SKRYNIA_V3_NATIVE_SERVICE_WASM" | cut -d' ' -f1)"
@@ -116,12 +160,97 @@ jobs:
             echo "sha256_echo=$(sha256sum "$FC_ARTIFACTS/echo.wasm" | cut -d' ' -f1)"
             echo "sha256_p2=$(sha256sum "$FC_ARTIFACTS/theorem_lab_feedback_p2.wasm" | cut -d' ' -f1)"
           } > "$FC_ARTIFACTS/COMMIT_MANIFEST.txt"
-          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked
+          python3 tests/v3_proxy/verify_kit.py --kit "$FC_ARTIFACTS" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+      - name: Upload exact compiled stack (reuse by downstream CI)
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
+          if-no-files-found: error
+
+  trusted-edge-tests:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: v3-trusted-edge-gateway -> target
+      - name: Real trusted-edge streaming and liveness
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          export SKRYNIA_REQUIRE_KIT=1
+          export SKRYNIA_V3_SERVER_BIN="$A/kernel"
+          export SKRYNIA_V3_PROGRAM0_WASM="$A/root.wasm"
+          export SKRYNIA_V3_NATIVE_SERVICE_WASM="$A/service.wasm"
+          cargo +1.93.0 test --manifest-path v3-trusted-edge-gateway/Cargo.toml --locked --tests -- --test-threads=1
+
+  fullchain:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: dtolnay/rust-toolchain@1.93.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fullchain-integration -> target
+      - name: Real full-chain Web Push and ordinary service
+        shell: bash
+        run: |
+          set -euo pipefail
+          export FC_ARTIFACTS="$RUNNER_TEMP/exact-stack"
+          cargo +1.93.0 run --manifest-path fullchain-integration/Cargo.toml --locked 2>&1 | tee "$RUNNER_TEMP/fullchain.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fullchain-evidence
+          path: ${{ runner.temp }}/fullchain.log
+          if-no-files-found: warn
+
+  scale-1000:
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/exact-stack
+      - name: Verify source and artifact pins
+        run: |
+          A="$RUNNER_TEMP/exact-stack"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+          chmod 700 "$A/kernel" "$A/edge"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: 1000-version / restart exact-stack acceptance (real compiled kit)
         shell: bash
         run: |
           set -euxo pipefail
-          A="$RUNNER_TEMP/skrynia-fullchain-artifacts"
+          A="$RUNNER_TEMP/exact-stack"
           for f in kernel root.wasm service.wasm echo.wasm edge; do
             test -s "$A/$f"
           done
@@ -136,17 +265,19 @@ jobs:
           export SKRYNIA_ECHO_SHA256_OVERRIDE=$(sha256sum "$A/echo.wasm" | cut -d' ' -f1)
           export SKRYNIA_EDGE_GATEWAY_OVERRIDE="$A/edge"
           export SKRYNIA_EDGE_GATEWAY_SHA256_OVERRIDE=$(sha256sum "$A/edge" | cut -d' ' -f1)
+          export SKRYNIA_GIT_HEAD="$(git rev-parse HEAD)"
+          export E2E_EVIDENCE_OUT="$RUNNER_TEMP/scale-1000.json"
           node tests/web-admin-v3/p1_admin_scale_1000.mjs
-      - name: Upload exact compiled stack (reuse by downstream CI)
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: exact-compiled-stack-806c172
-          path: ${{ runner.temp }}/skrynia-fullchain-artifacts/
-          if-no-files-found: error
+          name: scale-1000-evidence
+          path: ${{ runner.temp }}/scale-1000.json
+          if-no-files-found: warn
 
   enospc-recovery:
     # Genuine ENOSPC on a private, disposable 8 MiB tmpfs. Reuses the exact
-    # compiled stack built by compiled-stack (kernel 806c172, P0/P1/P2/edge).
+    # compiled stack built by compiled-stack (explicit-root kernel, P0/P1/P2/edge).
     # No kernel or guest rebuild; no shared-host fills and no privileged mounts
     # outside this disposable runner. sudo is used only for mount/umount of VOL.
     needs: [compiled-stack]
@@ -158,7 +289,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
-          name: exact-compiled-stack-806c172
+          name: exact-compiled-stack
           path: ${{ runner.temp }}/exact-stack
       - name: Pin exact source, kernel source and artifact hashes
         shell: bash
@@ -166,10 +297,11 @@ jobs:
           set -euo pipefail
           A="$RUNNER_TEMP/exact-stack"
           (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
-          grep -qx 'kernel=806c172402880389eee94162a020c0f9c4c1bff2' "$A/COMMIT_MANIFEST.txt"
-          grep -qx 'kernel_head=806c172402880389eee94162a020c0f9c4c1bff2' "$A/COMMIT_MANIFEST.txt"
+          grep -qx "kernel=$SKRYNIA_KERNEL_HEAD" "$A/COMMIT_MANIFEST.txt"
+          grep -qx "kernel_head=$SKRYNIA_KERNEL_HEAD" "$A/COMMIT_MANIFEST.txt"
           # The compiled artifact and this job check out the same workflow commit.
           grep -qx "tools_head=$(git rev-parse HEAD)" "$A/COMMIT_MANIFEST.txt"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
       - name: Unit-test ENOSPC harness (safe, no mounts or fills)
         run: python3 tests/v3_proxy/enospc_recovery.py --self-test
       - name: Genuine ENOSPC on private tmpfs (real compiled ordinary P1)
@@ -195,7 +327,9 @@ jobs:
             --guest "$A/theorem_lab_feedback_p2.wasm" \
             --volume "$VOL" \
             --log-dir "$LOGS" \
-            --manifest "$A/COMMIT_MANIFEST.txt"
+            --manifest "$A/COMMIT_MANIFEST.txt" \
+            --kernel-head "$SKRYNIA_KERNEL_HEAD" \
+            --tools-head "$(git rev-parse HEAD)"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -211,7 +345,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: ottojung/Skrynia
-          ref: 806c172402880389eee94162a020c0f9c4c1bff2
+          # Target-ABI kernel: typed /syscalls_list discovery and byte-scalar
+          # root imports. Pre-typed kernels reject the {"functions": ...} body.
+          ref: ${{ env.SKRYNIA_KERNEL_HEAD }}
           path: upstream-skrynia
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.93.0
@@ -242,23 +378,92 @@ jobs:
             --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
             --provider "$PWD/publish-provider/target/release/skrynia-publish-provider" \
             --root "$PWD/target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm" \
+            --overlap-total 300 --overlap-workers 8 \
             --results "$RUNNER_TEMP/wasm-publication-results.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: wasm-publication-results
           path: ${{ runner.temp }}/wasm-publication-results.json
-  chromium-admin-e2e:
-    # Reuses the exact artifacts built by compiled-stack (kernel 806c172,
-    # P0/P1/edge/echo) rather than duplicating a kernel/guest build.
-    needs: [compiled-stack]
+      - name: Pin publication artifacts for bootstrap replay
+        run: |
+          set -eu
+          A="$RUNNER_TEMP/publication-kit"
+          mkdir "$A"
+          install -m 700 publish-provider/target/release/skrynia-publish-provider "$A/provider"
+          cp target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm "$A/publication-root.wasm"
+          (cd "$A"; sha256sum provider publication-root.wasm > SHA256SUMS)
+          printf 'tools=%s\nkernel=%s\n' "$(git rev-parse HEAD)" "$(git -C upstream-skrynia rev-parse HEAD)" > "$A/SOURCE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-publication-kit
+          path: ${{ runner.temp }}/publication-kit/
+          if-no-files-found: error
+  bootstrap-real-e2e:
+    needs: [compiled-stack, publication-wasm]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: actions/download-artifact@v4
         with:
-          name: exact-compiled-stack-806c172
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/exact-stack
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-publication-kit
+          path: ${{ runner.temp }}/publication-kit
+      - name: Install real nginx and pinned Chromium harness
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          npm ci --prefix tests/browser
+          tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real publication, unlock and admin bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="$RUNNER_TEMP/exact-stack"
+          P="$RUNNER_TEMP/publication-kit"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+          printf 'tools=%s\nkernel=%s\n' "$(git rev-parse HEAD)" "$SKRYNIA_KERNEL_HEAD" | cmp - "$P/SOURCE"
+          (cd "$P"; sha256sum -c SHA256SUMS)
+          chmod 700 "$A/kernel" "$A/edge" "$P/provider"
+          ln -s "$A/kernel" "$P/kernel-release"
+          sha() { sha256sum "$1" | cut -d' ' -f1; }
+          export SKRYNIA_KIT="$P"
+          export SKRYNIA_KIT_KERNEL_SHA256="$(sha "$A/kernel")"
+          export SKRYNIA_KIT_PUBLICATION_ROOT_SHA256="$(sha "$P/publication-root.wasm")"
+          export SKRYNIA_KIT_PROVIDER_SHA256="$(sha "$P/provider")"
+          export SKRYNIA_KERNEL_BIN="$A/kernel" SKRYNIA_KERNEL_SHA256="$SKRYNIA_KIT_KERNEL_SHA256"
+          export SKRYNIA_P0_WASM="$A/root.wasm" SKRYNIA_P0_SHA256="$(sha "$A/root.wasm")"
+          export SKRYNIA_P1_WASM="$A/service.wasm" SKRYNIA_P1_SHA256="$(sha "$A/service.wasm")"
+          export SKRYNIA_ECHO_GUEST="$A/echo.wasm" SKRYNIA_ECHO_SHA256="$(sha "$A/echo.wasm")"
+          export SKRYNIA_EDGE_GATEWAY_BIN="$A/edge" SKRYNIA_EDGE_GATEWAY_SHA256="$(sha "$A/edge")"
+          export NGINX_BIN="$(command -v nginx)"
+          export SKRYNIA_PLAYWRIGHT_MODULE="$PWD/tests/browser/node_modules/playwright/index.mjs"
+          export CHROMIUM_BIN="$(node -e 'const {chromium}=require("./tests/browser/node_modules/playwright"); console.log(chromium.executablePath())')"
+          node bootstrap/tests/publication_bootstrap_e2e.mjs | tee "$RUNNER_TEMP/bootstrap-e2e.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bootstrap-e2e-evidence
+          path: ${{ runner.temp }}/bootstrap-e2e.log
+          if-no-files-found: warn
+  chromium-admin-e2e:
+    # Reuses the exact artifacts built by compiled-stack (explicit-root kernel,
+    # P0/P1/edge/echo) rather than duplicating a kernel/guest build.
+    needs: [compiled-stack]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack
           path: ${{ runner.temp }}/exact-stack
       - uses: actions/setup-node@v4
         with:
@@ -276,7 +481,7 @@ jobs:
           chmod 700 "$KERNEL" "$GW"
           # Verify against the SHA256SUMS produced by compiled-stack.
           (cd "$A" && sha256sum -c SHA256SUMS && sha256sum -c SHA256SUMS.p2)
-          test -s "$A/COMMIT_MANIFEST.txt"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
           echo "kernel=$KERNEL" >> "$GITHUB_OUTPUT"
           echo "p0=$P0" >> "$GITHUB_OUTPUT"
           echo "p1=$P1" >> "$GITHUB_OUTPUT"

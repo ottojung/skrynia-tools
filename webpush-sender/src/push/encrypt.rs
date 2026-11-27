@@ -10,10 +10,13 @@ pub trait Rng {
     fn fill(&self, out: &mut [u8]);
 }
 
-const RECORD: usize = 4096;
+pub(super) const MAX_BODY: usize = 4096;
+const HEADER: usize = 86;
+const TAG: usize = 16;
+const MAX_PLAINTEXT: usize = MAX_BODY - HEADER - TAG - 1;
 
 pub fn encrypt(payload: &[u8], sub: &Subscription, rng: &impl Rng) -> Result<Vec<u8>> {
-    if payload.len() + 1 > RECORD - 16 {
+    if payload.len() > MAX_PLAINTEXT {
         return Err(Error::Quota);
     }
     let mut salt = [0u8; 16];
@@ -35,15 +38,17 @@ pub fn encrypt(payload: &[u8], sub: &Subscription, rng: &impl Rng) -> Result<Vec
     let nonce = aes_gcm::Nonce::from(rk.nonce);
     let mut plain = payload.to_vec();
     plain.push(2);
-    plain.resize(RECORD - 16, 0);
     let sealed = cipher
         .encrypt(&nonce, plain.as_slice())
         .map_err(|_| Error::Crypto("seal"))?;
-    let mut out = Vec::with_capacity(16 + 4 + 1 + 65 + sealed.len());
+    let mut out = Vec::with_capacity(HEADER + sealed.len());
     out.extend_from_slice(&salt);
-    out.extend_from_slice(&(RECORD as u32).to_be_bytes());
+    out.extend_from_slice(&(MAX_BODY as u32).to_be_bytes());
     out.push(65);
     out.extend_from_slice(server.as_bytes());
     out.extend_from_slice(&sealed);
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests;

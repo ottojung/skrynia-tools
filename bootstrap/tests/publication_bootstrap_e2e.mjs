@@ -18,14 +18,15 @@ import {
 } from '../../tests/web-admin-v3/real_native_e2e/run.mjs';
 import {cdpTarget, cdp, until} from '../../tests/web-admin-v3/real_native_e2e/chromium.mjs';
 
-const KIT = process.env.SKRYNIA_KIT || '/workspace/skrynia-exact-kit-73d8fa1';
-const NGINX = process.env.NGINX_BIN
-  || '/gnu/store/db9fbd8i7dxn3k2rs7rll52d1gxx4wsy-nginx-1.28.0/sbin/nginx';
-const CHROME = process.env.CHROMIUM_BIN
-  || process.env.CHROME_BIN
-  || '/var/guix/profiles/per-user/puser/guix-profile/bin/chromium';
-const PW = process.env.SKRYNIA_PLAYWRIGHT_MODULE
-  || '/workspace/skrynia-tools/tests/browser/node_modules/playwright/index.mjs';
+function required(name) {
+  const value = process.env[name];
+  if (!value) throw new Error("Missing bootstrap fixture input: " + name);
+  return value;
+}
+const KIT = required('SKRYNIA_KIT');
+const NGINX = required('NGINX_BIN');
+const CHROME = required('CHROMIUM_BIN');
+const PW = required('SKRYNIA_PLAYWRIGHT_MODULE');
 
 const sha = b => createHash('sha256').update(b).digest('hex');
 const results = [];
@@ -79,9 +80,9 @@ async function main() {
   try {
     // Fail immediately on wrong kit digest - no "continue on wrong binary".
     const kitExpected = {
-      kernel: process.env.SKRYNIA_KIT_KERNEL_SHA256 || 'a1dc4119d360436cffa35ba19416d8d5c90bfbf6237fcc2772b46a8c57459fd1',
-      'publication-root': process.env.SKRYNIA_KIT_PUBLICATION_ROOT_SHA256 || '35fe0f955019bc24f40c32c3a3813db25f5a25ee729acc6caed57f20c81da65a',
-      provider: process.env.SKRYNIA_KIT_PROVIDER_SHA256 || '6bedbc1a8f130441ef3d5247cfd82ac62a01cba4e0d07c2ebb6d6a2b64854c0b',
+      kernel: required('SKRYNIA_KIT_KERNEL_SHA256'),
+      'publication-root': required('SKRYNIA_KIT_PUBLICATION_ROOT_SHA256'),
+      provider: required('SKRYNIA_KIT_PROVIDER_SHA256'),
     };
     for (const [name, path, expected] of [
       ['kernel', join(KIT, 'kernel-release'), kitExpected.kernel],

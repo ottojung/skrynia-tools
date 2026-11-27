@@ -378,6 +378,74 @@ jobs:
         with:
           name: wasm-publication-results
           path: ${{ runner.temp }}/wasm-publication-results.json
+      - name: Pin publication artifacts for bootstrap replay
+        run: |
+          set -eu
+          A="$RUNNER_TEMP/publication-kit"
+          mkdir "$A"
+          install -m 700 publish-provider/target/release/skrynia-publish-provider "$A/provider"
+          cp target/wasm32-unknown-unknown/release/skrynia_publication_root.wasm "$A/publication-root.wasm"
+          (cd "$A"; sha256sum provider publication-root.wasm > SHA256SUMS)
+          printf 'tools=%s\nkernel=%s\n' "$(git rev-parse HEAD)" "$(git -C upstream-skrynia rev-parse HEAD)" > "$A/SOURCE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-publication-kit
+          path: ${{ runner.temp }}/publication-kit/
+          if-no-files-found: error
+  bootstrap-real-e2e:
+    needs: [compiled-stack, publication-wasm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-compiled-stack
+          path: ${{ runner.temp }}/exact-stack
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-publication-kit
+          path: ${{ runner.temp }}/publication-kit
+      - name: Install real nginx and pinned Chromium harness
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nginx
+          npm ci --prefix tests/browser
+          tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Real publication, unlock and admin bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="$RUNNER_TEMP/exact-stack"
+          P="$RUNNER_TEMP/publication-kit"
+          python3 tests/v3_proxy/verify_kit.py --kit "$A" --tools-head "$(git rev-parse HEAD)" --kernel-head "$SKRYNIA_KERNEL_HEAD"
+          printf 'tools=%s\nkernel=%s\n' "$(git rev-parse HEAD)" "$SKRYNIA_KERNEL_HEAD" | cmp - "$P/SOURCE"
+          (cd "$P"; sha256sum -c SHA256SUMS)
+          chmod 700 "$A/kernel" "$A/edge" "$P/provider"
+          ln -s "$A/kernel" "$P/kernel-release"
+          sha() { sha256sum "$1" | cut -d' ' -f1; }
+          export SKRYNIA_KIT="$P"
+          export SKRYNIA_KIT_KERNEL_SHA256="$(sha "$A/kernel")"
+          export SKRYNIA_KIT_PUBLICATION_ROOT_SHA256="$(sha "$P/publication-root.wasm")"
+          export SKRYNIA_KIT_PROVIDER_SHA256="$(sha "$P/provider")"
+          export SKRYNIA_KERNEL_BIN="$A/kernel" SKRYNIA_KERNEL_SHA256="$SKRYNIA_KIT_KERNEL_SHA256"
+          export SKRYNIA_P0_WASM="$A/root.wasm" SKRYNIA_P0_SHA256="$(sha "$A/root.wasm")"
+          export SKRYNIA_P1_WASM="$A/service.wasm" SKRYNIA_P1_SHA256="$(sha "$A/service.wasm")"
+          export SKRYNIA_ECHO_GUEST="$A/echo.wasm" SKRYNIA_ECHO_SHA256="$(sha "$A/echo.wasm")"
+          export SKRYNIA_EDGE_GATEWAY_BIN="$A/edge" SKRYNIA_EDGE_GATEWAY_SHA256="$(sha "$A/edge")"
+          export NGINX_BIN="$(command -v nginx)"
+          export SKRYNIA_PLAYWRIGHT_MODULE="$PWD/tests/browser/node_modules/playwright/index.mjs"
+          export CHROMIUM_BIN="$(node -e 'const {chromium}=require("./tests/browser/node_modules/playwright"); console.log(chromium.executablePath())')"
+          node bootstrap/tests/publication_bootstrap_e2e.mjs | tee "$RUNNER_TEMP/bootstrap-e2e.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bootstrap-e2e-evidence
+          path: ${{ runner.temp }}/bootstrap-e2e.log
+          if-no-files-found: warn
   chromium-admin-e2e:
     # Reuses the exact artifacts built by compiled-stack (explicit-root kernel,
     # P0/P1/edge/echo) rather than duplicating a kernel/guest build.

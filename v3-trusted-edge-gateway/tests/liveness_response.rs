@@ -32,4 +32,6 @@ fn chunk_parser_rejects_interrupted_responses() {
     ] {
         assert!(dechunk(bad).is_err(), "accepted malformed response");
     }
+    assert!(dechunk(b"3\r\nab").unwrap_err().contains("expected 3 bytes"));
+    assert!(dechunk(b"3\r\nabc\n").unwrap_err().contains("incomplete chunk"));
 }

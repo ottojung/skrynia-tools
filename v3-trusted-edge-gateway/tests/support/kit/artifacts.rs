@@ -1,7 +1,5 @@
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::TcpListener;
 use std::path::Path;
-use std::process::Child;
-use std::time::Duration;
 
 pub fn kit() -> Option<(String, String)> {
     let bin = std::env::var("SKRYNIA_V3_SERVER_BIN").ok();
@@ -24,15 +22,4 @@ pub fn free_port() -> u16 {
         .local_addr()
         .unwrap()
         .port()
-}
-
-pub fn wait_ready(addr: SocketAddr, child: &mut Child) {
-    for _ in 0..500 {
-        if TcpStream::connect(addr).is_ok() {
-            return;
-        }
-        assert!(child.try_wait().unwrap().is_none(), "process exited early");
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    panic!("did not become ready: {addr}");
 }

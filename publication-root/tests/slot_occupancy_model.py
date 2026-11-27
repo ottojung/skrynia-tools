@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Deterministic model of publication-root shared-RAM CAS occupancy slots.
+"""HISTORICAL model of the retired publication-root CAS staging arena.
 
-Mirrors publication-root/src/host/stage_claim.rs: one `cas1` occupancy byte per
-8 KiB slot (0 -> 1 claim, 1 -> 0 release on every ordinary return), no modulo
-counter, no shrink, and fail-closed when all SLOTS bytes are busy. This is a
-fast, always-runnable regression model; the real end-to-end proof is the
-`--overlap-total` phase of tests/real_wasm_chain.py on the exact target kernel.
+This modelled the pre-3.1 `stage_claim.rs` protocol: one `cas1` occupancy byte
+per 8 KiB slot (0 -> 1 claim, 1 -> 0 release), no modulo counter, no shrink.
+ABI 3.1 replaced that arena with private linear-memory buffers, so this model
+is retained only as historical evidence and is NOT an acceptance gate.
 """
 from __future__ import annotations
 

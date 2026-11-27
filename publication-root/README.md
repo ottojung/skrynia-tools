@@ -114,9 +114,10 @@ signatures, the `skrynia_v3_1` namespace and the preserved provider signature.
 The disposable `tests/real_wasm_chain.py` boots the real kernel and real
 provider, drives the compiled root and checks root-token, path/security,
 provider-failure and concurrent publication behaviour. The provider HTTP codec
-is owned and built by the coordinator; this crate never edits it. The older
-`tests/slot_occupancy_model.py` described the retired CAS arena and is kept
-only as historical evidence; it is not an acceptance gate for ABI 3.1.
+is owned and built by the coordinator; this crate never edits it. Its legacy
+`--overlap-total` threshold and `tests/slot_occupancy_model.py` described the
+retired CAS arena; they are kept only as historical evidence, not as ABI 3.1
+acceptance gates.
 
 ## Release deployment gate
 

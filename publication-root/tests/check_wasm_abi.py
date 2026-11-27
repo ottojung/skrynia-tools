@@ -113,6 +113,9 @@ def main() -> int:
     if any(module == FFI_MODULE for module, _ in p0_imports):
         print("generic P0 must not import syscalls", file=sys.stderr)
         return 1
+    if any(module not in ("skrynia_v3_1", "p0") for module, _ in p0_imports):
+        print("generic P0 has unexpected import namespace", sorted(p0_imports), file=sys.stderr)
+        return 1
     print("PUBLICATION_WASM_ABI_OK", sorted(imports), "exports", sorted(exports))
     return 0
 

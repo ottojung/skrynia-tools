@@ -1,7 +1,5 @@
-//! READ / CLOSE on per-invocation descriptor handles (no bulk kernel import).
+//! READ / CLOSE on per-invocation descriptor handles.
 use super::{Ctx, INVALID, abi, alloc, complete, reply, word};
-
-const EOF: i32 = -1;
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(fd) = word(f, at) else {
@@ -34,17 +32,21 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
         Ok(fd) => fd,
         Err(e) => return reply(e, &[]),
     };
-    let mut out = Vec::with_capacity(n as usize);
-    for _ in 0..n {
-        let b = unsafe { abi::read1(fd) };
-        if b < 0 {
-            return if b == EOF {
-                reply(out.len() as i32, &out)
-            } else {
-                reply(b, &[])
-            };
+    let mut out = vec![0u8; n as usize];
+    let mut done = 0usize;
+    while done < out.len() {
+        let part = &mut out[done..];
+        let n = unsafe { abi::read(fd, part.as_mut_ptr() as u64, part.len() as u64) };
+        if n < 0 {
+            return reply(n as i32, &[]);
         }
-        out.push(b as u8);
+        if n == 0 {
+            break;
+        }
+        if n as usize > part.len() {
+            return reply(-5, &[]);
+        }
+        done += n as usize;
     }
-    reply(out.len() as i32, &out)
+    reply(done as i32, &out[..done])
 }

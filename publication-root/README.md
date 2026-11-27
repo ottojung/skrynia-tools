@@ -89,50 +89,35 @@ Directory outcomes are precise: a missing source directory is an invalid source
 whether the directory was missing or already present, and fails closed with a
 mailbox error when a non-directory obstructs that path.
 
-## Target ABI port
+## Target ABI 3.1 port
 
-All `skrynia` fixed imports now use the owner-approved target ABI: byte-only
-`read1`/`write1`, signed relative `seek`, `truncate`, single-byte `cas1` and
-u64 shared-RAM addresses/lengths for `open_disk`/`mkdir`/`delete`/
-`secure_random_bits`. No caller-linear-memory pointer or bulk `read`/`write`
-crosses the host boundary. The root exports exactly `skrynia_main(i32,i32)->i32`
-plus `memory`; `publish`/`unpublish` keep the typed `(i32)->i32` provider
-signature in the root-only `syscall` namespace.
+Fixed imports use the owner-approved `skrynia_v3_1` namespace and the complete
+21-function inventory. All buffer pointers and lengths are `u64` offsets into
+this root's exported, non-shared linear memory: paths, random output and bulk
+descriptor bytes are staged in a private reusable buffer, never in shared RAM.
+`read`/`write` return the actual byte count (`0` is EOF/no progress, a short
+count is progress, a negative count is an error before progress); the helpers
+in `host/transfer.rs` repeat partial transfers and fail closed on zero
+progress. `read1`/`write1`, `seek` and `cas1` keep their unchanged scalar
+semantics. The root exports `skrynia_main(i32,i32)->i32` plus `memory`;
+`publish`/`unpublish` keep the typed `(i32)->i32` provider signature in the
+root-only `syscall` namespace.
 
-Shared RAM is one unpartitioned byte region shared by every concurrent request,
-so staging cannot use a per-process fixed offset. Bytes 0..255 are one CAS
-occupancy byte per slot; a request claims a free byte with a sequentially
-consistent `cas1` (0 -> 1) and releases it on drop, so no global RAM mutex is
-needed and a wrapped counter cannot reuse a live slot. Each invocation then
-uses its own bounded 8 KiB slot for the verifier path, mailbox path, random
-ticket and request path; a per-slot bump cursor keeps those regions disjoint
-and `seek` results are checked against the requested offset. The RAM is sized
-with `truncate` only when still empty, so no request resizes a live backing
-during normal operation. A trapping request can leave its occupancy byte set;
-like a trapped mailbox ticket, that is reclaimed only in a quiesced window.
+The old 256-slot CAS staging arena is gone. There is no shared-RAM occupancy
+byte, no cross-request fixed offset and no request-dependent resize, so
+concurrent roots cannot overwrite each other's staged bytes. The only
+application-level shared RAM protocol in this repository remains Program 0's
+16 one-byte owner tags and its resource lease; this root does not use it.
 
-`tests/check_target_abi.py` parses the compiled WASM and asserts the exact
-target signatures and the preserved provider signature. The disposable
-`tests/real_wasm_chain.py` boots the real kernel and real provider, drives the
-compiled root and checks root-token, path/security, provider-failure and
-16-way concurrent publication behaviour. The provider HTTP codec is owned and
-built by the coordinator; this crate never edits it.
-
-Slot lifetime regressions are covered at two levels. `tests/slot_occupancy_model.py`
-models the exact `cas1` occupancy protocol deterministically: one byte per slot,
-`0 -> 1` claim, `1 -> 0` release on every ordinary return, no modulo counter,
-no shrink, fail-closed at 256 busy slots, and more than 256 total invocations
-while one request stays active without ever reusing its byte or its staged
-bytes. `real_wasm_chain.py --overlap-total N` drives the same property through
-the real compiled root on the exact target kernel: a transparent loopback
-provider proxy holds one request whose ticket path is marked `overlap-hold`
-after the root has claimed its slot, then N other publishes complete while it
-is still active; the held request and every peer must return 0 with exact
-bytes and a clean mailbox. The overlap phase is opt-in so the ordinary CI
-lifecycle stays bounded. Peer concurrency defaults to 8 (`--overlap-workers`):
-the target kernel admits only 16 requests in flight and answers further ones
-with 503, so one held request plus 8 peers stays inside that kernel limit; the
->256 count comes from total invocations, not from exceeding the kernel cap.
+`tests/check_target_abi.py` parses the compiled WASM and asserts the exact 3.1
+signatures, the `skrynia_v3_1` namespace and the preserved provider signature.
+The disposable `tests/real_wasm_chain.py` boots the real kernel and real
+provider, drives the compiled root and checks root-token, path/security,
+provider-failure and concurrent publication behaviour. The provider HTTP codec
+is owned and built by the coordinator; this crate never edits it. Its legacy
+`--overlap-total` threshold and `tests/slot_occupancy_model.py` described the
+retired CAS arena; they are kept only as historical evidence, not as ABI 3.1
+acceptance gates.
 
 ## Release deployment gate
 

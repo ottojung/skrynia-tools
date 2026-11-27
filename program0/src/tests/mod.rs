@@ -20,7 +20,8 @@ fn verifies_then_invokes_guest_exactly_once() {
     fake::inspect(|b| {
         assert_eq!(b.eval_calls, 1);
         assert_eq!(b.eval_code, b"guest-bytes");
-        assert_eq!(b.ram[0], alloc::FREE as u8);
+        assert_eq!(b.ram.len(), alloc::META_END as usize);
+        assert!(b.ram.iter().all(|&byte| byte == alloc::FREE as u8));
     });
 }
 

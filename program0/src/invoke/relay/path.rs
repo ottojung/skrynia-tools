@@ -1,7 +1,6 @@
 //! Framed descriptor ops 5/6/8/10 on existing fixed K0 imports.
-//! No new kernel ABI and no application policy: bytes are staged in the
-//! caller's own RAM slot and the kernel reply code is relayed verbatim.
-use super::{Ctx, INVALID, UNSUPPORTED, abi, alloc, check_path, code, complete, reply, word};
+//! Paths already reside in the private framed request buffer.
+use super::{Ctx, INVALID, UNSUPPORTED, abi, check_path, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     match op {
@@ -28,10 +27,7 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
             if let Err(e) = check_path(path) {
                 return reply(e, &[]);
             }
-            let off = c.base + alloc::SLOT_PATH_AT;
-            if code::put_path(c.ram, &mut c.pos, c.base, path).is_err() {
-                return reply(-5, &[]);
-            }
+            let off = path.as_ptr() as u64;
             let rc = unsafe {
                 match op {
                     5 => abi::mkdir(off, n as u64, mode),

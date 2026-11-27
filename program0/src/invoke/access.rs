@@ -31,7 +31,7 @@ impl Ctx {
 
     pub fn close_fd(&mut self, raw: i32) -> i32 {
         // The root owns the transport descriptors; the guest cannot close
-        // them, nor can it close the private shared-RAM staging descriptor.
+        // them, nor can it close the private CAS metadata descriptor.
         if raw < 2 {
             return -4;
         }

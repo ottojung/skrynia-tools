@@ -1,5 +1,5 @@
-//! OPEN_DISK / EXISTS: stage one framed path, relay the kernel reply verbatim.
-use super::{Ctx, INVALID, abi, alloc, check_path, code, complete, reply, word};
+//! OPEN_DISK / EXISTS: pass the private path buffer, relay the kernel reply.
+use super::{Ctx, INVALID, abi, check_path, complete, reply, word};
 
 pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     let Some(n) = word(f, at) else {
@@ -24,10 +24,7 @@ pub fn call(c: &mut Ctx, f: &[u8], at: &mut usize, op: u8) -> Vec<u8> {
     if let Err(e) = check_path(path) {
         return reply(e, &[]);
     }
-    if code::put_path(c.ram, &mut c.pos, c.base, path).is_err() {
-        return reply(-5, &[]);
-    }
-    let at_path = c.base + alloc::SLOT_PATH_AT;
+    let at_path = path.as_ptr() as u64;
     // OPEN_DISK's trailing u32 mode is relayed verbatim; the kernel still
     // enforces root capabilities, so this adds no implicit authority.
     let rc = unsafe {

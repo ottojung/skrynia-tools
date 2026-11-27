@@ -1,6 +1,7 @@
+use super::mode::set_mode;
 use super::Kernel;
 use super::wasm;
-use crate::support::kit::{free_port, wait_ready};
+use crate::support::kit::{free_port, spawn_stderr_drain, wait_ready};
 use std::net::SocketAddr;
 use std::process::{Command, Stdio};
 
@@ -28,25 +29,15 @@ pub fn start(bin: &str, p0_wasm: &str, token: [u8; 32]) -> Kernel {
         .env("SKRYNIA_OPERATOR_DIR", &operator)
         .env("SKRYNIA_USER_DIR", &user)
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    wait_ready(addr, &mut child);
+    let stderr = spawn_stderr_drain(&mut child);
+    wait_ready(addr, &mut child, &stderr.buf);
     Kernel {
         child,
+        stderr,
         _dir: dir,
         addr,
-    }
-}
-
-fn set_mode(path: impl AsRef<std::path::Path>, mode: u32) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (path, mode);
     }
 }

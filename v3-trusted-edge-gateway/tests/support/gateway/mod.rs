@@ -1,10 +1,12 @@
 mod extra;
 mod start;
+use crate::support::kit::StderrDrain;
 use std::net::SocketAddr;
 use std::process::Child;
 
 pub struct Gateway {
     child: Child,
+    stderr: StderrDrain,
     _dir: tempfile::TempDir,
     pub addr: SocketAddr,
 }

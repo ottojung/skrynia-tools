@@ -1,7 +1,7 @@
 mod cfg;
 
 use super::Gateway;
-use crate::support::kit::{free_port, wait_ready};
+use crate::support::kit::{free_port, spawn_stderr_drain, wait_ready};
 use std::net::SocketAddr;
 use std::process::{Command, Stdio};
 
@@ -38,9 +38,11 @@ pub fn start_env(
         cmd.env(k, v);
     }
     let mut child = cmd.spawn().unwrap();
-    wait_ready(addr, &mut child);
+    let stderr = spawn_stderr_drain(&mut child);
+    wait_ready(addr, &mut child, &stderr.buf);
     Gateway {
         child,
+        stderr,
         _dir: dir,
         addr,
     }

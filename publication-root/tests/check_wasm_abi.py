@@ -101,12 +101,15 @@ def main() -> int:
     if "skrynia_main" not in exports:
         print("root missing skrynia_main export", file=sys.stderr)
         return 1
-    if any(module not in ("skrynia", "syscall") for module, _ in imports):
+    if any(module not in ("skrynia_v3_1", "syscall") for module, _ in imports):
         print("root has unexpected import namespace", sorted(imports), file=sys.stderr)
         return 1
     p0_imports, _ = inspect(args.generic_p0)
     if any(module == "syscall" for module, _ in p0_imports):
         print("generic P0 must not import syscalls", file=sys.stderr)
+        return 1
+    if any(module not in ("skrynia_v3_1", "p0") for module, _ in p0_imports):
+        print("generic P0 has unexpected import namespace", sorted(p0_imports), file=sys.stderr)
         return 1
     print("PUBLICATION_WASM_ABI_OK", sorted(imports), "exports", sorted(exports))
     return 0

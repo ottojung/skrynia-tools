@@ -50,7 +50,10 @@ pub use abi::{FFI_MODULE, MODULE, fixed, names};
 pub use decode::decode;
 pub use deploy::{DeployCheck, ImportNeed, check_imports};
 pub use discovery::{DiscoveryError, parse_list, parse_version, version_abi};
-pub use fallback::{ByteIo, CopyFailure, Progress, copy_bytes, skip_input};
+pub use fallback::{
+    BufferedCopyFailure, BulkIo, ByteIo, CopyFailure, Progress, copy_buffered, copy_bytes,
+    skip_input,
+};
 pub use invoke::{BindingError, NO_FUNCTION, check_binding};
 pub use scalar::{ScalarError, bulk, cas1, read1, seek, status, write1};
 pub use typed::{FixedSignature, Signature, ValType};

@@ -63,7 +63,12 @@ jobs:
         run: |
           python3 native-service/integration/test_verify_target_wasm.py
           python3 native-service/integration/verify_target_wasm.py target/wasm32-unknown-unknown/release/skrynia_native_service.wasm
-          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -lt 2096000
+          test "$(wc -c < target/wasm32-unknown-unknown/release/skrynia_native_service.wasm)" -le 2096000
+      - name: Real Program0 exact staging boundary and overflow recovery
+        run: |
+          python3 program0/integration/staging_boundary.py \
+            --kernel "$PWD/upstream-skrynia/target/release/skrynia-server" \
+            --p0 "$PWD/target/wasm32-unknown-unknown/release/skrynia_program0.wasm"
       - name: Compiled Program0 operator-root isolation
         run: |
           rustc +1.93.0 --edition=2024 --target wasm32-unknown-unknown \

@@ -1,9 +1,9 @@
-//! Userland SDK surface for the owner-approved target ABI.
+//! Userland SDK surface for the target `skrynia_v3_1` ABI.
 //!
-//! This layer follows the 0ccc90f intent records and K0's explicit
-//! integration choices. Those choices are implementation assumptions,
-//! not owner intent. No import is injected into evaluated children and
-//! no byte transfer uses a linear-memory buffer.
+//! Fixed buffer pointers and lengths are u64 offsets into the caller's
+//! exported non-shared linear memory. Bulk `read`/`write` transfer bytes
+//! between a descriptor and that memory; `read1`/`write1`, CAS and relative
+//! seek stay scalar. No import is injected into evaluated children.
 mod abi;
 mod decode;
 mod deploy;
@@ -46,12 +46,15 @@ pub(super) fn word(bytes: &[u8], at: usize, len: usize) -> Result<u64, WireError
     Ok(u64::from_le_bytes(buf))
 }
 
-pub use abi::{fixed, names};
+pub use abi::{FFI_MODULE, MODULE, fixed, names};
 pub use decode::decode;
 pub use deploy::{DeployCheck, ImportNeed, check_imports};
-pub use discovery::{DiscoveryError, parse_list, parse_version};
-pub use fallback::{ByteIo, CopyFailure, Progress, copy_bytes, skip_input};
+pub use discovery::{DiscoveryError, parse_list, parse_version, version_abi};
+pub use fallback::{
+    BufferedCopyFailure, BulkIo, ByteIo, CopyFailure, Progress, copy_buffered, copy_bytes,
+    skip_input,
+};
 pub use invoke::{BindingError, NO_FUNCTION, check_binding};
-pub use scalar::{ScalarError, cas1, read1, seek, status, write1};
+pub use scalar::{ScalarError, bulk, cas1, read1, seek, status, write1};
 pub use typed::{FixedSignature, Signature, ValType};
 pub use wire::{COUNT_EXTENDED, TAG_I32, TAG_I64, VERSION, encode};

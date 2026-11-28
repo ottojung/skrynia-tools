@@ -18,20 +18,20 @@ fn lease_byte_is_shared_and_owner_only() {
 fn framed_ops_exclude_other_requests_without_releasing_their_lease() {
     let (i, o, ram) = fake::seed(vec![], vec![]);
     alloc::ensure(ram).expect("arena");
-    let (_slot_a, base_a) = alloc::acquire(ram).expect("slot a");
-    let (_slot_b, base_b) = alloc::acquire(ram).expect("slot b");
-    invoke::enter(i, o, ram, base_a, i, o, 0);
+    let slot_a = alloc::acquire(ram).expect("slot a");
+    let slot_b = alloc::acquire(ram).expect("slot b");
+    invoke::enter(i, o, ram, slot_a, i, o);
     assert_eq!(support::code(&support::call(&[12])), 1);
     invoke::leave();
-    invoke::enter(i, o, ram, base_b, i, o, 0);
+    invoke::enter(i, o, ram, slot_b, i, o);
     assert_eq!(support::code(&support::call(&[12])), 0);
     assert_eq!(support::code(&support::call(&[13])), alloc::ERR_NOT_OWNER);
     invoke::leave();
-    invoke::enter(i, o, ram, base_a, i, o, 0);
+    invoke::enter(i, o, ram, slot_a, i, o);
     assert_eq!(support::code(&support::call(&[13])), 0);
     invoke::leave();
     fake::inspect(|s| assert_eq!(s.ram[alloc::LOCK_AT as usize], alloc::FREE as u8));
-    assert_eq!(alloc::slot_of(base_b), 1);
+    assert_eq!(slot_b, 1);
 }
 
 #[test]

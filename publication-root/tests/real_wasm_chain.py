@@ -200,10 +200,11 @@ class Process:
 class SlowProviderProxy:
     """Transparent loopback forwarder that holds one marked provider call.
 
-    The root has already CAS-claimed a shared-RAM slot and staged the mailbox
-    ticket before this call reaches the provider. Holding that one call open
-    while >256 other invocations finish proves the active slot is not reused
-    and its staged request path is not clobbered by a peer.
+    The root has already staged the mailbox ticket in its private linear
+    memory before this call reaches the provider. Holding that one call open
+    while many other invocations finish checks that a concurrent peer cannot
+    clobber the active request under ABI 3.1. The historical >256 threshold
+    referred to the retired CAS slot arena and is not an ABI 3.1 requirement.
     """
 
     def __init__(self, port: int, target: int, mailbox: str, timeout: int):

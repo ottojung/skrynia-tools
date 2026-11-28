@@ -1,16 +1,15 @@
 //! Strict frame validation: no effect from trailing, short or overlapping data.
 use super::support::{call, code, path_frame, setup, word};
-use super::{alloc, fake};
+use super::{alloc, code as guest_code, fake};
 
 #[test]
-fn random_fill_is_capped_to_one_slot() {
+fn random_fill_keeps_existing_request_bound() {
     let (_i, _o, _r) = setup(vec![]);
     let mut f = vec![11];
-    let bits = (alloc::SLOT_SIZE - alloc::SLOT_CODE_AT) * 8 + 8;
+    let bits = guest_code::MAX_CODE * 8 + 8;
     f.extend_from_slice(&word(bits as u32));
     assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
-    let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
-    fake::inspect(|s| assert!(s.ram[at..at + 8].iter().all(|&b| b == 0)));
+    fake::inspect(|s| assert_eq!(s.ram.len(), alloc::META_END as usize));
 }
 
 #[test]
@@ -26,14 +25,18 @@ fn random_fill_returns_the_requested_bytes() {
 }
 
 #[test]
-fn rename_second_path_cannot_reach_the_code_area() {
-    let (_i, _o, _r) = setup(vec![]);
-    let mut f = path_frame(7, &format!("user/{}", "a".repeat(995)));
-    f.extend_from_slice(&word(100));
-    f.extend_from_slice(format!("user/{}", "b".repeat(95)).as_bytes());
-    assert_eq!(code(&call(&f)), alloc::ERR_RANGE);
-    let at = (alloc::BASE + alloc::SLOT_CODE_AT) as usize;
-    fake::inspect(|s| assert!(s.ram[at..at + 100].iter().all(|&b| b == 0)));
+fn rename_uses_independent_private_path_buffers() {
+    let old = format!("user/{}old", "a/".repeat(299));
+    let new = format!("user/{}new", "b/".repeat(299));
+    let (_i, _o, _r) = setup(vec![(old.clone(), vec![7])]);
+    let mut f = path_frame(7, &old);
+    f.extend_from_slice(&word(new.len() as u32));
+    f.extend_from_slice(new.as_bytes());
+    assert_eq!(code(&call(&f)), 0);
+    fake::inspect(|s| {
+        assert_eq!(s.files, vec![(new, vec![7])]);
+        assert_eq!(s.ram.len(), alloc::META_END as usize);
+    });
 }
 
 #[test]

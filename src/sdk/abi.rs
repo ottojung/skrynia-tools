@@ -1,10 +1,18 @@
-//! Fixed machine ABI inventory (19 imports; no bulk I/O, no injection).
+//! Fixed machine ABI inventory (21 imports; bulk I/O over linear memory).
 use super::typed::{FixedSignature, ValType};
 
-const TABLE: [(&str, &str, &str); 19] = [
+/// Namespace of every fixed import in ABI 3.1. The retired `skrynia`
+/// namespace is never linked.
+pub const MODULE: &str = "skrynia_v3_1";
+/// Namespace of operator-defined named FFI imports; root-only.
+pub const FFI_MODULE: &str = "syscall";
+
+const TABLE: [(&str, &str, &str); 21] = [
     ("open_ram", "", "i32"),
     ("open_disk", "i64,i64,i32", "i32"),
     ("close", "i32", "i32"),
+    ("read", "i32,i64,i64", "i64"),
+    ("write", "i32,i64,i64", "i64"),
     ("read1", "i32", "i32"),
     ("write1", "i32,i32", "i32"),
     ("seek", "i32,i64", "i64"),

@@ -1,5 +1,9 @@
 //! Byte-stream fakes: read1 and write1.
 use super::{Kind, S};
+mod bulk;
+mod write;
+pub use bulk::*;
+pub use write::*;
 
 pub unsafe fn read1(fd: i32) -> i32 {
     S.with(|s| {
@@ -21,28 +25,6 @@ pub unsafe fn read1(fd: i32) -> i32 {
                 v.map(i32::from).unwrap_or(-1)
             }
             _ => -2,
-        }
-    })
-}
-
-pub unsafe fn write1(fd: i32, byte: i32) -> i32 {
-    S.with(|s| {
-        let mut b = s.borrow_mut();
-        match (b.get(fd).cloned(), u8::try_from(byte)) {
-            (Some(Kind::Output), Ok(v)) => {
-                b.output.push(v);
-                0
-            }
-            (Some(Kind::Ram), Ok(v)) => {
-                let p = b.rpos;
-                if p >= b.ram.len() {
-                    b.ram.resize(p + 1, 0)
-                }
-                b.ram[p] = v;
-                b.rpos = p + 1;
-                0
-            }
-            _ => -3,
         }
     })
 }

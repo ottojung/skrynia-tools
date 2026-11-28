@@ -25,6 +25,14 @@ descriptor or I/O fault is never silently treated as a missing object. P1's
 `MutLock` is the P0-mediated shared userland lease: `1` acquired, `0` contended
 and a negative code for a non-owner release.
 
+ABI 3.1 (`skrynia_v3_1`) moves all host buffer arguments to `u64` offsets into
+the calling root's exported non-shared linear memory. This compiled P1 guest
+has no direct kernel imports: it reaches descriptors only through the
+unchanged `p0.invoke` byte protocol, so its zero/one-callback `eval` semantics
+and application authority are unaffected. The staged paths, code, random
+bytes and bulk data live in P0's private memory; the lease and owner tags are
+the only deliberate shared-RAM protocol and remain userland coordination.
+
 A successful host test is not compiled guest acceptance. Use the pinned
 disposable integration harness, independently verify source and artifact
 identity, and test least-authority delegation, concurrent mutation, restart

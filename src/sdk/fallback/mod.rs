@@ -42,3 +42,6 @@ pub fn copy_bytes<I: ByteIo>(io: &mut I, src: i32, dst: i32) -> Result<Progress,
 pub fn skip_input<I: ByteIo>(io: &mut I, fd: i32, shift: i64) -> Result<u64, CopyFailure> {
     seek(io.seek(fd, shift)).map_err(CopyFailure::Seek)
 }
+
+mod buffered;
+pub use buffered::{BufferedCopyFailure, BulkIo, copy_buffered};

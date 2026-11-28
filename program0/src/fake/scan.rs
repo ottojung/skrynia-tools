@@ -1,4 +1,4 @@
-//! Deterministic NEXT_ENTRY fake over staged RAM names.
+//! Deterministic NEXT_ENTRY fake writing to a private buffer.
 use super::{Kind, S};
 
 fn parent(p: &str) -> &str {
@@ -31,9 +31,9 @@ pub unsafe fn next_entry(fd: i32, dst: u64, cap: u64) -> i32 {
         if cap < entry.len() as u64 {
             return -7;
         }
-        for (j, &byte) in entry.as_bytes().iter().enumerate() {
-            b.ram[dst as usize + j] = byte;
-        }
+        unsafe {
+            core::ptr::copy_nonoverlapping(entry.as_ptr(), dst as usize as *mut u8, entry.len())
+        };
         b.fpos[fd as usize] += 1;
         entry.len() as i32
     })

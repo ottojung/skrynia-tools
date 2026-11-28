@@ -9,6 +9,8 @@ pub struct Fake {
     pub files: HashMap<u32, Vec<u8>>,
     pub next_ticket: u32,
     pub collisions: u8,
+    pub collided: Vec<Vec<u8>>,
+    pub open_error: Option<i32>,
     pub provider: i32,
     pub trap: bool,
     pub deny_delete: bool,
@@ -24,19 +26,25 @@ pub struct Fake {
 }
 
 impl Fake {
-    pub fn with_verifier(token: &[u8; 32]) -> Self {
-        use sha2::{Digest, Sha256};
-        Self {
-            verifier: Sha256::digest(token).into(),
-            ..Self::default()
+    pub(super) fn open_error(&mut self, name: &[u8]) -> Option<i32> {
+        if let Some(code) = self.open_error {
+            return Some(code);
         }
+        if self.collisions == 0 {
+            return None;
+        }
+        self.collisions -= 1;
+        self.collided.push(name.to_vec());
+        Some(-5)
     }
-}
-
-pub(super) fn record_invoke(fake: &mut Fake, publish: bool, ticket: u32) -> Option<i32> {
-    if fake.trap {
-        return None;
+    pub(super) fn exists(&self, name: &[u8]) -> bool {
+        self.collided.iter().any(|p| p == name)
     }
-    fake.invokes.push((publish, ticket));
-    Some(fake.provider)
+    pub(super) fn write(&mut self, bytes: &[u8]) -> Result<(), i32> {
+        if self.fail_write {
+            return Err(-5);
+        }
+        self.written.push(bytes.to_vec());
+        Ok(())
+    }
 }

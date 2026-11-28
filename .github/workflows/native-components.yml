@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 env:
-  SKRYNIA_KERNEL_HEAD: 52f86d0d7556510a507421bc6510409142eda0e3
+  SKRYNIA_KERNEL_HEAD: 3bc24d8467be67c79d467920266528a36032bae4
 jobs:
   native-components:
     runs-on: ubuntu-latest
@@ -21,6 +21,8 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo test --locked --workspace --all-targets
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: ABI 3.1 publication fixture self-tests
+        run: python3 publication-root/tests/test_abi_fixtures.py
       - name: Full-chain harness host tests
         run: cargo test --manifest-path fullchain-integration/Cargo.toml --locked
   compiled-stack:
@@ -46,6 +48,8 @@ jobs:
       - name: Build generic kernel
         working-directory: upstream-skrynia
         run: cargo build --locked --release -p libskrynia --bin skrynia-server
+      - name: Verify ABI 3.1 identity in the pinned kernel
+        run: python3 tests/v3_proxy/check_kernel_abi.py --kernel-source upstream-skrynia --kernel-bin "$PWD/upstream-skrynia/target/release/skrynia-server"
       - name: Kernel generic eval and callback regressions
         working-directory: upstream-skrynia
         run: |

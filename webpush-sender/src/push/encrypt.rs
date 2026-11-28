@@ -23,7 +23,9 @@ pub fn encrypt(payload: &[u8], sub: &Subscription, rng: &impl Rng) -> Result<Vec
     let mut raw = [0u8; 32];
     rng.fill(&mut salt);
     rng.fill(&mut raw);
-    let eph = SecretKey::from_slice(&raw).map_err(|_| Error::Crypto("eph"))?;
+    // Invalid scalar means the injected RNG failed, not that the recipient is
+    // malformed. Keep Crypto for genuine recipient material (p256dh/auth).
+    let eph = SecretKey::from_slice(&raw).map_err(|_| Error::Transport("rng-eph"))?;
     let client = PublicKey::from_sec1_bytes(&sub.p256dh).map_err(|_| Error::Crypto("p256dh"))?;
     let shared = ecdh::diffie_hellman(eph.to_nonzero_scalar(), client.as_affine());
     let server = eph.public_key().to_encoded_point(false);

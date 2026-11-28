@@ -1,8 +1,14 @@
-use super::{Abi, Host, fs, ops};
+use super::{Abi, Host, abi, fs, ops};
 
 impl Host for Abi {
     fn open(&mut self, path: &[u8], mode: u32) -> Result<i32, i32> {
         ops::open(&mut self.staging, path, mode)
+    }
+    fn exists(&mut self, path: &[u8]) -> bool {
+        let Ok((ptr, len)) = self.staging.put(path) else {
+            return false;
+        };
+        unsafe { abi::exists(ptr, len) == 1 }
     }
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
         ops::read(fd, dst)

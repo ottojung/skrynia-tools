@@ -1,7 +1,7 @@
 use super::{Fake, auth, path};
 
 fn credential(token: &[u8; 32]) -> Fake {
-    let mut fake = Fake::with_verifier(token);
+    let mut fake = super::with_verifier(token);
     fake.input = [vec![1u8], token.to_vec()].concat();
     fake
 }

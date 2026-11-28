@@ -38,6 +38,7 @@ mod transfer_tests;
 /// Root-authority boundary. No evaluated child ever sees these operations.
 pub trait Host {
     fn open(&mut self, path: &[u8], mode: u32) -> Result<i32, i32>;
+    fn exists(&mut self, path: &[u8]) -> bool;
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32>;
     fn close(&mut self, fd: i32) -> Result<(), i32>;
     fn mkdir(&mut self, path: &[u8]) -> Result<(), i32>;

@@ -9,6 +9,7 @@ pub struct Fake {
     pub files: HashMap<u32, Vec<u8>>,
     pub next_ticket: u32,
     pub collisions: u8,
+    pub open_error: Option<i32>,
     pub provider: i32,
     pub trap: bool,
     pub deny_delete: bool,
@@ -24,6 +25,16 @@ pub struct Fake {
 }
 
 impl Fake {
+    pub(super) fn open_error(&mut self) -> Option<i32> {
+        if let Some(code) = self.open_error {
+            return Some(code);
+        }
+        if self.collisions > 0 {
+            self.collisions -= 1;
+            return Some(-5);
+        }
+        None
+    }
     pub fn with_verifier(token: &[u8; 32]) -> Self {
         use sha2::{Digest, Sha256};
         Self {

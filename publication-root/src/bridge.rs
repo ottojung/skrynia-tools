@@ -8,7 +8,6 @@ pub const MAILBOX: i32 = -2;
 pub const UNKNOWN: i32 = -3;
 pub const CLEANUP: i32 = -4;
 const RETRIES: u8 = 8;
-const EXISTS: i32 = -3;
 
 /// One bounded path, one fresh ticket, one synchronous named import.
 /// No queue and no effects after the reply is written.
@@ -22,7 +21,7 @@ pub fn run<H: Host>(host: &mut H, request: &Request) -> i32 {
             Err(_) => return MAILBOX,
         };
         match mailbox::write(host, ticket, &request.path) {
-            Err(EXISTS) => continue,
+            Err(mailbox::CreateError::Collision) => continue,
             Err(_) => return MAILBOX,
             Ok(()) => return finish(host, request.publish, ticket),
         }

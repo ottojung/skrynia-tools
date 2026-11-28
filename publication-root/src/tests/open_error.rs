@@ -28,3 +28,14 @@ fn einval_from_open_is_not_a_ticket_collision() {
     assert_eq!(bridge::run(&mut fake, &request()), bridge::MAILBOX);
     assert!(fake.invokes.is_empty());
 }
+
+#[test]
+fn noncollision_eio_never_retries_invokes_or_deletes() {
+    let mut fake = Fake {
+        open_error: Some(-5),
+        ..Fake::default()
+    };
+    assert_eq!(bridge::run(&mut fake, &request()), bridge::MAILBOX);
+    assert!(fake.invokes.is_empty());
+    assert!(fake.deleted.is_empty());
+}

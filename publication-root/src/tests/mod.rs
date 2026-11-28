@@ -17,3 +17,18 @@ pub(super) fn take(src: &[u8], pos: &mut usize, dst: &mut [u8]) -> usize {
     *pos += n;
     n
 }
+
+pub(super) fn with_verifier(token: &[u8; 32]) -> Fake {
+    use sha2::{Digest, Sha256};
+    Fake {
+        verifier: Sha256::digest(token).into(),
+        ..Fake::default()
+    }
+}
+pub(super) fn record_invoke(fake: &mut Fake, publish: bool, ticket: u32) -> Option<i32> {
+    if fake.trap {
+        return None;
+    }
+    fake.invokes.push((publish, ticket));
+    Some(fake.provider)
+}

@@ -32,12 +32,12 @@ fn trap_is_unknown_and_cleanup_failure_is_reported() {
 #[test]
 fn token_check_is_shape_validated() {
     let token = [7u8; 32];
-    let mut fake = Fake::with_verifier(&token);
+    let mut fake = super::with_verifier(&token);
     let mut input = vec![1u8];
     input.extend_from_slice(&token);
     fake.input = input;
     assert_eq!(auth::require(&mut fake, 99).unwrap(), token);
-    let mut wrong = Fake::with_verifier(&token);
+    let mut wrong = super::with_verifier(&token);
     wrong.input = [vec![1u8], vec![9u8; 32]].concat();
     assert_eq!(auth::require(&mut wrong, 99), Err(-4));
 }

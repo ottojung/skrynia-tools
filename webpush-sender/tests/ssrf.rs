@@ -46,8 +46,10 @@ fn mixed_or_missing_dns_fails() {
     let empty = FakeResolver {
         answers: HashMap::new(),
     };
+    // A missing resolver answer is an injected I/O failure, not an SSRF
+    // verdict; unsafe answers below remain Ssrf.
     assert_eq!(
         validate_url("https://push.example/p", &empty),
-        Err(Error::Ssrf("dns"))
+        Err(Error::Transport("dns-io"))
     );
 }

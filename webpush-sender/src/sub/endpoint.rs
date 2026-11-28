@@ -24,10 +24,17 @@ pub fn validate_url(url: &str, resolver: &impl Resolver) -> Result<Target> {
         return Err(Error::Ssrf("path"));
     }
     let auth = host::parse(authority)?;
+    // An injected resolver I/O failure is a transient local failure, not an
+    // unsafe answer. Keep Ssrf strictly for malformed URLs and bad addresses.
     let answers = resolver
         .resolve(&auth.host)
-        .map_err(|_| Error::Ssrf("dns"))?;
-    if answers.is_empty() || !answers.iter().copied().all(ip::is_global) {
+        .map_err(|_| Error::Transport("dns-io"))?;
+    // Empty success means no usable answer; treat as transient, not unsafe.
+    // Any non-global answer remains a hard SSRF denial.
+    if answers.is_empty() {
+        return Err(Error::Transport("dns-empty"));
+    }
+    if !answers.iter().copied().all(ip::is_global) {
         return Err(Error::Ssrf("address"));
     }
     Ok(Target {

@@ -30,6 +30,7 @@ mod fs;
 mod imp;
 #[cfg(target_arch = "wasm32")]
 mod ops;
+#[cfg(any(target_arch = "wasm32", test))]
 mod transfer;
 #[cfg(test)]
 mod transfer_tests;

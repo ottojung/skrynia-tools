@@ -51,10 +51,12 @@ disposable loopback origin. `SKRYNIA_ALLOW_LOOPBACK_HTTP=1` is the matching
 disposable-only exception to the HTTPS-origin rule.
 
 The exact bootstrap bundle identity is `SKRYNIA_BOOTSTRAP_BUNDLE_ID`, the
-SHA-256 of `bootstrap/SHA256SUMS`. `deploy.sh` computes/verifies that digest
-from the out-of-band anchor (`SKRYNIA_BOOTSTRAP_SOURCE_SHA256`, or the already
-checksum-verified piped bundle) and passes it to the installer; the installer
-records it in the private `.installed` marker and publishes it in
+SHA-256 of `bootstrap/SHA256SUMS`. `deploy.sh` verifies `SHA256SUMS` against the out-of-band anchor
+(`SKRYNIA_BOOTSTRAP_SOURCE_SHA256`, or the already checksum-verified piped
+bundle), then passes that verified digest to the installer as
+`SKRYNIA_BOOTSTRAP_BUNDLE_ID`. `install.mjs` rejects any `bundleId` that does
+not match the local `SHA256SUMS` bytes (minimum integrity check) and records
+the identity in the private `.installed` marker and in
 `manifest.json`/helper payloads as `bundleId`. `SHA256SUMS` does not list
 itself, so the anchor is out-of-band, not self-referential. This identifies
 the exact bundle bytes only; it is **not** the running kernel/tools stack

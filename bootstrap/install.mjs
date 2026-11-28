@@ -215,8 +215,16 @@ async function runHelper(bin, payload) {
   return parsed;
 }
 
+async function localBundleId() {
+  return sha256(await readFile(new URL('./SHA256SUMS', import.meta.url)));
+}
+
 export async function install(cfg = requireInput()) {
   if (!cfg || !BUNDLE_ID_RE.test(cfg.bundleId || '')) throw Error('missing or invalid out-of-band bootstrap bundle identity (SKRYNIA_BOOTSTRAP_BUNDLE_ID)');
+  const expectedBundleId = await localBundleId();
+  if (cfg.bundleId !== expectedBundleId) {
+    throw Error('bootstrap bundle identity does not match local SHA256SUMS bytes; verify the bundle out-of-band (deploy.sh sets SKRYNIA_BOOTSTRAP_BUNDLE_ID from the verified anchor)');
+  }
   const origin = cfg.originUrl ? cfg.originUrl.origin : validateOrigin(cfg.origin).origin;
   const endpoint = cfg.endpointUrl || validateEndpoint(cfg.endpoint || '/_skrynia/', new URL(origin));
   assertDisposableOrigin(new URL(origin));

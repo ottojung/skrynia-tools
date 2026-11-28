@@ -225,6 +225,39 @@ test('SHA256SUMS covers exactly the published source roster', async () => {
   assert.deepEqual(listed, expected, 'SHA256SUMS roster must be exact');
 });
 
+test('deploy.sh executes with verified SHA256SUMS anchor and exports bundle identity', async t => {
+  const {spawnSync} = await import('node:child_process');
+  const dir = await mkdtemp(join(tmpdir(), 'bootstrap-deploy-'));
+  t.after(() => rm(dir, {recursive: true, force: true}));
+  const bdir = join(dir, 'bootstrap');
+  await mkdir(bdir, {recursive: true});
+  // Minimal fake bundle: deploy.sh, stub install.mjs, and a SHA256SUMS that
+  // covers exactly those files. The out-of-band anchor is the SHA256SUMS digest.
+  const deploySrc = await readFile(new URL('../deploy.sh', import.meta.url));
+  await writeFile(join(bdir, 'deploy.sh'), deploySrc, {mode: 0o700});
+  await writeFile(join(bdir, 'install.mjs'), "process.stdout.write(JSON.stringify({bundleId:process.env.SKRYNIA_BOOTSTRAP_BUNDLE_ID||''})+'\\n');\n", {mode: 0o600});
+  const sums = `${sha(deploySrc)}  deploy.sh\n${sha(await readFile(join(bdir, 'install.mjs')))}  install.mjs\n`;
+  await writeFile(join(bdir, 'SHA256SUMS'), sums, {mode: 0o600});
+  const anchor = sha(Buffer.from(sums));
+  // Fake required inputs.
+  const root = join(dir, 'private-root'), nginx = join(dir, 'nginx-root'), mailbox = join(dir, 'mailbox');
+  for (const p of [root, nginx, mailbox]) { await mkdir(p, {mode: 0o700}); await chmod(p, 0o700); }
+  for (const n of ['read.cap','admin.cap','pub.sh','ver.sh']) await writeFile(join(dir, n), n.endsWith('.cap') ? hex(n[0]) : '#!/bin/sh\nexit 0\n', {mode: 0o600});
+  for (const n of ['pub.sh','ver.sh']) await chmod(join(dir, n), 0o700);
+  const env = {
+    ...process.env,
+    SKRYNIA_BOOTSTRAP_SOURCE_SHA256: anchor,
+    SKRYNIA_ARTIFACT_ROOT: root, SKRYNIA_NGINX_ROOT: nginx, SKRYNIA_PUBLICATION_MAILBOX: mailbox,
+    SKRYNIA_ORIGIN_URL: 'https://admin.example.test',
+    SKRYNIA_NATIVE_READ_CAP_FILE: join(dir, 'read.cap'), SKRYNIA_NATIVE_ADMIN_CAP_FILE: join(dir, 'admin.cap'),
+    SKRYNIA_PUBLISH_HELPER: join(dir, 'pub.sh'), SKRYNIA_VERIFY_HELPER: join(dir, 'ver.sh'),
+  };
+  const cp = spawnSync('bash', [join(bdir, 'deploy.sh')], {env, encoding: 'utf8', timeout: 30000});
+  assert.equal(cp.status, 0, cp.stderr || cp.stdout);
+  const out = JSON.parse(cp.stdout.trim());
+  assert.equal(out.bundleId, anchor);
+});
+
 test('sha256sum -c detects a byte mutation of a published JS asset', async t => {
   const {cp} = await import('node:fs/promises');
   const {spawnSync} = await import('node:child_process');

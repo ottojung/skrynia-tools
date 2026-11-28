@@ -27,6 +27,7 @@ verify_local_bundle() {
   manifest_actual="$(sha256sum "$here/SHA256SUMS" | awk '{print $1}')"
   [[ "$manifest_actual" == "$expected" ]] || { echo 'bootstrap SHA256SUMS checksum mismatch (out-of-band anchor required)' >&2; exit 2; }
   (cd "$here" && sha256sum -c SHA256SUMS >/dev/null) || { echo 'bootstrap SHA256SUMS verification failed' >&2; exit 2; }
+  printf '%s' "$manifest_actual"
 }
 
 SOURCE_FILE="${BASH_SOURCE[0]:-}"
@@ -62,7 +63,7 @@ if [[ -z "$SOURCE_FILE" || "$SOURCE_FILE" == /dev/stdin || "$SOURCE_FILE" == - |
 fi
 
 HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
-verify_local_bundle "$HERE"
+manifest_actual="$(verify_local_bundle "$HERE")"
 
 # Neither value may be overridden by the operator.
 export SKRYNIA_BOOTSTRAP_BUNDLE_ID="$manifest_actual"

@@ -1,5 +1,8 @@
 mod big_body;
 mod first;
+
+pub(super) use super::http::dechunk;
+
 mod hang;
 mod trickle;
 mod trickle_ok;

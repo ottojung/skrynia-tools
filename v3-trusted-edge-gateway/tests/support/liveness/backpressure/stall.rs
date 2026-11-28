@@ -2,39 +2,41 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub fn wait_backpressure(written: &AtomicUsize, total: usize) {
-    let t = Instant::now();
-    while t.elapsed() < Duration::from_secs(5) {
-        if written.load(Ordering::Relaxed) > 256 * 1024 {
-            break;
-        }
-        thread::sleep(Duration::from_millis(50));
-    }
-    let start = written.load(Ordering::Relaxed);
-    assert!(
-        start > 256 * 1024,
-        "upstream must produce data before backpressure check: {start}"
-    );
-    let mut prev = start;
+const PROGRESS: usize = 256 * 1024;
+const STABLE: Duration = Duration::from_millis(300);
+
+/// Prove the upstream write is stalled by downstream backpressure while the
+/// held request is still live. The proof (including the stability window)
+/// must complete before `deadline`, never after it.
+pub fn wait_backpressure(written: &AtomicUsize, total: usize, deadline: Instant) {
+    let mut prev = written.load(Ordering::Relaxed);
     let mut stable_since = Instant::now();
     loop {
-        thread::sleep(Duration::from_millis(100));
         let now = written.load(Ordering::Relaxed);
-        if now <= prev.saturating_add(256 * 1024) {
-            if stable_since.elapsed() >= Duration::from_millis(300) {
+        let grew = now.saturating_sub(prev);
+        if now > PROGRESS && grew <= PROGRESS {
+            if stable_since.elapsed() >= STABLE {
+                assert!(
+                    Instant::now() < deadline,
+                    "backpressure stall proved after request deadline: written={now}/{total}"
+                );
                 assert!(
                     now < total.saturating_sub(1024 * 1024),
-                    "upstream must not near-complete 16MiB while downstream is nonreading: {now}/{total}"
+                    "upstream must not near-complete {total} while downstream is nonreading: {now}/{total}"
                 );
                 return;
             }
-        } else {
+        } else if grew > PROGRESS {
             prev = now;
             stable_since = Instant::now();
         }
         assert!(
-            t.elapsed() < Duration::from_millis(1700),
-            "upstream did not stall under backpressure before request deadline: start={start} now={now} total={total}"
+            Instant::now() < deadline,
+            "upstream did not stall under backpressure before request deadline: written={now}/{total}"
         );
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .unwrap_or_default();
+        thread::sleep(remaining.min(Duration::from_millis(100)));
     }
 }

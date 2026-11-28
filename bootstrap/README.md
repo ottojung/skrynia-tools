@@ -19,8 +19,12 @@ no kernel-side bootstrap.
 - A trusted HTTPS static origin for the admin app, with the same-origin
   gateway already provisioned (the gateway holds the server-only Program 0
   token and frames private POST bytes server-side).
-- An operator-owned **private artifact root**, disjoint from the nginx document
-  root and from the publication mailbox.
+- An operator-owned **private artifact root** that already exists as a real
+  directory (not a symlink or alias), owned by the invoking uid and private
+  (`0700` or stricter). It must be disjoint from the nginx document root and
+  from the publication mailbox, both of which must also be configured as
+  existing, non-aliased directories. The installer canonicalizes all three
+  paths and rejects nesting or aliases; it does not create the root.
 - A compiled publication root WASM and reference publish provider, plus a
   native publication helper that accepts the JSON protocol below and publishes
   through the root/provider (never by writing nginx files directly).
@@ -31,14 +35,18 @@ no kernel-side bootstrap.
 
 ## Inputs (environment or interactive /dev/tty prompts)
 
-`SKRYNIA_ARTIFACT_ROOT`, `SKRYNIA_ORIGIN_URL`,
+`SKRYNIA_ARTIFACT_ROOT`, `SKRYNIA_NGINX_ROOT`,
+`SKRYNIA_PUBLICATION_MAILBOX`, `SKRYNIA_ORIGIN_URL`,
 `SKRYNIA_NATIVE_READ_CAP_FILE`, `SKRYNIA_NATIVE_ADMIN_CAP_FILE`,
-optional `SKRYNIA_NATIVE_ADMIN_CAPS_FILE`, `SKRYNIA_PUBLISH_HELPER`,
-`SKRYNIA_VERIFY_HELPER`; optional `SKRYNIA_NATIVE_ENDPOINT`
+`SKRYNIA_PUBLISH_HELPER`, `SKRYNIA_VERIFY_HELPER`; optional
+`SKRYNIA_NATIVE_ADMIN_CAPS_FILE`, `SKRYNIA_NATIVE_ENDPOINT`
 (default `/_skrynia/`) and `SKRYNIA_ADMIN_APP` (default `admin-v3`).
-`SKRYNIA_TOOLS_PIN` is fixed to the reviewed source pin
-`9a8dcc996e597e6b582a87d255dc11486dd4e8eb` (current tools main at this
-implementation) and is rejected if changed.
+`SKRYNIA_BOOTSTRAP_BUNDLE_PIN` is fixed to the reviewed installer-bundle
+source commit `91f9845b4cdb750c0671e8583448f1f31cad67ae` and is rejected if
+changed. That pin identifies only the reviewed immutable bundle source; it is
+**not** the running kernel/tools stack identity (exact artifact pins are
+qualified by exact-stack CI separately). No local hash or live git head is
+used as an authority here.
 
 ## Pinned distribution
 
@@ -71,7 +79,7 @@ immutable-bundle bootstrap described above.
 
 ```json
 {"action":"publish|verify|unpublish","app":"admin-v3","release":"<sha256>",
- "kitPin":"<pin>","origin":"https://...","endpoint":"https://.../_skrynia/",
+ "kitPin":"<reviewed-bundle-pin>","origin":"https://...","endpoint":"https://.../_skrynia/",
  "files":[{"rel":"apps/admin-v3/<release>/unlock.html","abs":"/private/...","sha256":"<hex>"}],
  "stable":[{"rel":"apps/admin-v3/unlock.html","abs":"/private/...","sha256":"<hex>"}]}
 ```
@@ -114,13 +122,20 @@ enters the password, then installs `window.__skryniaNativeSession` and
 navigates to the admin app. Without successful unlock the shipped UI remains
 fail-closed and no native session capability exists.
 
-The password is printed once on stdout after served-byte verification and is
-never written to disk in plaintext. Losing it requires a new one-time install
-with a fresh release; existing published releases are immutable.
+The password is printed once on stdout after served-byte verification **and**
+persisted as plaintext in the private `0600` recovery file
+`password.<release>.txt` under the artifact root (created only after successful
+publication and verification). That file is never published, never placed in
+the vault/manifest/URLs, and stays private under operator policy; rotate or
+delete it per that policy. Losing both the printed value and the recovery file
+requires a new one-time install with a fresh release; existing published
+releases are immutable.
 
 ## Disposable qualification
 
-`bootstrap/tests/installer.mjs` covers refusal, vault scoping and password
-strength. `bootstrap/tests/chromium_bootstrap.mjs` drives the real unlock page
-in Chromium. The compiled publication plus Chromium end-to-end fixture is
-documented in `bootstrap/tests/PUBLICATION_E2E.md`.
+`bootstrap/tests/installer.mjs` covers refusal, vault scoping, password
+strength, the private recovery file written after success, artifact-root
+prerequisites and exact roster checks (both the source `SHA256SUMS` and the
+published `manifest.json`). `bootstrap/tests/chromium_bootstrap.mjs` drives the
+real unlock page in Chromium. The compiled publication plus Chromium end-to-end
+fixture is documented in `bootstrap/tests/PUBLICATION_E2E.md`.

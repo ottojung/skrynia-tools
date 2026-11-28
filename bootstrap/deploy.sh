@@ -5,7 +5,9 @@
 set -euo pipefail
 
 umask 077
-TOOLS_PIN=9a8dcc996e597e6b582a87d255dc11486dd4e8eb
+# Reviewed installer-bundle source identity (immutable tools commit containing
+# this bootstrap), NOT the running kernel/tools stack pin qualified by CI.
+BUNDLE_PIN=91f9845b4cdb750c0671e8583448f1f31cad67ae
 REPO="${SKRYNIA_BOOTSTRAP_REPO:-ottojung/skrynia-tools}"
 
 ask() {
@@ -63,8 +65,10 @@ HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
 verify_local_bundle "$HERE"
 
 # Neither value may be overridden by the operator.
-export SKRYNIA_TOOLS_PIN="$TOOLS_PIN"
+export SKRYNIA_BOOTSTRAP_BUNDLE_PIN="$BUNDLE_PIN"
 export SKRYNIA_ARTIFACT_ROOT="$(ask SKRYNIA_ARTIFACT_ROOT)"
+export SKRYNIA_NGINX_ROOT="$(ask SKRYNIA_NGINX_ROOT)"
+export SKRYNIA_PUBLICATION_MAILBOX="$(ask SKRYNIA_PUBLICATION_MAILBOX)"
 export SKRYNIA_ORIGIN_URL="$(ask SKRYNIA_ORIGIN_URL)"
 export SKRYNIA_NATIVE_READ_CAP_FILE="$(ask SKRYNIA_NATIVE_READ_CAP_FILE)"
 export SKRYNIA_NATIVE_ADMIN_CAP_FILE="$(ask SKRYNIA_NATIVE_ADMIN_CAP_FILE)"

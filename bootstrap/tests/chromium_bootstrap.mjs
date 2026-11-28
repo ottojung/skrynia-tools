@@ -5,7 +5,7 @@ import {mkdtemp, mkdir, readFile, rm, writeFile, chmod} from 'node:fs/promises';
 import {join, extname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {install, KIT_TOOLS_PIN} from '../install.mjs';
+import {install, REVIEWED_BUNDLE_PIN} from '../install.mjs';
 
 const PW = process.env.SKRYNIA_PLAYWRIGHT_MODULE
   || '/workspace/skrynia-tools/tests/browser/node_modules/playwright/index.mjs';
@@ -17,7 +17,12 @@ test('Chromium: scoped native authority exists only after password unlock', asyn
   const dir = await mkdtemp(join(tmpdir(), 'bootstrap-chromium-'));
   t.after(() => rm(dir, {recursive: true, force: true}));
   const root = join(dir, 'root');
-  await mkdir(root);
+  const nginxRoot = join(dir, 'nginx-root');
+  const mailbox = join(dir, 'publication-mailbox');
+  for (const p of [root, nginxRoot, mailbox]) {
+    await mkdir(p, {mode: 0o700});
+    await chmod(p, 0o700);
+  }
   await writeFile(join(dir, 'r.cap'), 'a'.repeat(64), {mode: 0o600});
   await writeFile(join(dir, 'a.cap'), 'b'.repeat(64), {mode: 0o600});
   const helperMod = join(dir, 'helper.mjs');
@@ -34,7 +39,8 @@ if (j.action === 'verify') {
   await writeFile(helper, `#!/bin/sh\nexec node '${helperMod}'\n`);
   await chmod(helper, 0o700);
   const cfg = {
-    kitPin: KIT_TOOLS_PIN, artifactRoot: root, origin: 'https://admin.example.test',
+    kitPin: REVIEWED_BUNDLE_PIN, artifactRoot: root, nginxRoot, mailbox,
+    origin: 'https://admin.example.test',
     app: 'admin-v3', endpoint: '/_skrynia/',
     readCapFile: join(dir, 'r.cap'), adminCapFile: join(dir, 'a.cap'),
     adminCapsFile: '', publishHelper: helper, verifyHelper: helper,

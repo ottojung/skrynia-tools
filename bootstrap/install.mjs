@@ -5,14 +5,16 @@
 // served file has been independently SHA-256 verified.
 import {createHash, randomBytes} from 'node:crypto';
 import {constants, statSync} from 'node:fs';
-import {lstat, mkdir, open, readFile, readdir, writeFile} from 'node:fs/promises';
+import {lstat, mkdir, open, readFile, readdir, realpath, writeFile} from 'node:fs/promises';
 import {join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {encryptVault} from '../web-admin-v3/crypto.js';
 
-// Current tools main pin at implementation time (9a8dcc99, post-OP27 merge).
-// The installer verifies this exact reviewed pin; do not override.
-export const KIT_TOOLS_PIN = '9a8dcc996e597e6b582a87d255dc11486dd4e8eb';
+// Reviewed installer-bundle source identity: the immutable tools commit that
+// contains this bootstrap. This identifies the reviewed bundle only, NOT the
+// running kernel/tools stack identity, which exact-stack CI qualifies apart
+// from this installer. No local hash or live git head is used as authority.
+export const REVIEWED_BUNDLE_PIN = '91f9845b4cdb750c0671e8583448f1f31cad67ae';
 const APP_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const FORBIDDEN = /token|secret|root|operator|sender|grant|password|\/store|v2/i;
@@ -94,24 +96,47 @@ async function readScopedCap(path, label) {
   } finally { await fd.close(); }
 }
 
-function assertDisjoint(root, origin) {
-  const roots = [env('SKRYNIA_NGINX_ROOT'), env('SKRYNIA_PUBLICATION_MAILBOX')].filter(Boolean).map(p => resolve(p));
-  for (const other of roots) {
-    if (root === other || root.startsWith(other + sep) || other.startsWith(root + sep)) {
-      throw Error('private artifact root must be disjoint from nginx/mailbox roots');
-    }
-  }
-  if (root === resolve('/') || root === resolve('/tmp')) throw Error('unsafe artifact root');
+function assertDisposableOrigin(origin) {
   if (!origin.hostname.endsWith('.test') && process.env.SKRYNIA_ALLOW_NONTEST_ORIGIN !== '1') {
     // Disposable qualification uses *.test; production origins require explicit operator review.
     throw Error('non-disposable origin requires explicit operator review flag');
   }
 }
 
+// The private artifact root and the two documented external roots must be
+// existing, non-aliased directories. Canonical paths (not lexical env strings)
+// are compared so bind/symlink aliases and parent/child nesting are rejected.
+async function assertPrivateArtifactRoot(rawRoot, cfg) {
+  const root = resolve(rawRoot);
+  if (root === resolve('/') || root === resolve('/tmp')) throw Error('unsafe artifact root');
+  await rejectSymlinkParents(root);
+  let st;
+  try { st = await lstat(root); } catch (e) {
+    if (e && e.code === 'ENOENT') throw Error('artifact root must be an existing real directory');
+    throw e;
+  }
+  if (st.isSymbolicLink() || !st.isDirectory()) throw Error('artifact root must be an existing real directory');
+  if ((st.mode & 0o077) !== 0) throw Error('artifact root permissions must be 0700 or stricter');
+  if (typeof process.getuid === 'function' && st.uid !== process.getuid()) throw Error('artifact root must be owned by current uid');
+  const canonical = await realpath(root);
+  for (const [label, value] of [['nginx document root', cfg.nginxRoot], ['publication mailbox', cfg.mailbox]]) {
+    if (!value) throw Error('missing ' + label + ' prerequisite');
+    const other = resolve(value);
+    await rejectSymlinkParents(other);
+    let otherCanonical;
+    try { otherCanonical = await realpath(other); } catch { throw Error(label + ' must be an existing directory'); }
+    if (canonical === otherCanonical || canonical.startsWith(otherCanonical + sep) || otherCanonical.startsWith(canonical + sep)) {
+      throw Error('private artifact root must be disjoint from ' + label);
+    }
+  }
+}
+
 function requireInput() {
   const cfg = {
-    kitPin: env('SKRYNIA_TOOLS_PIN') || KIT_TOOLS_PIN,
+    kitPin: env('SKRYNIA_BOOTSTRAP_BUNDLE_PIN') || REVIEWED_BUNDLE_PIN,
     artifactRoot: env('SKRYNIA_ARTIFACT_ROOT'),
+    nginxRoot: env('SKRYNIA_NGINX_ROOT'),
+    mailbox: env('SKRYNIA_PUBLICATION_MAILBOX'),
     origin: env('SKRYNIA_ORIGIN_URL'),
     app: env('SKRYNIA_ADMIN_APP') || 'admin-v3',
     endpoint: env('SKRYNIA_NATIVE_ENDPOINT') || '/_skrynia/',
@@ -121,8 +146,8 @@ function requireInput() {
     publishHelper: env('SKRYNIA_PUBLISH_HELPER'),
     verifyHelper: env('SKRYNIA_VERIFY_HELPER'),
   };
-  if (cfg.kitPin !== KIT_TOOLS_PIN) throw Error('tools source pin mismatch');
-  for (const k of ['artifactRoot', 'origin', 'readCapFile', 'adminCapFile', 'publishHelper', 'verifyHelper']) {
+  if (cfg.kitPin !== REVIEWED_BUNDLE_PIN) throw Error('reviewed installer bundle pin mismatch');
+  for (const k of ['artifactRoot', 'nginxRoot', 'mailbox', 'origin', 'readCapFile', 'adminCapFile', 'publishHelper', 'verifyHelper']) {
     if (!cfg[k]) throw Error('missing required input ' + k);
   }
   if (!APP_RE.test(cfg.app)) throw Error('invalid admin application name');
@@ -135,7 +160,6 @@ function requireInput() {
   cfg.originUrl = validateOrigin(cfg.origin);
   cfg.endpointUrl = validateEndpoint(cfg.endpoint, cfg.originUrl);
   cfg.origin = cfg.originUrl.origin;
-  assertDisjoint(resolve(cfg.artifactRoot), cfg.originUrl);
   return cfg;
 }
 
@@ -183,13 +207,13 @@ async function runHelper(bin, payload) {
 }
 
 export async function install(cfg = requireInput()) {
-  if (!cfg || cfg.kitPin !== KIT_TOOLS_PIN) throw Error('tools source pin mismatch');
+  if (!cfg || cfg.kitPin !== REVIEWED_BUNDLE_PIN) throw Error('reviewed installer bundle pin mismatch');
   const origin = cfg.originUrl ? cfg.originUrl.origin : validateOrigin(cfg.origin).origin;
   const endpoint = cfg.endpointUrl || validateEndpoint(cfg.endpoint || '/_skrynia/', new URL(origin));
+  assertDisposableOrigin(new URL(origin));
   const session = await scopedSession({...cfg, originUrl: new URL(origin), endpointUrl: endpoint});
   const root = resolve(cfg.artifactRoot);
-  await rejectSymlinkParents(root);
-  assertDisjoint(root, new URL(origin));
+  await assertPrivateArtifactRoot(root, cfg);
   const appRoot = join(root, 'apps', cfg.app);
   await mkdir(appRoot, {recursive: true});
   await rejectSymlinkParents(appRoot);

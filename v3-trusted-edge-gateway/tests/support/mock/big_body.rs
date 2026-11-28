@@ -29,7 +29,18 @@ fn serve(mut s: TcpStream, stop: Arc<AtomicBool>, written: Arc<AtomicUsize>, tot
     let _ = s.set_read_timeout(Some(Duration::from_secs(5)));
     let _ = s.set_write_timeout(Some(Duration::from_secs(10)));
     let mut buf = [0u8; 8192];
-    let _ = s.read(&mut buf);
+    let n = s.read(&mut buf).unwrap_or(0);
+    let req = &buf[..n];
+    if req.ends_with(b"\r\n\r\nb") {
+        let body = b"ok";
+        let hdr = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        );
+        let _ = s.write_all(hdr.as_bytes());
+        let _ = s.write_all(body);
+        return;
+    }
     let hdr = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {total}\r\nConnection: close\r\n\r\n"
     );

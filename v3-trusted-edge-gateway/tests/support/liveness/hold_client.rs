@@ -10,6 +10,18 @@ pub fn send_and_hold_headers(
     body: &[u8],
 ) -> TcpStream {
     let mut s = TcpStream::connect(addr).unwrap();
+    #[cfg(unix)]
+    unsafe {
+        use std::os::unix::io::AsRawFd;
+        let buf: libc::c_int = 4096;
+        libc::setsockopt(
+            s.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_RCVBUF,
+            &buf as *const _ as *const libc::c_void,
+            std::mem::size_of_val(&buf) as libc::socklen_t,
+        );
+    }
     s.set_read_timeout(Some(Duration::from_secs(5))).ok();
     s.set_write_timeout(Some(Duration::from_secs(5))).ok();
     let req = format!(

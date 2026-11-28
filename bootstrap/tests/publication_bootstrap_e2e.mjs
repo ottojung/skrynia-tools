@@ -11,7 +11,7 @@ import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 
-import {install, REVIEWED_BUNDLE_PIN} from '../install.mjs';
+import {install} from '../install.mjs';
 import {
   PINS, sha256hex, sha256buf, hashFile, exists, freePort, stopProc,
   startKernel, startGateway, registerOp, decodeResponse, gatewayFetch,
@@ -191,8 +191,9 @@ async function main() {
     process.env.SKRYNIA_ALLOW_NONTEST_ORIGIN = '1';
     process.env.SKRYNIA_NGINX_ROOT = nginxRoot;
     process.env.SKRYNIA_PUBLICATION_MAILBOX = mailbox;
+    const bundleId = sha256hex(await readFile(new URL('../SHA256SUMS', import.meta.url)));
     const {link, password, release} = await install({
-      kitPin: REVIEWED_BUNDLE_PIN, artifactRoot: source, nginxRoot, mailbox,
+      bundleId, artifactRoot: source, nginxRoot, mailbox,
       origin, app: 'admin-v3', endpoint: '/_skrynia/',
       readCapFile, adminCapFile, adminCapsFile: '',
       publishHelper: wrapper, verifyHelper: wrapper,

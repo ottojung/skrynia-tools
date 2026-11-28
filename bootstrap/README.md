@@ -23,8 +23,11 @@ no kernel-side bootstrap.
   directory (not a symlink or alias), owned by the invoking uid and private
   (`0700` or stricter). It must be disjoint from the nginx document root and
   from the publication mailbox, both of which must also be configured as
-  existing, non-aliased directories. The installer canonicalizes all three
-  paths and rejects nesting or aliases; it does not create the root.
+  existing, non-aliased directories. The installer canonicalizes paths,
+  rejects nesting/symlink aliases, and rejects exact same-directory bind
+  mounts via dev/ino. Distinct bind-mount aliases cannot be detected portably
+  from userspace; operators must not supply aliased mount paths. The installer
+  does not create the root.
 - A compiled publication root WASM and reference publish provider, plus a
   native publication helper that accepts the JSON protocol below and publishes
   through the root/provider (never by writing nginx files directly).
@@ -41,12 +44,23 @@ no kernel-side bootstrap.
 `SKRYNIA_PUBLISH_HELPER`, `SKRYNIA_VERIFY_HELPER`; optional
 `SKRYNIA_NATIVE_ADMIN_CAPS_FILE`, `SKRYNIA_NATIVE_ENDPOINT`
 (default `/_skrynia/`) and `SKRYNIA_ADMIN_APP` (default `admin-v3`).
-`SKRYNIA_BOOTSTRAP_BUNDLE_PIN` is fixed to the reviewed installer-bundle
-source commit `91f9845b4cdb750c0671e8583448f1f31cad67ae` and is rejected if
-changed. That pin identifies only the reviewed immutable bundle source; it is
-**not** the running kernel/tools stack identity (exact artifact pins are
-qualified by exact-stack CI separately). No local hash or live git head is
-used as an authority here.
+Optional `SKRYNIA_ALLOW_NONTEST_ORIGIN=1` is the explicit operator-review
+escape hatch for a real (non-`*.test`) production origin; by default such an
+origin is rejected. The compiled end-to-end fixture sets it only for its
+disposable loopback origin. `SKRYNIA_ALLOW_LOOPBACK_HTTP=1` is the matching
+disposable-only exception to the HTTPS-origin rule.
+
+The exact bootstrap bundle identity is `SKRYNIA_BOOTSTRAP_BUNDLE_ID`, the
+SHA-256 of `bootstrap/SHA256SUMS`. `deploy.sh` computes/verifies that digest
+from the out-of-band anchor (`SKRYNIA_BOOTSTRAP_SOURCE_SHA256`, or the already
+checksum-verified piped bundle) and passes it to the installer; the installer
+records it in the private `.installed` marker and publishes it in
+`manifest.json`/helper payloads as `bundleId`. `SHA256SUMS` does not list
+itself, so the anchor is out-of-band, not self-referential. This identifies
+the exact bundle bytes only; it is **not** the running kernel/tools stack
+identity (exact artifact pins are qualified by exact-stack CI separately).
+The reviewed tools main baseline for this change is commit `91f9845b...` (the
+topic parent), not the executed bundle identity.
 
 ## Pinned distribution
 
@@ -79,7 +93,7 @@ immutable-bundle bootstrap described above.
 
 ```json
 {"action":"publish|verify|unpublish","app":"admin-v3","release":"<sha256>",
- "kitPin":"<reviewed-bundle-pin>","origin":"https://...","endpoint":"https://.../_skrynia/",
+ "bundleId":"<sha256-of-SHA256SUMS>","origin":"https://...","endpoint":"https://.../_skrynia/",
  "files":[{"rel":"apps/admin-v3/<release>/unlock.html","abs":"/private/...","sha256":"<hex>"}],
  "stable":[{"rel":"apps/admin-v3/unlock.html","abs":"/private/...","sha256":"<hex>"}]}
 ```

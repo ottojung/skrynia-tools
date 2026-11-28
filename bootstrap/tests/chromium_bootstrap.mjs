@@ -5,7 +5,7 @@ import {mkdtemp, mkdir, readFile, rm, writeFile, chmod} from 'node:fs/promises';
 import {join, extname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
-import {install, REVIEWED_BUNDLE_PIN} from '../install.mjs';
+import {install} from '../install.mjs';
 
 const PW = process.env.SKRYNIA_PLAYWRIGHT_MODULE
   || '/workspace/skrynia-tools/tests/browser/node_modules/playwright/index.mjs';
@@ -38,8 +38,10 @@ if (j.action === 'verify') {
   const helper = join(dir, 'helper.sh');
   await writeFile(helper, `#!/bin/sh\nexec node '${helperMod}'\n`);
   await chmod(helper, 0o700);
+  const {createHash} = await import('node:crypto');
+  const bundleId = createHash('sha256').update(await readFile(new URL('../SHA256SUMS', import.meta.url))).digest('hex');
   const cfg = {
-    kitPin: REVIEWED_BUNDLE_PIN, artifactRoot: root, nginxRoot, mailbox,
+    bundleId, artifactRoot: root, nginxRoot, mailbox,
     origin: 'https://admin.example.test',
     app: 'admin-v3', endpoint: '/_skrynia/',
     readCapFile: join(dir, 'r.cap'), adminCapFile: join(dir, 'a.cap'),

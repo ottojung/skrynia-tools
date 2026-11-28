@@ -10,11 +10,12 @@ import {join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {encryptVault} from '../web-admin-v3/crypto.js';
 
-// Reviewed installer-bundle source identity: the immutable tools commit that
-// contains this bootstrap. This identifies the reviewed bundle only, NOT the
-// running kernel/tools stack identity, which exact-stack CI qualifies apart
-// from this installer. No local hash or live git head is used as authority.
-export const REVIEWED_BUNDLE_PIN = '91f9845b4cdb750c0671e8583448f1f31cad67ae';
+// Exact bootstrap bundle identity = SHA-256 of bootstrap/SHA256SUMS, verified
+// out-of-band by deploy.sh (or an equivalent trusted operator flow) and passed
+// here as SKRYNIA_BOOTSTRAP_BUNDLE_ID. SHA256SUMS does not list itself, so
+// this anchor is not self-referential. It identifies the exact bundle bytes,
+// not the running kernel/tools stack (qualified by exact-stack CI separately).
+export const BUNDLE_ID_RE = /^[0-9a-f]{64}$/;
 const APP_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const FORBIDDEN = /token|secret|root|operator|sender|grant|password|\/store|v2/i;
@@ -123,9 +124,17 @@ async function assertPrivateArtifactRoot(rawRoot, cfg) {
     if (!value) throw Error('missing ' + label + ' prerequisite');
     const other = resolve(value);
     await rejectSymlinkParents(other);
-    let otherCanonical;
-    try { otherCanonical = await realpath(other); } catch { throw Error(label + ' must be an existing directory'); }
+    let otherSt;
+    try { otherSt = await lstat(other); } catch { throw Error(label + ' must be an existing real directory'); }
+    if (!otherSt.isDirectory() || otherSt.isSymbolicLink()) throw Error(label + ' must be an existing real directory');
+    const otherCanonical = await realpath(other);
     if (canonical === otherCanonical || canonical.startsWith(otherCanonical + sep) || otherCanonical.startsWith(canonical + sep)) {
+      throw Error('private artifact root must be disjoint from ' + label);
+    }
+    // Exact same-directory bind mounts share dev+ino and are rejected. Distinct
+    // bind-mount aliases cannot be detected portably from userspace; operators
+    // must not supply aliased mount paths (documented trusted-host assumption).
+    if (st.dev === otherSt.dev && st.ino === otherSt.ino) {
       throw Error('private artifact root must be disjoint from ' + label);
     }
   }
@@ -133,7 +142,7 @@ async function assertPrivateArtifactRoot(rawRoot, cfg) {
 
 function requireInput() {
   const cfg = {
-    kitPin: env('SKRYNIA_BOOTSTRAP_BUNDLE_PIN') || REVIEWED_BUNDLE_PIN,
+    bundleId: env('SKRYNIA_BOOTSTRAP_BUNDLE_ID'),
     artifactRoot: env('SKRYNIA_ARTIFACT_ROOT'),
     nginxRoot: env('SKRYNIA_NGINX_ROOT'),
     mailbox: env('SKRYNIA_PUBLICATION_MAILBOX'),
@@ -146,7 +155,7 @@ function requireInput() {
     publishHelper: env('SKRYNIA_PUBLISH_HELPER'),
     verifyHelper: env('SKRYNIA_VERIFY_HELPER'),
   };
-  if (cfg.kitPin !== REVIEWED_BUNDLE_PIN) throw Error('reviewed installer bundle pin mismatch');
+  if (!BUNDLE_ID_RE.test(cfg.bundleId || '')) throw Error('missing or invalid out-of-band bootstrap bundle identity (SKRYNIA_BOOTSTRAP_BUNDLE_ID)');
   for (const k of ['artifactRoot', 'nginxRoot', 'mailbox', 'origin', 'readCapFile', 'adminCapFile', 'publishHelper', 'verifyHelper']) {
     if (!cfg[k]) throw Error('missing required input ' + k);
   }
@@ -207,7 +216,7 @@ async function runHelper(bin, payload) {
 }
 
 export async function install(cfg = requireInput()) {
-  if (!cfg || cfg.kitPin !== REVIEWED_BUNDLE_PIN) throw Error('reviewed installer bundle pin mismatch');
+  if (!cfg || !BUNDLE_ID_RE.test(cfg.bundleId || '')) throw Error('missing or invalid out-of-band bootstrap bundle identity (SKRYNIA_BOOTSTRAP_BUNDLE_ID)');
   const origin = cfg.originUrl ? cfg.originUrl.origin : validateOrigin(cfg.origin).origin;
   const endpoint = cfg.endpointUrl || validateEndpoint(cfg.endpoint || '/_skrynia/', new URL(origin));
   assertDisposableOrigin(new URL(origin));
@@ -218,7 +227,7 @@ export async function install(cfg = requireInput()) {
   await mkdir(appRoot, {recursive: true});
   await rejectSymlinkParents(appRoot);
   await writeFile(join(appRoot, '.installed'),
-    JSON.stringify({kitPin: cfg.kitPin, created: new Date().toISOString()}) + '\n',
+    JSON.stringify({bundleId: cfg.bundleId, created: new Date().toISOString()}) + '\n',
     {flag: 'wx', mode: 0o600});
 
   const password = b64url(randomBytes(32));
@@ -259,7 +268,7 @@ export async function install(cfg = requireInput()) {
     rel: `apps/${cfg.app}/${f.rel}`, abs: join(appRoot, f.rel), sha256: f.sha256,
   }));
   const payload = {
-    app: cfg.app, release, kitPin: cfg.kitPin, origin, endpoint,
+    app: cfg.app, release, bundleId: cfg.bundleId, origin, endpoint,
     files: releaseFiles,
     stable: stableFiles,
   };

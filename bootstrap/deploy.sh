@@ -5,9 +5,9 @@
 set -euo pipefail
 
 umask 077
-# Reviewed installer-bundle source identity (immutable tools commit containing
-# this bootstrap), NOT the running kernel/tools stack pin qualified by CI.
-BUNDLE_PIN=91f9845b4cdb750c0671e8583448f1f31cad67ae
+# The exact bootstrap bundle identity is the SHA-256 of bootstrap/SHA256SUMS,
+# verified out-of-band (not self-referential: SHA256SUMS does not list
+# itself). This is the only content identity passed to the installer.
 REPO="${SKRYNIA_BOOTSTRAP_REPO:-ottojung/skrynia-tools}"
 
 ask() {
@@ -65,7 +65,7 @@ HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
 verify_local_bundle "$HERE"
 
 # Neither value may be overridden by the operator.
-export SKRYNIA_BOOTSTRAP_BUNDLE_PIN="$BUNDLE_PIN"
+export SKRYNIA_BOOTSTRAP_BUNDLE_ID="$manifest_actual"
 export SKRYNIA_ARTIFACT_ROOT="$(ask SKRYNIA_ARTIFACT_ROOT)"
 export SKRYNIA_NGINX_ROOT="$(ask SKRYNIA_NGINX_ROOT)"
 export SKRYNIA_PUBLICATION_MAILBOX="$(ask SKRYNIA_PUBLICATION_MAILBOX)"

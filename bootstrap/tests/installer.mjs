@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {decryptVault} from '../../web-admin-v3/crypto.js';
-import {install, REVIEWED_BUNDLE_PIN} from '../install.mjs';
+import {install, BUNDLE_ID_RE} from '../install.mjs';
 
 const hex = n => n.repeat(64);
 const sha = b => createHash('sha256').update(b).digest('hex');
@@ -60,8 +60,9 @@ if (j.action === 'verify') {
   const wrap = join(dir, 'helper.sh');
   await writeFile(wrap, `#!/bin/sh\nexec node '${helperMod}'\n`);
   await chmod(wrap, 0o700);
+  const bundleId = sha(await readFile(new URL('../SHA256SUMS', import.meta.url)));
   const cfg = {
-    kitPin: REVIEWED_BUNDLE_PIN,
+    bundleId,
     artifactRoot: root,
     nginxRoot,
     mailbox,
@@ -74,12 +75,13 @@ if (j.action === 'verify') {
     publishHelper: wrap,
     verifyHelper: wrap,
   };
-  return {dir, cfg, root, nginxRoot, mailbox};
+  return {dir, cfg, root, nginxRoot, mailbox, bundleId};
 }
 
-test('install refuses a divergent reviewed bundle pin and unsafe origins/endpoints', async t => {
+test('install refuses a missing or invalid bundle identity and unsafe origins/endpoints', async t => {
   const {cfg} = await fixture(t);
-  await assert.rejects(install({...cfg, kitPin: 'f'.repeat(40)}), /reviewed installer bundle pin mismatch/);
+  await assert.rejects(install({...cfg, bundleId: ''}), /missing or invalid out-of-band bootstrap bundle identity/);
+  await assert.rejects(install({...cfg, bundleId: 'f'.repeat(40)}), /missing or invalid out-of-band bootstrap bundle identity/);
   await assert.rejects(install({...cfg, origin: 'http://admin.example.test'}), /https origin/);
   await assert.rejects(install({...cfg, origin: 'https://u:p@admin.example.test/'}), /credentials/);
   await assert.rejects(install({...cfg, endpoint: '//evil.test/x'}), /same-origin/);
@@ -113,6 +115,16 @@ test('artifact root prerequisite is enforced, not a lexical optional comparison'
   assert.equal(nginxRoot !== mailbox, true);
 });
 
+test('nginx root and publication mailbox must be existing real directories', async t => {
+  const {cfg, dir} = await fixture(t);
+  await assert.rejects(install({...cfg, nginxRoot: join(dir, 'missing-nginx')}),
+    /nginx document root must be an existing real directory/);
+  const mailboxFile = join(dir, 'mailbox-as-file');
+  await writeFile(mailboxFile, 'not a directory');
+  await assert.rejects(install({...cfg, mailbox: mailboxFile}),
+    /publication mailbox must be an existing real directory/);
+});
+
 test('install refuses to overwrite an existing private output', async t => {
   const {cfg} = await fixture(t);
   const first = await install(cfg);
@@ -120,8 +132,8 @@ test('install refuses to overwrite an existing private output', async t => {
   assert.ok(first.release);
 });
 
-test('successful install persists a private recovery file and records the reviewed pin', async t => {
-  const {cfg, root} = await fixture(t);
+test('successful install persists a private recovery file and records the bundle identity', async t => {
+  const {cfg, root, bundleId} = await fixture(t);
   const result = await install(cfg);
   assert.equal(result.passwordFile, join(root, 'apps', 'admin-v3', `password.${result.release}.txt`));
   const st = await stat(result.passwordFile);
@@ -129,7 +141,8 @@ test('successful install persists a private recovery file and records the review
   assert.equal(st.mode & 0o777, 0o600);
   assert.equal(await readFile(result.passwordFile, 'utf8'), result.password + '\n');
   const marker = JSON.parse(await readFile(join(root, 'apps', 'admin-v3', '.installed'), 'utf8'));
-  assert.equal(marker.kitPin, REVIEWED_BUNDLE_PIN);
+  assert.equal(marker.bundleId, bundleId);
+  assert.match(marker.bundleId, BUNDLE_ID_RE);
 });
 
 test('vault is scoped, roster is exact and published assets stay public-safe', async t => {

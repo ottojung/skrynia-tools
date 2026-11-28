@@ -1,7 +1,7 @@
 # Target ABI migration: tools and SDK (T1)
 
 This is derivative architecture for the owner-approved 2026-11-27 change and
-the published kernel source `c9d9656db18cc74845812e61082d4782a1a4243b`
+the published kernel source `3bc24d8467be67c79d467920266528a36032bae4`
 (`docs/intent-records/` in Skrynia main). It is not a new intent record.
 K0's scalar, seek, CAS, eval and wire choices are explicit integration
 decisions, not owner intent. No production cutover, no CLI, no legacy wire

@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 env:
-  SKRYNIA_KERNEL_HEAD: 3bc24d8467be67c79d467920266528a36032bae4
+  SKRYNIA_KERNEL_HEAD: 81d9567581d09b90c5fe0ce3930e53ded47bb6be
 jobs:
   native-components:
     runs-on: ubuntu-latest

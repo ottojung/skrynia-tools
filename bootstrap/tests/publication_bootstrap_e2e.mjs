@@ -11,7 +11,7 @@ import {tmpdir} from 'node:os';
 import {pathToFileURL} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 
-import {install, KIT_TOOLS_PIN} from '../install.mjs';
+import {install} from '../install.mjs';
 import {
   PINS, sha256hex, sha256buf, hashFile, exists, freePort, stopProc,
   startKernel, startGateway, registerOp, decodeResponse, gatewayFetch,
@@ -139,6 +139,7 @@ async function main() {
     const operator = join(tmp, 'operator'), mailbox = join(tmp, 'publication-user', 'publication-requests');
     const source = join(tmp, 'source-root'), nginxRoot = join(tmp, 'nginx-root'), nginxWork = join(tmp, 'nginx-work');
     for (const d of [operator, mailbox, source, nginxRoot, nginxWork]) await mkdir(d, {recursive: true});
+    for (const d of [mailbox, source, nginxRoot]) await chmod(d, 0o700);
     await mkdir(join(operator, 'security'), {recursive: true});
     const pubToken = randomBytes(32);
     await writeFile(join(operator, 'security', 'program0.sha256'), Buffer.from(sha256hex(pubToken), 'hex'));
@@ -189,8 +190,10 @@ async function main() {
     process.env.SKRYNIA_ALLOW_LOOPBACK_HTTP = '1';
     process.env.SKRYNIA_ALLOW_NONTEST_ORIGIN = '1';
     process.env.SKRYNIA_NGINX_ROOT = nginxRoot;
+    process.env.SKRYNIA_PUBLICATION_MAILBOX = mailbox;
+    const bundleId = sha256hex(await readFile(new URL('../SHA256SUMS', import.meta.url)));
     const {link, password, release} = await install({
-      kitPin: KIT_TOOLS_PIN, artifactRoot: source,
+      bundleId, artifactRoot: source, nginxRoot, mailbox,
       origin, app: 'admin-v3', endpoint: '/_skrynia/',
       readCapFile, adminCapFile, adminCapsFile: '',
       publishHelper: wrapper, verifyHelper: wrapper,

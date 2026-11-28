@@ -5,14 +5,17 @@
 // served file has been independently SHA-256 verified.
 import {createHash, randomBytes} from 'node:crypto';
 import {constants, statSync} from 'node:fs';
-import {lstat, mkdir, open, readFile, readdir, writeFile} from 'node:fs/promises';
+import {lstat, mkdir, open, readFile, readdir, realpath, writeFile} from 'node:fs/promises';
 import {join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {encryptVault} from '../web-admin-v3/crypto.js';
 
-// Current tools main pin at implementation time (9a8dcc99, post-OP27 merge).
-// The installer verifies this exact reviewed pin; do not override.
-export const KIT_TOOLS_PIN = '9a8dcc996e597e6b582a87d255dc11486dd4e8eb';
+// Exact bootstrap bundle identity = SHA-256 of bootstrap/SHA256SUMS, verified
+// out-of-band by deploy.sh (or an equivalent trusted operator flow) and passed
+// here as SKRYNIA_BOOTSTRAP_BUNDLE_ID. SHA256SUMS does not list itself, so
+// this anchor is not self-referential. It identifies the exact bundle bytes,
+// not the running kernel/tools stack (qualified by exact-stack CI separately).
+export const BUNDLE_ID_RE = /^[0-9a-f]{64}$/;
 const APP_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
 const FORBIDDEN = /token|secret|root|operator|sender|grant|password|\/store|v2/i;
@@ -94,24 +97,55 @@ async function readScopedCap(path, label) {
   } finally { await fd.close(); }
 }
 
-function assertDisjoint(root, origin) {
-  const roots = [env('SKRYNIA_NGINX_ROOT'), env('SKRYNIA_PUBLICATION_MAILBOX')].filter(Boolean).map(p => resolve(p));
-  for (const other of roots) {
-    if (root === other || root.startsWith(other + sep) || other.startsWith(root + sep)) {
-      throw Error('private artifact root must be disjoint from nginx/mailbox roots');
-    }
-  }
-  if (root === resolve('/') || root === resolve('/tmp')) throw Error('unsafe artifact root');
+function assertDisposableOrigin(origin) {
   if (!origin.hostname.endsWith('.test') && process.env.SKRYNIA_ALLOW_NONTEST_ORIGIN !== '1') {
     // Disposable qualification uses *.test; production origins require explicit operator review.
     throw Error('non-disposable origin requires explicit operator review flag');
   }
 }
 
+// The private artifact root and the two documented external roots must be
+// existing, non-aliased directories. Canonical paths (not lexical env strings)
+// are compared so bind/symlink aliases and parent/child nesting are rejected.
+async function assertPrivateArtifactRoot(rawRoot, cfg) {
+  const root = resolve(rawRoot);
+  if (root === resolve('/') || root === resolve('/tmp')) throw Error('unsafe artifact root');
+  await rejectSymlinkParents(root);
+  let st;
+  try { st = await lstat(root); } catch (e) {
+    if (e && e.code === 'ENOENT') throw Error('artifact root must be an existing real directory');
+    throw e;
+  }
+  if (st.isSymbolicLink() || !st.isDirectory()) throw Error('artifact root must be an existing real directory');
+  if ((st.mode & 0o077) !== 0) throw Error('artifact root permissions must be 0700 or stricter');
+  if (typeof process.getuid === 'function' && st.uid !== process.getuid()) throw Error('artifact root must be owned by current uid');
+  const canonical = await realpath(root);
+  for (const [label, value] of [['nginx document root', cfg.nginxRoot], ['publication mailbox', cfg.mailbox]]) {
+    if (!value) throw Error('missing ' + label + ' prerequisite');
+    const other = resolve(value);
+    await rejectSymlinkParents(other);
+    let otherSt;
+    try { otherSt = await lstat(other); } catch { throw Error(label + ' must be an existing real directory'); }
+    if (!otherSt.isDirectory() || otherSt.isSymbolicLink()) throw Error(label + ' must be an existing real directory');
+    const otherCanonical = await realpath(other);
+    if (canonical === otherCanonical || canonical.startsWith(otherCanonical + sep) || otherCanonical.startsWith(canonical + sep)) {
+      throw Error('private artifact root must be disjoint from ' + label);
+    }
+    // Exact same-directory bind mounts share dev+ino and are rejected. Distinct
+    // bind-mount aliases cannot be detected portably from userspace; operators
+    // must not supply aliased mount paths (documented trusted-host assumption).
+    if (st.dev === otherSt.dev && st.ino === otherSt.ino) {
+      throw Error('private artifact root must be disjoint from ' + label);
+    }
+  }
+}
+
 function requireInput() {
   const cfg = {
-    kitPin: env('SKRYNIA_TOOLS_PIN') || KIT_TOOLS_PIN,
+    bundleId: env('SKRYNIA_BOOTSTRAP_BUNDLE_ID'),
     artifactRoot: env('SKRYNIA_ARTIFACT_ROOT'),
+    nginxRoot: env('SKRYNIA_NGINX_ROOT'),
+    mailbox: env('SKRYNIA_PUBLICATION_MAILBOX'),
     origin: env('SKRYNIA_ORIGIN_URL'),
     app: env('SKRYNIA_ADMIN_APP') || 'admin-v3',
     endpoint: env('SKRYNIA_NATIVE_ENDPOINT') || '/_skrynia/',
@@ -121,8 +155,8 @@ function requireInput() {
     publishHelper: env('SKRYNIA_PUBLISH_HELPER'),
     verifyHelper: env('SKRYNIA_VERIFY_HELPER'),
   };
-  if (cfg.kitPin !== KIT_TOOLS_PIN) throw Error('tools source pin mismatch');
-  for (const k of ['artifactRoot', 'origin', 'readCapFile', 'adminCapFile', 'publishHelper', 'verifyHelper']) {
+  if (!BUNDLE_ID_RE.test(cfg.bundleId || '')) throw Error('missing or invalid out-of-band bootstrap bundle identity (SKRYNIA_BOOTSTRAP_BUNDLE_ID)');
+  for (const k of ['artifactRoot', 'nginxRoot', 'mailbox', 'origin', 'readCapFile', 'adminCapFile', 'publishHelper', 'verifyHelper']) {
     if (!cfg[k]) throw Error('missing required input ' + k);
   }
   if (!APP_RE.test(cfg.app)) throw Error('invalid admin application name');
@@ -135,7 +169,6 @@ function requireInput() {
   cfg.originUrl = validateOrigin(cfg.origin);
   cfg.endpointUrl = validateEndpoint(cfg.endpoint, cfg.originUrl);
   cfg.origin = cfg.originUrl.origin;
-  assertDisjoint(resolve(cfg.artifactRoot), cfg.originUrl);
   return cfg;
 }
 
@@ -182,19 +215,27 @@ async function runHelper(bin, payload) {
   return parsed;
 }
 
+async function localBundleId() {
+  return sha256(await readFile(new URL('./SHA256SUMS', import.meta.url)));
+}
+
 export async function install(cfg = requireInput()) {
-  if (!cfg || cfg.kitPin !== KIT_TOOLS_PIN) throw Error('tools source pin mismatch');
+  if (!cfg || !BUNDLE_ID_RE.test(cfg.bundleId || '')) throw Error('missing or invalid out-of-band bootstrap bundle identity (SKRYNIA_BOOTSTRAP_BUNDLE_ID)');
+  const expectedBundleId = await localBundleId();
+  if (cfg.bundleId !== expectedBundleId) {
+    throw Error('bootstrap bundle identity does not match local SHA256SUMS bytes; verify the bundle out-of-band (deploy.sh sets SKRYNIA_BOOTSTRAP_BUNDLE_ID from the verified anchor)');
+  }
   const origin = cfg.originUrl ? cfg.originUrl.origin : validateOrigin(cfg.origin).origin;
   const endpoint = cfg.endpointUrl || validateEndpoint(cfg.endpoint || '/_skrynia/', new URL(origin));
+  assertDisposableOrigin(new URL(origin));
   const session = await scopedSession({...cfg, originUrl: new URL(origin), endpointUrl: endpoint});
   const root = resolve(cfg.artifactRoot);
-  await rejectSymlinkParents(root);
-  assertDisjoint(root, new URL(origin));
+  await assertPrivateArtifactRoot(root, cfg);
   const appRoot = join(root, 'apps', cfg.app);
   await mkdir(appRoot, {recursive: true});
   await rejectSymlinkParents(appRoot);
   await writeFile(join(appRoot, '.installed'),
-    JSON.stringify({kitPin: cfg.kitPin, created: new Date().toISOString()}) + '\n',
+    JSON.stringify({bundleId: cfg.bundleId, created: new Date().toISOString()}) + '\n',
     {flag: 'wx', mode: 0o600});
 
   const password = b64url(randomBytes(32));
@@ -235,7 +276,7 @@ export async function install(cfg = requireInput()) {
     rel: `apps/${cfg.app}/${f.rel}`, abs: join(appRoot, f.rel), sha256: f.sha256,
   }));
   const payload = {
-    app: cfg.app, release, kitPin: cfg.kitPin, origin, endpoint,
+    app: cfg.app, release, bundleId: cfg.bundleId, origin, endpoint,
     files: releaseFiles,
     stable: stableFiles,
   };

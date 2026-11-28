@@ -5,7 +5,9 @@
 set -euo pipefail
 
 umask 077
-TOOLS_PIN=9a8dcc996e597e6b582a87d255dc11486dd4e8eb
+# The exact bootstrap bundle identity is the SHA-256 of bootstrap/SHA256SUMS,
+# verified out-of-band (not self-referential: SHA256SUMS does not list
+# itself). This is the only content identity passed to the installer.
 REPO="${SKRYNIA_BOOTSTRAP_REPO:-ottojung/skrynia-tools}"
 
 ask() {
@@ -25,6 +27,7 @@ verify_local_bundle() {
   manifest_actual="$(sha256sum "$here/SHA256SUMS" | awk '{print $1}')"
   [[ "$manifest_actual" == "$expected" ]] || { echo 'bootstrap SHA256SUMS checksum mismatch (out-of-band anchor required)' >&2; exit 2; }
   (cd "$here" && sha256sum -c SHA256SUMS >/dev/null) || { echo 'bootstrap SHA256SUMS verification failed' >&2; exit 2; }
+  printf '%s' "$manifest_actual"
 }
 
 SOURCE_FILE="${BASH_SOURCE[0]:-}"
@@ -60,11 +63,13 @@ if [[ -z "$SOURCE_FILE" || "$SOURCE_FILE" == /dev/stdin || "$SOURCE_FILE" == - |
 fi
 
 HERE="$(cd -- "$(dirname -- "$SOURCE_FILE")" && pwd)"
-verify_local_bundle "$HERE"
+manifest_actual="$(verify_local_bundle "$HERE")"
 
 # Neither value may be overridden by the operator.
-export SKRYNIA_TOOLS_PIN="$TOOLS_PIN"
+export SKRYNIA_BOOTSTRAP_BUNDLE_ID="$manifest_actual"
 export SKRYNIA_ARTIFACT_ROOT="$(ask SKRYNIA_ARTIFACT_ROOT)"
+export SKRYNIA_NGINX_ROOT="$(ask SKRYNIA_NGINX_ROOT)"
+export SKRYNIA_PUBLICATION_MAILBOX="$(ask SKRYNIA_PUBLICATION_MAILBOX)"
 export SKRYNIA_ORIGIN_URL="$(ask SKRYNIA_ORIGIN_URL)"
 export SKRYNIA_NATIVE_READ_CAP_FILE="$(ask SKRYNIA_NATIVE_READ_CAP_FILE)"
 export SKRYNIA_NATIVE_ADMIN_CAP_FILE="$(ask SKRYNIA_NATIVE_ADMIN_CAP_FILE)"

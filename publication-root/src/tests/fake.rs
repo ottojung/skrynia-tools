@@ -11,6 +11,8 @@ pub struct Fake {
     pub collisions: u8,
     pub collided: Vec<Vec<u8>>,
     pub open_error: Option<i32>,
+    pub verifier_open_error: Option<i32>,
+    pub read_error: Option<i32>,
     pub provider: i32,
     pub trap: bool,
     pub deny_delete: bool,

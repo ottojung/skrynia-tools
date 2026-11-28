@@ -1,5 +1,5 @@
-//! Ticket-open error classification against the pinned ABI 3.1 kernel.
-use super::{Fake, bridge, frame};
+//! Host error classification against the pinned ABI 3.1 kernel.
+use super::{Fake, auth, bridge, frame};
 
 fn request() -> frame::Request {
     frame::Request {
@@ -38,4 +38,14 @@ fn noncollision_eio_never_retries_invokes_or_deletes() {
     assert_eq!(bridge::run(&mut fake, &request()), bridge::MAILBOX);
     assert!(fake.invokes.is_empty());
     assert!(fake.deleted.is_empty());
+}
+
+#[test]
+fn auth_host_errnos_are_never_ambiguous_response_codes() {
+    for code in [-3, -4, -5, -8] {
+        let mut fake = super::with_io_error(Some(code), None);
+        assert_eq!(auth::require(&mut fake, 99), Err(-4), "read errno {code}");
+    }
+    let mut fake = super::with_io_error(None, Some(-8));
+    assert_eq!(auth::require(&mut fake, 99), Err(-4));
 }

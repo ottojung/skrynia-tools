@@ -25,7 +25,9 @@ pub extern "C" fn skrynia_main(input_fd: i32, output_fd: i32) -> i32 {
 fn process<H: Host>(host: &mut H, input_fd: i32) -> i32 {
     let token = match auth::require(host, input_fd) {
         Ok(t) => t,
-        Err(e) => return e,
+        // A pre-import failure is an invalid request, never a post-import
+        // UNKNOWN/CLEANUP outcome or an undocumented host errno.
+        Err(_) => return bridge::INVALID,
     };
     let mut rest = Vec::new();
     loop {
@@ -34,7 +36,7 @@ fn process<H: Host>(host: &mut H, input_fd: i32) -> i32 {
             Ok(0) => break,
             Ok(n) if rest.len() + n <= MAX_BODY => rest.extend_from_slice(&chunk[..n]),
             Ok(_) => return bridge::INVALID,
-            Err(e) => return e,
+            Err(_) => return bridge::INVALID,
         }
     }
     let mut raw = Vec::with_capacity(33 + rest.len());

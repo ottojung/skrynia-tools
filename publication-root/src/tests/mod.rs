@@ -11,6 +11,14 @@ mod fake;
 mod host;
 mod open_error;
 
+pub(super) fn with_io_error(read: Option<i32>, open: Option<i32>) -> Fake {
+    Fake {
+        read_error: read,
+        verifier_open_error: open,
+        ..Fake::default()
+    }
+}
+
 pub(super) fn take(src: &[u8], pos: &mut usize, dst: &mut [u8]) -> usize {
     let n = src.len().saturating_sub(*pos).min(dst.len());
     dst[..n].copy_from_slice(&src[*pos..*pos + n]);

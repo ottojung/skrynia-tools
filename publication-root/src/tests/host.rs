@@ -3,7 +3,7 @@ use super::{Fake, Host};
 impl Host for Fake {
     fn open(&mut self, path: &[u8], mode: u32) -> Result<i32, i32> {
         if mode == 1 {
-            return Ok(7);
+            return self.verifier_open_error.map_or(Ok(7), Err);
         }
         if let Some(code) = self.open_error(path) {
             return Err(code);
@@ -14,6 +14,9 @@ impl Host for Fake {
         Fake::exists(self, path)
     }
     fn read(&mut self, fd: i32, dst: &mut [u8]) -> Result<usize, i32> {
+        if let Some(code) = self.read_error {
+            return Err(code);
+        }
         if fd == 7 {
             let verifier = [self.verifier.as_slice(), self.verifier_extra.as_slice()].concat();
             return Ok(super::take(&verifier, &mut self.vpos, dst));

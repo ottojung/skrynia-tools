@@ -1,0 +1,1 @@
+../../../../../src/cb_guest/cap/disk_rm.rs

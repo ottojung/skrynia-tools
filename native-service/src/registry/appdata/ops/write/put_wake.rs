@@ -27,7 +27,6 @@ pub fn put_wake<D: Disk, L: MutLock>(
         if !matches_precond(&state, expect) {
             return Err(AppErr::Conflict(state.hash()));
         }
-        let hash = crate::hash_bytes(value);
         let wake_ns = super::push::verify_grant(
             disk,
             base,
@@ -38,7 +37,7 @@ pub fn put_wake<D: Disk, L: MutLock>(
         )
         .map_err(hint_err)?;
         let slot = super::wake_hint::precommit(disk, base, &ns, key, &wake_ns).map_err(hint_err)?;
-        io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)?;
+        let hash = io::write_value(disk, base, &ns, key, value).map_err(AppErr::from_store)?;
         super::wake_hint::postcommit(disk, base, &ns, key, Some(hash), slot);
         Ok(hash)
     })

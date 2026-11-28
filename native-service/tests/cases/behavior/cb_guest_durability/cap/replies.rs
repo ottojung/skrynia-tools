@@ -3,10 +3,10 @@ use std::cell::RefCell;
 type Reply = Result<(i32, Vec<u8>), i32>;
 
 thread_local! {
-    static LOG: RefCell<Vec<Vec<u8>>> = RefCell::new(Vec::new());
-    static FAIL_SYNC: RefCell<Option<usize>> = RefCell::new(None);
-    static SYNC_COUNT: RefCell<usize> = RefCell::new(0);
-    static NEXT_DIR_FD: RefCell<i32> = RefCell::new(100);
+    static LOG: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) };
+    static FAIL_SYNC: RefCell<Option<usize>> = const { RefCell::new(None) };
+    static SYNC_COUNT: RefCell<usize> = const { RefCell::new(0) };
+    static NEXT_DIR_FD: RefCell<i32> = const { RefCell::new(100) };
 }
 
 /// `fail_sync` is the 1-based SYNC ordinal that replies with -5.

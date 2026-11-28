@@ -16,7 +16,7 @@ fn wire_codes_are_reachable() {
         wire::RELEASE_LOCK,
     ];
     assert!(codes.iter().all(|&c| c != 0));
-    assert!(wire::E_NOENT < 0);
+    const { assert!(wire::E_NOENT < 0) };
     assert!(wire::is_missing(wire::E_NOENT));
 }
 

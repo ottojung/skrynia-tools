@@ -9,6 +9,7 @@ mod cases5;
 mod cases6;
 mod fake;
 mod host;
+mod open_error;
 
 pub(super) fn take(src: &[u8], pos: &mut usize, dst: &mut [u8]) -> usize {
     let n = src.len().saturating_sub(*pos).min(dst.len());

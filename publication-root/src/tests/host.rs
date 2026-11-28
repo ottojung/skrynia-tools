@@ -5,9 +5,8 @@ impl Host for Fake {
         if mode == 1 {
             return Ok(7);
         }
-        if self.collisions > 0 {
-            self.collisions -= 1;
-            return Err(-3);
+        if let Some(code) = self.open_error() {
+            return Err(code);
         }
         Ok(100 + self.next_ticket.wrapping_sub(1) as i32)
     }
